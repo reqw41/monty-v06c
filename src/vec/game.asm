@@ -249,7 +249,6 @@ ft_map:		ds	2
 row_dirty:	ds	24
 drew_any:	ds	1
 dc_m:		ds	1
-spr_last:	ds	4*SPR_MAX
 col_shown:	ds	32
 used:		ds	16
 repl:		ds	16
@@ -263,12 +262,15 @@ rr_m:		ds	6
 rr_p:		ds	1
 rr_np:		ds	1
 rr_y:		ds	1
-spr_n:		ds	1
 spr_rec:	ds	SREC*SPR_MAX
+spr_new:	ds	SREC*SPR_MAX
+spr_force:	ds	1
+spx_ch:		ds	1
+spx_a:		ds	2
+sv_ptr:		ds	2
+sp_vis:		ds	1
 sv_lo:		ds	1
 sv_col:		ds	1
-sp_px:		ds	1
-sp_py:		ds	1
 sp_rows:	ds	1
 sp_col:		ds	1
 sp_k:		ds	1

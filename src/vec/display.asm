@@ -1,6 +1,6 @@
 ; Вывод виртуальной VRAM на экран Вектора раз в кадр (из прерывания).
 ; Отметки: row_dirty[24] (записи в таблицу имён), pat_flag[256] (тайлы с новыми шаблонами), vdirty (VD_*).
-; Показанное: NTS (копия таблицы имён), col_shown (цвета), tile_hi (номер банка шаблонов 0-3), spr_last.
+; Показанное: NTS (копия таблицы имён), col_shown (цвета), tile_hi (номер банка шаблонов 0-3); спрайты — spr_rec (sprites.asm).
 ; Пока экран VDP выключен (R1 бит 6 = 0) — не рисуем; при включении — полная перерисовка с палитрой.
 
 display:
@@ -76,8 +76,8 @@ dp3:		ld	a,(vdirty)
 		and	0xFF-VD_COL
 		ld	(vdirty),a
 		call	col_changed
-dp4:		call	spr_changed		; спрайты изменились или есть строки к перерисовке: фон назад, клетки, спрайты
-		jp	nz,dp5
+dp4:		call	spr_plan		; какие спрайты перерисовать (A — сколько)
+		ld	c,a
 		ld	hl,row_dirty
 		ld	b,24
 		xor	a
@@ -85,14 +85,16 @@ dp4a:		or	(hl)
 		inc	hl
 		dec	b
 		jp	nz,dp4a
-		or	a
+		or	c
 		ret	z
-dp5:		call	spr_erase		; клетки под прежними спрайтами — к перерисовке, затем клетки, затем спрайты
+		call	spr_restore		; фон под отмеченными назад, затем клетки, затем отмеченные спрайты
 		call	draw_rows
 		jp	spr_draw
 
 ; room_redraw: таблица анимации, палитра, всё к перерисовке
 room_redraw:
+		ld	a,1
+		ld	(spr_force),a
 		ld	hl,col_flag
 		ld	bc,256
 		ld	e,0

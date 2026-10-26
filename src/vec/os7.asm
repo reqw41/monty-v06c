@@ -406,7 +406,7 @@ vmark_range:
 		jp	c,vmr_nt
 		cp	0xE0
 		ret	c
-		push	hl			; тайлы: от (HL >> 3) & FF, (BC + 7) / 8 + 1 штук
+		push	hl			; тайлы: от (HL >> 3) & FF до (HL + BC - 1) >> 3
 		push	bc
 		ld	a,l
 		rrca
@@ -422,23 +422,34 @@ vmark_range:
 		or	e
 		ld	l,a
 		ld	h,pat_flag/256
-		ld	a,c			; штук = BC / 8 + 2 (не больше 256)
+		pop	bc			; штук = ((HL & 7) + BC + 7) / 8 (не больше 255): тайлы с первого по последний
+		pop	de			; DE = HL исходный
+		push	de
+		push	bc
+		ld	a,e
+		and	7
+		add	a,7
+		add	a,c
+		ld	e,a
+		ld	a,b
+		adc	a,0
+		cp	8
+		jp	nc,vmt0
+		rrca				; (A:E) >> 3
+		rrca
+		rrca
+		and	0xE0
+		ld	d,a
+		ld	a,e
 		rrca
 		rrca
 		rrca
 		and	0x1F
-		ld	e,a
-		ld	a,b
-		rlca
-		rlca
-		rlca
-		rlca
-		rlca
-		and	0xE0
-		or	e
-		add	a,2
-		jp	nc,vmt1
-		ld	a,0xFF
+		or	d
+		jp	nz,vmt1
+		inc	a
+		jp	vmt1
+vmt0:		ld	a,0xFF
 vmt1:		ld	e,a
 vmt2:		ld	(hl),1
 		inc	l
