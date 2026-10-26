@@ -13,7 +13,7 @@
     for l in 1 2 3; do node tools/cover_run.js $l; done          # обход 99 комнат телепортом
     for l in 1 2 3; do node tools/rooms.js $l; python3 tools/pyramid.py $l; done
     for l in 1 2 3; do node tools/room_nt.js $l; done; python3 -I tools/roomdec.py check   # 297 из 297
-    python3 -I tools/export_res.py                                                         # ресурсы build/res/
+    python3 -I tools/export_res.py; python3 -I tools/objects.py; node tools/sfx.js; python3 -I tools/sfx_wav.py
     python3 -I tools/cov_entries.py; tools/ghidra/run.sh   # повторять, пока остаток не станет 816d 8179 9207
     python3 -m venv tools/.venv && tools/.venv/bin/pip install skoolkit==10.1
     tools/build_skool.sh
@@ -27,7 +27,8 @@
 2. Игра 8025–B104: главный цикл, комнаты, Панама Джо, враги, предметы. Данные 9377–A067, B105–BFFF: карты комнат, тайлы, спрайты, музыка.
 3. Сделано: формат комнат (tools/roomdec.py) и ресурсы (tools/export_res.py), сверены по 297 комнатам.
    Сделано: интерфейс строк 0–4, предметы/двери/враги (начальное состояние), каталог объектов и спрайтов.
-   Дальше: анимация героя (какие кадры когда), гибель, анимация тайлов E0/E8 (1D15 из AE34), лазеры (1C),
-   звук; затем раскладка памяти Вектора и движок.
+   Сделано: анимация E0/E8, лазеры, звук (10 эффектов, регистры AY по кадрам и WAV).
+   Анимация героя и гибель — игровой код, переносится вместе с движком.
+   Дальше: решения владельца по цвету экрана и звуку, раскладка памяти Вектора, движок.
 4. Звук: PSG через A0/A1 — понять, как Muffie переложил SN76489 на AY, и решить, что делать на Векторе (ВИ53 / AY).
 5. Раскладка памяти Вектора: 16 КБ игры + свои услуги вместо OS7 + экран Graphics I -> плоскости.

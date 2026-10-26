@@ -125,8 +125,9 @@ class MSX1 {
     return this;
   }
   // Вызов подпрограммы игры как CALL: возврат на ловушку FFF0, затем PC восстанавливается
-  callSub(addr, limit = 2e6) {
+  callSub(addr, limit = 2e6, regs = {}) {
     const st = this.cpu.getState(), ret = st.pc;
+    Object.assign(st, regs);
     st.sp = (st.sp - 2) & 0xffff; this.mem[st.sp] = 0xf0; this.mem[(st.sp + 1) & 0xffff] = 0xff; st.pc = addr;
     this.cpu.setState(st);
     let n = 0; while (this.cpu.get_pc() !== 0xfff0 && n++ < limit) this.step();
