@@ -14,6 +14,12 @@ dstore		equ	0xE900			; различия: 24 байта на тайл (банки
 DMAX		equ	17			; тайлов с различием банков (E900-EB97)
 tslot		equ	0xF300			; кэш изображений тайлов: тайл -> ячейка (FF — нет)
 tcache		equ	0xF400			; ячейки по 24 байта (TC_N штук, до F87F)
+NTS		equ	0xEB00			; показанная таблица имён (копия VNT, то же выравнивание)
+col_flag	equ	0xEE00			; флаги тайлов групп с новым цветом
+cmodes		equ	0xEF00			; режимы плоскостей по байту цвета
+pat_flag	equ	0xF000			; тайлы с новыми шаблонами
+anim_flag	equ	0xF100			; тайлы с различием банков
+spr_trim	equ	0xF200			; обрезка шаблонов спрайтов (4 x 64)
 SPR_SLOTS	equ	0xF900			; ячейки фона спрайтов (6 по 256, до FEFF)
 NT		equ	VNT			; для render.asm
 coltab		equ	VCOL
@@ -262,13 +268,48 @@ rr_m:		ds	6
 rr_p:		ds	1
 rr_np:		ds	1
 rr_y:		ds	1
-spr_rec:	ds	SREC*SPR_MAX
-spr_new:	ds	SREC*SPR_MAX
 spr_force:	ds	1
 spx_ch:		ds	1
 spx_a:		ds	2
 sv_ptr:		ds	2
 sp_vis:		ds	1
+sp_mpage:	ds	1
+dr_ex:		ds	1
+dr_skip:	ds	1
+ex_n:		ds	1
+ex_r:		ds	4*SPR_MAX
+wd:		ds	SPR_MAX
+svr:		ds	4*SPR_MAX
+pm_bot:		ds	1
+rst:		ds	6*SPR_MAX
+pps:		ds	6*SPR_MAX
+pps2:		ds	2*SPR_MAX
+ppd:		ds	11*SPR_MAX
+rs_h:		ds	2
+rs_n:		ds	1
+pu_lo:		ds	1
+ex_any:		ds	1
+t_now:		ds	1
+gc_g:		ds	1
+gc_s:		ds	1
+gact:		ds	SPR_MAX
+gs:		ds	SPR_MAX
+ge:		ds	SPR_MAX
+gd:		ds	SPR_MAX
+pp_h:		ds	2
+pp_m:		ds	2
+cr_ptr:		ds	2
+cr_list:	ds	3*2*SPR_MAX+1
+gp_y:		ds	1
+gp_g:		ds	1
+ov_a:		ds	2
+ov_a1:		ds	2
+ov_b:		ds	2
+ov_b1:		ds	2
+cr_r:		ds	1
+cr_r1:		ds	1
+cr_c0:		ds	1
+cr_c1:		ds	1
 sv_lo:		ds	1
 sv_col:		ds	1
 sp_rows:	ds	1
@@ -294,7 +335,6 @@ tr_line:	ds	1
 tr_first:	ds	1
 tr_last:	ds	1
 sm_off:		ds	1
-spr_trim:	ds	4*64
 sp_y:		ds	1
 sp_x:		ds	1
 sp_name:	ds	1
@@ -313,20 +353,16 @@ sn_chg:		ds	1
 sn_per:		ds	8
 sn_att:		ds	4
 pvars_end:
-		ALIGN	256
-NTS:		ds	768
-pat_flag:	ds	256
-anim_flag:	ds	256
-col_flag:	ds	256
-cmodes:		ds	256
 tc_next:	ds	1
 dc_sp:		ds	2
 dc_hl:		ds	2
 LIVE_MAX	equ	120
 		ALIGN	256
-live_list:	ds	2*LIVE_MAX+2
+spr_rec:	ds	0x80			; записи спрайтов (SREC x SPR_MAX)
+spr_new:	ds	SREC*SPR_MAX		; новые атрибуты (spr_rec + 80h)
+grp:		ds	SPR_MAX
 		ALIGN	256
-sm_or:		ds	48
+live_list:	ds	2*LIVE_MAX+2
 tabs_end:
 		ds	128
 ISR_STACK:

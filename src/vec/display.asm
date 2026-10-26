@@ -87,9 +87,98 @@ dp4a:		or	(hl)
 		jp	nz,dp4a
 		or	c
 		ret	z
-		call	spr_restore		; фон под отмеченными назад, затем клетки, затем отмеченные спрайты
+		ld	a,c
+		or	a
+		jp	z,draw_rows		; спрайты не трогаем — только клетки
+		call	spr_prep		; маски и места новых — заранее
+		call	ex_build		; клетки под прежними местами отмеченных — отложить
+		xor	a
+		ld	(ex_any),a
+		ld	a,1
+		ld	(dr_ex),a
 		call	draw_rows
-		jp	spr_draw
+		xor	a
+		ld	(dr_ex),a
+		call	crit_plan		; группы и порядок — тоже до ожидания
+		ld	hl,frames		; короткая часть — сразу после прерывания кадра (луч в гашении/наверху)
+		ld	a,(hl)
+dp6:		cp	(hl)
+		jp	z,dp6
+		jp	crit			; группами сверху вниз: фон назад, клетки под прежними местами, спрайты
+
+; ex_build: ex_r — прямоугольники (r0, r1, c0, c1) прежних мест нарисованных отмеченных спрайтов, ex_n штук
+ex_build:
+		ld	de,ex_r
+		ld	b,0
+		ld	c,0
+eb0:		ld	a,b
+		call	rec_ptr
+		ld	a,(hl)
+		or	a
+		jp	z,eb9
+		push	hl
+		push	de
+		ld	de,13
+		add	hl,de
+		ld	a,(hl)
+		pop	de
+		pop	hl
+		or	a
+		jp	z,eb9
+		inc	hl
+		inc	hl
+		inc	hl
+		inc	hl
+		inc	hl
+		REPT	4
+		ld	a,(hl)
+		ld	(de),a
+		inc	hl
+		inc	de
+		ENDR
+		inc	c
+eb9:		inc	b
+		ld	a,b
+		cp	SPR_MAX
+		jp	nz,eb0
+		ld	a,c
+		ld	(ex_n),a
+		ret
+
+; ex_test: строка rr_r, столбец C — в одном из ex_r? CY — да (HL, DE, B портятся)
+ex_test:
+		ld	a,(ex_n)
+		or	a
+		ret	z
+		ld	b,a
+		ld	hl,ex_r
+		ld	a,(rr_r)
+		ld	d,a
+et0:		ld	a,d			; r0 <= r <= r1, c0 <= c <= c1
+		cp	(hl)
+		jp	c,et8
+		inc	hl
+		ld	a,(hl)
+		cp	d
+		jp	c,et7
+		inc	hl
+		ld	a,c
+		cp	(hl)
+		jp	c,et6
+		inc	hl
+		ld	a,(hl)
+		cp	c
+		jp	c,et5
+		scf
+		ret
+et8:		inc	hl
+et7:		inc	hl
+et6:		inc	hl
+et5:		inc	hl
+		dec	b
+		jp	nz,et0
+		or	a
+		ret
 
 ; room_redraw: таблица анимации, палитра, всё к перерисовке
 room_redraw:
@@ -304,6 +393,8 @@ dr0:		ld	a,(hl)
 		or	a
 		jp	z,dr9
 		ld	(hl),0
+		xor	a
+		ld	(dr_skip),a
 		push	hl
 		ld	a,(rr_r)		; HL = VNT + 32 * r, DE = NTS + 32 * r
 		ld	l,a
@@ -329,6 +420,10 @@ dr2:		inc	l
 		dec	b
 		jp	nz,dr1
 		pop	hl
+		ld	a,(dr_skip)		; отложенные клетки — строка остаётся отмеченной
+		or	a
+		jp	z,dr9
+		ld	(hl),1
 dr9:		inc	hl
 		ld	a,(rr_r)
 		inc	a
@@ -336,7 +431,25 @@ dr9:		inc	hl
 		cp	24
 		jp	nz,dr0
 		ret
-dr_draw:	ld	a,(hl)
+dr_draw:	ld	a,(dr_ex)
+		or	a
+		jp	z,dr_go
+		push	hl
+		push	de
+		push	bc
+		ld	a,l
+		and	31
+		ld	c,a
+		call	ex_test
+		pop	bc
+		pop	de
+		pop	hl
+		jp	nc,dr_go
+		ld	a,1
+		ld	(dr_skip),a
+		ld	(ex_any),a
+		jp	dr2
+dr_go:		ld	a,(hl)
 		ld	(de),a
 		ld	(rr_t),a
 		ld	a,l

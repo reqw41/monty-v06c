@@ -6,6 +6,12 @@
 ; адреса входа (по числу строк) подставляются в команды CALL (самоизменяемый код). Спрайт с тем же (X, Y), что
 ; у нарисованного перед ним, фон не сохраняет (слои героя). Y = D0 — конец, цвет 0 — не виден, EC и Y > BF — нет.
 SPR_MAX		equ	6
+SM_OFS		equ	0xD0			; маски столбцов в ячейке спрайта (фон — до 3 x 3 x 23 = CF)
+T0_U		equ	3			; единиц (256 тактов) от прерывания до первой группы
+MA_U		equ	3			; запас «до луча»
+MB_U		equ	2			; запас «после луча»
+DL_N		equ	11			; ожидание: витков на единицу
+SV_MAX		equ	23			; строк в области фона (слои героя: 16 + сдвиг до 7)
 SREC		equ	16			; запись: нарисован, Y X имя цвет, r0 r1 c0 c1 (клетки), L, столбец, строк,
 						; пустые столбцы, метка (+13)
 
@@ -372,14 +378,21 @@ isn:		pop	de
 		ret
 
 ; rec_ptr / new_ptr: A = номер -> HL = запись (16 байт)
-rec_ptr:	ld	hl,spr_rec
-rp1:		add	a,a
+rec_ptr:	add	a,a			; spr_rec — с начала страницы, spr_new — с её середины (+80h)
 		add	a,a
 		add	a,a
 		add	a,a
-		jp	add_hl_a
-new_ptr:	ld	hl,spr_new
-		jp	rp1
+		ld	l,a
+		ld	h,spr_rec/256
+		ret
+new_ptr:	add	a,a
+		add	a,a
+		add	a,a
+		add	a,a
+		or	0x80
+		ld	l,a
+		ld	h,spr_rec/256
+		ret
 
 ; --- развёрнутые полосы: HL = экран (верхняя строка), DE = буфер или маска; вход — конец - строк * шаг ---
 st_or:		REPT	16			; маска в выровненной странице
@@ -400,14 +413,14 @@ st_and:		REPT	16
 		ENDR
 		ret
 
-st_sv:		REPT	16			; фон в ячейку
+st_sv:		REPT	SV_MAX			; фон в ячейку
 		ld	a,(hl)
 		ld	(de),a
 		inc	e
 		dec	l
 		ENDR
 		ret
-st_rs:		REPT	16			; фон из ячейки
+st_rs:		REPT	SV_MAX			; фон из ячейки
 		ld	a,(de)
 		ld	(hl),a
 		inc	e
@@ -422,10 +435,10 @@ set_entries:
 		add	a,a
 		add	a,a			; 4 * строк
 		ld	c,a
-		ld	hl,st_sv+16*4
+		ld	hl,st_sv+SV_MAX*4
 		call	sub_hl_c
 		ld	(cs_sv+1),hl
-		ld	hl,st_rs+16*4
+		ld	hl,st_rs+SV_MAX*4
 		call	sub_hl_c
 		ld	(cs_rs+1),hl
 		ld	a,c
@@ -492,46 +505,57 @@ cb_2:		inc	b
 		ret
 
 ; --- spr_restore: фон под нарисованными отмеченными спрайтами — назад (в порядке, обратном рисованию: 0..) ----
-spr_restore:
-		ld	b,0
-sr0:		ld	a,b
+; restore1: B = номер — если нарисован и отмечен: фон назад, «не нарисован» (BC сохраняется)
+restore1:	ld	a,b
 		call	rec_ptr
 		ld	a,(hl)
 		or	a
-		jp	z,sr9
-		push	hl
-		ld	de,13
-		add	hl,de
-		ld	a,(hl)
-		pop	hl
+		ret	z
+		ld	a,l
+		add	a,13
+		ld	e,a
+		ld	d,h
+		ld	a,(de)			; отмечен?
 		or	a
-		jp	z,sr9
+		ret	z
 		ld	(hl),0			; больше не нарисован
-		ld	de,9
-		add	hl,de
+		inc	de
+		ld	a,(de)			; фон сохранял он сам?
+		or	a
+		ret	z
+		ld	a,l
+		add	a,9
+		ld	l,a
 		ld	a,(hl)
 		ld	(sv_lo),a
-		inc	hl
-		ld	a,(hl)
-		ld	(sv_col),a
-		inc	hl
-		ld	a,(hl)
-		ld	(st_rows),a
-		inc	hl
-		ld	a,(hl)
-		ld	(sv_zc),a
 		push	bc
-		call	cols_build
-		call	set_entries
-		pop	bc
+		ld	a,b			; rst[k]: столбцов, 3 столбца экрана, вход в st_rs
+		ld	c,a
+		add	a,a
+		add	a,c
+		add	a,a			; 6 * k
+		ld	hl,rst
+		call	add_hl_a
+		ld	c,(hl)
+		inc	hl
+		ld	(rs_h),hl
+		inc	hl
+		inc	hl
+		inc	hl
+		ld	a,(hl)
+		ld	(cs_rs+1),a
+		inc	hl
+		ld	a,(hl)
+		ld	(cs_rs+2),a
 		ld	a,b
 		add	a,SPR_SLOTS/256
 		ld	d,a
 		ld	e,0
-		push	bc
+		ld	a,c
+		ld	(rs_n),a
 		ld	b,0x80
-sr1:		ld	hl,cl_h
-		ld	a,(cl_n)
+sr1:		ld	hl,(rs_h)
+		ld	a,(rs_n)
 		ld	c,a
 sr2:		ld	a,(hl)
 		inc	hl
@@ -550,57 +574,173 @@ cs_rs:		call	st_rs
 		cp	0xE0
 		jp	nz,sr1
 		pop	bc
-sr9:		inc	b
+		ret
+
+; --- spr_prep: для отмеченных видимых — обрезка, маски (в ячейку +C0), место; в spr_new: +9 L, +10 столбец,
+; +11 строк, +12 пустые столбцы, +13 цвет (индекс), +14 рисовать. Всё долгое — до ожидания кадра.
+spr_prep:
+		ld	b,0
+pp0:		ld	a,b
+		ld	(sp_k),a
+		call	rec_ptr
+		ld	de,13
+		add	hl,de
+		ld	a,(hl)
+		or	a
+		jp	z,pp9
+		ld	a,b
+		call	new_ptr
+		push	hl
+		ld	de,14
+		add	hl,de
+		ld	(hl),0
+		pop	hl
+		ld	a,(hl)			; виден?
+		or	a
+		jp	z,pp9
+		inc	hl
+		push	bc
+		call	spr_one
+		pop	bc
+pp9:		inc	b
 		ld	a,b
 		cp	SPR_MAX
-		jp	nz,sr0
-		ret
-
-; --- spr_draw: отмеченные спрайты, с последнего (меньший номер сверху): запись := новые атрибуты, рисование ----
-spr_draw:
-		ld	b,SPR_MAX
-sd2:		dec	b
-		push	bc
-		ld	a,b
-		ld	(sp_k),a
+		jp	nz,pp0
+; области фона: своя (new +9..+12); слой k над k+1 в той же точке (оба готовы) — k без фона (+15 = 1),
+; у k+1 — объединение: верх = max L, низ = min (L - строк + 1), пустые столбцы — общие
+		ld	b,0
+pm0:		ld	a,b
 		call	new_ptr
-		ex	de,hl			; DE = новая запись
-		ld	a,b
-		call	rec_ptr
 		push	hl
-		ld	bc,13
-		add	hl,bc
-		ld	a,(hl)
-		ld	(hl),0			; метка снята
+		ld	a,l
+		add	a,15
+		ld	l,a
+		ld	(hl),0
 		pop	hl
-		or	a
-		jp	z,sd8
-		ld	(hl),0			; не нарисован
-		inc	hl
-		ld	a,(de)			; виден?
-		ld	(sp_vis),a
-		inc	de
-		ld	b,8			; атрибуты и прямоугольник
-sd3:		ld	a,(de)
-		ld	(hl),a
-		inc	hl
-		inc	de
-		dec	b
-		jp	nz,sd3
-		ld	a,(sp_vis)
-		or	a
-		jp	z,sd8
-		ld	a,(sp_k)
-		call	rec_ptr
-		inc	hl
-		call	spr_one
-sd8:		pop	bc
+		ld	a,l
+		add	a,9
+		ld	l,a
+		ex	de,hl
 		ld	a,b
+		add	a,a
+		add	a,a
+		ld	hl,svr
+		call	add_hl_a
+		REPT	4
+		ld	a,(de)
+		ld	(hl),a
+		inc	de
+		inc	hl
+		ENDR
+		inc	b
+		ld	a,b
+		cp	SPR_MAX
+		jp	nz,pm0
+		ld	b,0
+pm1:		ld	a,b			; оба готовы?
+		call	new_ptr
+		ld	a,l
+		add	a,14
+		ld	l,a
+		ld	a,(hl)
 		or	a
-		jp	nz,sd2
-		ret
+		jp	z,pm8
+		ld	a,l
+		add	a,16
+		ld	l,a
+		ld	a,(hl)
+		or	a
+		jp	z,pm8
+		ld	a,b			; X тот же, |dY| <= 7?
+		call	new_ptr
+		inc	hl
+		ld	d,h
+		ld	a,l
+		add	a,16
+		ld	e,a
+		inc	hl
+		inc	de
+		ld	a,(de)
+		cp	(hl)
+		jp	nz,pm8
+		dec	hl
+		dec	de
+		ld	a,(de)
+		sub	(hl)
+		jp	nc,pm1a
+		cpl
+		inc	a
+pm1a:		cp	8
+		jp	nc,pm8
+		ld	a,b			; k — слой
+		call	new_ptr
+		ld	a,l
+		add	a,15
+		ld	l,a
+		ld	(hl),1
+		ld	a,b			; svr[k+1] := объединение svr[k] и svr[k+1]
+		add	a,a
+		add	a,a
+		ld	hl,svr
+		call	add_hl_a
+		ld	d,h
+		ld	e,l			; DE = svr[k]
+		ld	a,4
+		call	add_hl_a		; HL = svr[k+1]
+		ld	a,(de)			; низ k: L - строк + 1
+		inc	de
+		inc	de
+		ld	c,a
+		ld	a,(de)
+		dec	de
+		dec	de
+		push	bc
+		ld	b,a
+		ld	a,c
+		sub	b
+		inc	a
+		ld	(pm_bot),a
+		inc	hl
+		inc	hl
+		ld	b,(hl)
+		dec	hl
+		dec	hl
+		ld	a,(hl)
+		sub	b
+		inc	a			; низ k+1
+		ld	b,a
+		ld	a,(pm_bot)
+		cp	b
+		jp	c,pm2
+		ld	a,b
+pm2:		ld	(pm_bot),a		; общий низ
+		ld	a,(de)
+		cp	(hl)
+		jp	c,pm3
+		ld	(hl),a			; общий верх
+pm3:		ld	a,(pm_bot)
+		ld	b,a
+		ld	a,(hl)
+		sub	b
+		inc	a
+		inc	hl
+		inc	hl
+		ld	(hl),a			; строк
+		inc	hl
+		inc	de
+		inc	de
+		inc	de
+		ld	a,(de)
+		and	(hl)
+		ld	(hl),a			; пустые столбцы — общие
+		pop	bc
+pm8:		inc	b
+		ld	a,b
+		cp	SPR_MAX-1
+		jp	nz,pm1
+		jp	spr_ready
 
-; spr_one: HL -> атрибуты спрайта sp_k; фон под ним — в ячейку SPR_SLOTS + 256 * sp_k
+; spr_one: HL -> атрибуты спрайта sp_k (spr_new + 1): обрезка, маски, место -> spr_new +9..+14
 spr_one:
 		ld	a,(hl)			; верхняя строка = Y + 1
 		inc	a
@@ -641,14 +781,8 @@ so0:		ld	(st_rows),a
 		call	trim_sprite		; Z — пусто
 		ret	z
 		call	spr_masks
-		call	set_entries
-		call	cols_build
-		ld	a,(cl_n)
-		or	a
-		ret	z
-		ld	a,(sp_k)		; запись: нарисован, место для восстановления
-		call	rec_ptr
-		ld	(hl),1
+		ld	a,(sp_k)
+		call	new_ptr
 		ld	de,9
 		add	hl,de
 		ld	a,(sv_lo)
@@ -662,26 +796,217 @@ so0:		ld	(st_rows),a
 		inc	hl
 		ld	a,(sv_zc)
 		ld	(hl),a
+		inc	hl
+		ld	a,(sp_ci)
+		ld	(hl),a
+		inc	hl
+		ld	(hl),1
+		ret
+
+; --- spr_draw: отмеченные, с последнего (меньший номер сверху): запись := новые атрибуты; подготовленные —
+; фон в ячейку и спрайт в экран (spr_put)
+; draw1: B = номер — если отмечен: запись := новые атрибуты, подготовленный — в экран (BC сохраняется)
+draw1:		push	bc
+		ld	a,b
+		ld	(sp_k),a
+		call	new_ptr
+		ex	de,hl			; DE = новая запись
+		ld	a,b
+		call	rec_ptr
+		push	hl
+		ld	bc,13
+		add	hl,bc
+		ld	a,(hl)
+		ld	(hl),0			; метка снята
+		pop	hl
+		or	a
+		jp	z,sd8
+		ld	(hl),0			; не нарисован
+		inc	hl
+		inc	de
+		ld	b,8			; атрибуты и прямоугольник
+sd3:		ld	a,(de)
+		ld	(hl),a
+		inc	hl
+		inc	de
+		dec	b
+		jp	nz,sd3
+		ex	de,hl			; HL = новая +9
+		ld	a,l
+		add	a,5
+		ld	l,a
+		ld	a,(hl)			; подготовлен?
+		or	a
+		call	nz,spr_put
+sd8:		pop	bc
+		ret
+
+; spr_put: спрайт sp_k по заготовкам (spr_ready). Не слой (new +15 = 0): фон области svr[k] — в ячейку,
+; запись := нарисован с фоном, rst[k] — для восстановления; слой (+15 = 1) — только рисование поверх.
+spr_put:
 		ld	a,(sp_k)
+		ld	b,a
 		add	a,SPR_SLOTS/256
+		ld	(sp_mpage),a
+		ld	a,b
+		call	new_ptr
+		ld	a,l
+		add	a,15
+		ld	l,a
+		ld	c,(hl)			; слой?
+		ld	a,b
+		call	rec_ptr
+		ld	(hl),1			; нарисован
+		ld	a,l
+		add	a,14
+		ld	l,a
+		ld	a,c
+		xor	1
+		ld	(hl),a			; +14: с фоном
+		jp	z,spr_paint
+		ld	a,l			; запись +9..+12 := svr[k]
+		sub	5
+		ld	l,a
+		push	hl
+		ld	a,b
+		add	a,a
+		add	a,a
+		ld	hl,svr
+		call	add_hl_a
+		ex	de,hl
+		pop	hl
+		ld	a,(de)
+		ld	(pu_lo),a
+		REPT	4
+		ld	a,(de)
+		ld	(hl),a
+		inc	de
+		inc	hl
+		ENDR
+		ld	a,b			; pps[k] -> rst[k] (6 байт), вход в st_sv
+		ld	c,a
+		add	a,a
+		add	a,c
+		add	a,a
+		ld	c,a
+		ld	hl,pps
+		call	add_hl_a
+		push	hl
+		ld	a,c
+		ld	hl,rst
+		call	add_hl_a
+		pop	de
+		push	de
+		REPT	6
+		ld	a,(de)
+		ld	(hl),a
+		inc	de
+		inc	hl
+		ENDR
+		ld	a,b			; вход в st_sv — pps2[k]
+		add	a,a
+		ld	hl,pps2
+		call	add_hl_a
+		ld	a,(hl)
+		ld	(cs_sv+1),a
+		inc	hl
+		ld	a,(hl)
+		ld	(cs_sv+2),a
+		pop	hl
+		ld	a,(hl)			; столбцов
+		or	a
+		jp	z,spr_paint
+		ld	(rs_n),a
+		inc	hl
+		ld	(rs_h),hl
+		ld	a,(sp_mpage)
+		ld	d,a
+		ld	e,0
+		ld	b,0x80
+pu1:		ld	hl,(rs_h)
+		ld	a,(rs_n)
+		ld	c,a
+pu2:		ld	a,(hl)
+		inc	hl
+		add	a,b
+		push	hl
 		ld	h,a
-		ld	l,0
-		ld	(sv_ptr),hl
-		ld	a,(sp_ci)		; цвет: бит 2 индекса -> бит 7 (плоскости 80, A0, C0)
+		ld	a,(pu_lo)
+		ld	l,a
+cs_sv:		call	st_sv
+		pop	hl
+		dec	c
+		jp	nz,pu2
+		ld	a,b
+		add	a,0x20
+		ld	b,a
+		cp	0xE0
+		jp	nz,pu1
+; spr_paint: по ppd[sp_k] (столбцы, маски, входы) и sv_lo/sp_ci из spr_new — спрайт в экран
+spr_paint:
+		ld	a,(sp_k)
+		call	new_ptr
+		ld	a,l
+		add	a,9
+		ld	l,a
+		ld	a,(hl)
+		ld	(sv_lo),a
+		ld	a,l
+		add	a,4
+		ld	l,a
+		ld	a,(hl)			; цвет: бит 2 индекса -> бит 7 (плоскости 80, A0, C0)
 		rlca
 		rlca
 		rlca
 		rlca
 		rlca
 		ld	(sp_cbits),a
+		ld	a,(sp_k)		; ppd[k]: столбцов, cl_h[3], cl_m[3], вход OR, вход AND (11 байт)
+		ld	b,a
+		add	a,a
+		add	a,a
+		add	a,a
+		add	a,b
+		add	a,b
+		add	a,b			; 11 * k
+		ld	hl,ppd
+		call	add_hl_a
+		ld	a,(hl)
+		or	a
+		ret	z
+		ld	(cl_n),a
+		inc	hl
+		ld	(pp_h),hl
+		ld	a,l
+		add	a,3
+		ld	l,a
+		ld	a,h
+		adc	a,0
+		ld	h,a
+		ld	(pp_m),hl
+		inc	hl
+		inc	hl
+		inc	hl
+		ld	a,(hl)
+		ld	(cs_or+1),a
+		inc	hl
+		ld	a,(hl)
+		ld	(cs_or+2),a
+		inc	hl
+		ld	a,(hl)
+		ld	(cs_and+1),a
+		inc	hl
+		ld	a,(hl)
+		ld	(cs_and+2),a
 		ld	b,0x80
 so3:		ld	a,(sp_cbits)
 		rlca
 		ld	(sp_cbits),a
 		sbc	a,a			; FF — OR, 00 — AND
 		ld	(st_kind),a
-		ld	hl,cl_h
-		ld	de,cl_m
+		ld	hl,(pp_m)
+		ex	de,hl
+		ld	hl,(pp_h)
 		ld	a,(cl_n)
 		ld	c,a
 so4:		ld	a,(hl)
@@ -689,26 +1014,16 @@ so4:		ld	a,(hl)
 		add	a,b
 		push	hl
 		push	bc
-		push	de
 		ld	h,a
 		ld	a,(sv_lo)
 		ld	l,a
-		push	hl			; экран: верх полосы
-		ld	hl,(sv_ptr)
-		ex	de,hl			; DE = ячейка фона
-		pop	hl			; HL = экран
-		push	hl
-cs_sv:		call	st_sv
-		ex	de,hl
-		ld	(sv_ptr),hl
-		pop	hl
-		pop	de
 		ld	a,(de)
 		inc	de
 		push	de
-		add	a,sm_or&0xFF
+		add	a,SM_OFS		; маска: ячейка + D0 + 16 * столбец
 		ld	e,a
-		ld	d,sm_or/256
+		ld	a,(sp_mpage)
+		ld	d,a
 		ld	a,(st_kind)
 		or	a
 		jp	z,cs_and
@@ -727,6 +1042,124 @@ so6:		pop	de
 		jp	nz,so3
 		ret
 
+; spr_ready: для подготовленных (new +14) — заготовки: pps[k] (область фона svr[k]: столбцов, 3 столбца,
+; вход st_rs), pps2[k] (вход st_sv), ppd[k] (рисование: столбцов, cl_h, cl_m, входы st_or, st_and)
+spr_ready:
+		ld	b,0
+sy0:		ld	a,b
+		call	new_ptr
+		ld	a,l
+		add	a,14
+		ld	l,a
+		ld	a,(hl)
+		or	a
+		jp	z,sy9
+		push	bc
+		ld	a,b			; область фона
+		add	a,a
+		add	a,a
+		ld	hl,svr
+		call	add_hl_a
+		call	sy_load
+		call	set_entries
+		call	cols_build
+		pop	bc
+		push	bc
+		ld	a,b
+		ld	c,a
+		add	a,a
+		add	a,c
+		add	a,a
+		ld	hl,pps
+		call	add_hl_a
+		ld	a,(cl_n)
+		ld	(hl),a
+		inc	hl
+		ld	de,cl_h
+		REPT	3
+		ld	a,(de)
+		ld	(hl),a
+		inc	de
+		inc	hl
+		ENDR
+		ld	a,(cs_rs+1)
+		ld	(hl),a
+		inc	hl
+		ld	a,(cs_rs+2)
+		ld	(hl),a
+		pop	bc
+		push	bc
+		ld	a,b
+		add	a,a
+		ld	hl,pps2
+		call	add_hl_a
+		ld	a,(cs_sv+1)
+		ld	(hl),a
+		inc	hl
+		ld	a,(cs_sv+2)
+		ld	(hl),a
+		pop	bc
+		push	bc
+		ld	a,b			; рисование: свои параметры (new +9..+12)
+		call	new_ptr
+		ld	a,l
+		add	a,9
+		ld	l,a
+		call	sy_load
+		call	set_entries
+		call	cols_build
+		pop	bc
+		push	bc
+		ld	a,b
+		add	a,a
+		add	a,a
+		add	a,a
+		add	a,b
+		add	a,b
+		add	a,b
+		ld	hl,ppd
+		call	add_hl_a
+		ld	a,(cl_n)
+		ld	(hl),a
+		inc	hl
+		ld	de,cl_h
+		REPT	6			; cl_h[3], cl_m[3] (подряд)
+		ld	a,(de)
+		ld	(hl),a
+		inc	de
+		inc	hl
+		ENDR
+		ld	a,(cs_or+1)
+		ld	(hl),a
+		inc	hl
+		ld	a,(cs_or+2)
+		ld	(hl),a
+		inc	hl
+		ld	a,(cs_and+1)
+		ld	(hl),a
+		inc	hl
+		ld	a,(cs_and+2)
+		ld	(hl),a
+		pop	bc
+sy9:		inc	b
+		ld	a,b
+		cp	SPR_MAX
+		jp	nz,sy0
+		ret
+; sy_load: HL -> L, столбец, строк, пустые столбцы -> sv_lo, sv_col, st_rows, sv_zc
+sy_load:	ld	a,(hl)
+		ld	(sv_lo),a
+		inc	hl
+		ld	a,(hl)
+		ld	(sv_col),a
+		inc	hl
+		ld	a,(hl)
+		ld	(st_rows),a
+		inc	hl
+		ld	a,(hl)
+		ld	(sv_zc),a
+		ret
+
 ; spr_masks: sm_or[j][line] — строка шаблона, сдвинутая на s = X & 7 (столбцы j = 0..2); sv_zc: бит j — пусто.
 ; r = циклический сдвиг вправо на s (вход в цепочку RRCA подставлен в CALL), m = FFh >> s:
 ; столбец 0 = rB & m, 1 = (rB & ~m) | (rC & m), 2 = rC & ~m; при s = 0 — без сдвига, столбец 2 пуст.
@@ -742,7 +1175,10 @@ spr_masks:
 		call	add_hl_a
 		ld	a,(st_rows)
 		ld	(sp_line),a
-		ld	de,sm_or
+		ld	a,(sp_k)		; маски — в ячейку спрайта (+C0)
+		add	a,SPR_SLOTS/256
+		ld	d,a
+		ld	e,SM_OFS
 		ld	a,(sp_x)
 		and	7
 		jp	z,smz			; s = 0
@@ -951,4 +1387,667 @@ ts4:		ld	a,b
 		or	1			; NZ
 		ret
 ts_e:		xor	a
+		ret
+
+; --- crit_plan: до ожидания кадра — группы пересекающихся отмеченных спрайтов сверху вниз -> список действий
+; cr_list: пары (действие, номер): 1 — фон назад, 2 — клетки под прежним местом, 3 — спрайт; конец 0.
+; Группа: фон всех назад (0..), клетки под прежними местами, спрайты (с последнего).
+crit_plan:
+		ld	hl,cr_list
+		ld	(cr_ptr),hl
+		ld	b,0			; grp[k] := k для отмеченных, иначе FF
+cg0:		ld	a,b
+		call	rec_ptr
+		ld	de,13
+		add	hl,de
+		ld	a,(hl)
+		or	a
+		ld	a,0xFF
+		jp	z,cgx1
+		ld	a,b
+cgx1:		ld	hl,grp
+		ld	c,a
+		ld	a,b
+		call	add_hl_a
+		ld	(hl),c
+		inc	b
+		ld	a,b
+		cp	SPR_MAX
+		jp	nz,cg0
+cu0:		xor	a			; объединение пересекающихся (прежние и новые места)
+		ld	(spx_ch),a
+		ld	b,0
+cu1:		ld	a,b
+		call	grp_of
+		cp	SPR_MAX
+		jp	nc,cu8
+		ld	c,b
+cu2:		inc	c
+		ld	a,c
+		cp	SPR_MAX
+		jp	nc,cu8
+		call	grp_of
+		cp	SPR_MAX
+		jp	nc,cu2
+		ld	d,a			; grp[j]
+		ld	a,b
+		call	grp_of
+		cp	d
+		jp	z,cu2
+		call	overl			; B, C пересекаются?
+		jp	nc,cu2
+		ld	a,b			; все с grp = grp[j] -> grp[i]
+		call	grp_of
+		ld	e,a
+		ld	hl,grp
+		push	bc
+		ld	b,SPR_MAX
+cu3:		ld	a,(hl)
+		cp	d
+		jp	nz,cu4
+		ld	(hl),e
+cu4:		inc	hl
+		dec	b
+		jp	nz,cu3
+		pop	bc
+		ld	a,1
+		ld	(spx_ch),a
+		jp	cu2
+cu8:		inc	b
+		ld	a,b
+		cp	SPR_MAX
+		jp	nz,cu1
+		ld	a,(spx_ch)
+		or	a
+		jp	nz,cu0
+		call	grp_cost		; строки и длительность групп (единица — 256 тактов)
+		ld	a,T0_U
+		ld	(t_now),a
+gp0:		ld	a,0xFF			; A: успевает до луча (t + d + запас <= s) — самая верхняя
+		ld	(gp_y),a
+		ld	(gp_g),a
+		ld	b,0
+gp1:		call	g_get			; H: s, L: e, D: d; Z — группы нет
+		jp	z,gp3
+		ld	a,(t_now)
+		add	a,d
+		jp	c,gp3
+		add	a,MA_U
+		jp	c,gp3
+		cp	h
+		jp	z,gp1a
+		jp	nc,gp3
+gp1a:		ld	a,h
+		ld	hl,gp_y
+		cp	(hl)
+		jp	nc,gp3
+		ld	(hl),a
+		ld	a,b
+		ld	(gp_g),a
+gp3:		inc	b
+		ld	a,b
+		cp	SPR_MAX
+		jp	nz,gp1
+		ld	a,(gp_g)
+		cp	0xFF
+		jp	nz,gp_go
+		ld	b,0			; B: луч уже прошёл (e + запас <= t) — первая такая
+gp2:		call	g_get
+		jp	z,gp2n
+		ld	a,l
+		add	a,MB_U
+		ld	c,a
+		ld	a,(t_now)
+		cp	c
+		jp	nc,gp2y
+gp2n:		inc	b
+		ld	a,b
+		cp	SPR_MAX
+		jp	nz,gp2
+		ld	a,0xFF			; C: ждать, пока луч пройдёт группу с наименьшим e
+		ld	(gp_y),a
+		ld	b,0
+gp5a:		call	g_get
+		jp	z,gp5b
+		ld	a,l
+		ld	hl,gp_y
+		cp	(hl)
+		jp	nc,gp5b
+		ld	(hl),a
+		ld	a,b
+		ld	(gp_g),a
+gp5b:		inc	b
+		ld	a,b
+		cp	SPR_MAX
+		jp	nz,gp5a
+		ld	a,(gp_g)
+		cp	0xFF
+		jp	z,cr_end		; групп больше нет
+		ld	a,(gp_y)		; ожидание (e + запас - t) единиц: действие 4
+		add	a,MB_U
+		ld	c,a
+		ld	a,(t_now)
+		ld	b,a
+		ld	a,c
+		sub	b
+		jp	c,gp_go
+		jp	z,gp_go
+		ld	b,a
+		ld	a,c
+		ld	(t_now),a
+		ld	a,4
+		call	cr_add
+		jp	gp_go
+gp2y:		ld	a,b
+		ld	(gp_g),a
+gp_go:		ld	a,(gp_g)		; t += d группы
+		ld	b,a
+		call	g_get
+		ld	a,(t_now)
+		add	a,d
+		jp	nc,gp_t
+		ld	a,0xFF
+gp_t:		ld	(t_now),a
+		ld	hl,gact
+		ld	a,(gp_g)
+		call	add_hl_a
+		ld	(hl),0
+		ld	a,(gp_g)
+		ld	d,a
+		ld	b,0			; было нарисовано -> wd[k]; фон назад
+gp4:		ld	a,b
+		call	grp_of
+		cp	d
+		jp	nz,gp5
+		ld	a,b
+		call	rec_ptr
+		ld	a,(hl)
+		push	af
+		ld	hl,wd
+		ld	a,b
+		call	add_hl_a
+		pop	af
+		ld	(hl),a
+		ld	a,1
+		call	cr_add
+gp5:		inc	b
+		ld	a,b
+		cp	SPR_MAX
+		jp	nz,gp4
+		ld	b,0			; клетки под прежними местами
+gp6:		ld	a,b
+		call	grp_of
+		cp	d
+		jp	nz,gp7
+		ld	hl,wd
+		ld	a,b
+		call	add_hl_a
+		ld	a,(hl)
+		or	a
+		jp	z,gp7
+		ld	a,2
+		call	cr_add
+gp7:		inc	b
+		ld	a,b
+		cp	SPR_MAX
+		jp	nz,gp6
+		ld	b,SPR_MAX		; спрайты, с последнего; группа обработана (FE)
+gp8:		dec	b
+		ld	a,b
+		call	grp_of
+		cp	d
+		jp	nz,gp9
+		ld	(hl),0xFE
+		ld	a,3
+		call	cr_add
+gp9:		ld	a,b
+		or	a
+		jp	nz,gp8
+		jp	gp0
+
+; g_get: B = группа -> H = s, L = e, D = d; Z — группы нет (BC, E сохраняются)
+g_get:		ld	hl,gact
+		ld	a,b
+		call	add_hl_a
+		ld	a,(hl)
+		or	a
+		ret	z
+		ld	a,SPR_MAX		; gact, gs, ge, gd — подряд по SPR_MAX
+		call	add_hl_a
+		ld	a,(hl)
+		push	af
+		ld	a,SPR_MAX
+		call	add_hl_a
+		ld	l,(hl)
+		pop	af
+		push	hl
+		ld	h,a
+		push	hl
+		ld	hl,gd
+		ld	a,b
+		call	add_hl_a
+		ld	d,(hl)
+		pop	hl
+		pop	af
+		or	1			; NZ
+		ret
+
+; grp_cost: для групп (grp[k] < SPR_MAX) — gact, gs (верхняя строка, единицы), ge (нижняя), gd (длительность):
+; прежнее место (нарисован с фоном): строки, восстановление B/8 + 2; новое (подготовлен): строки области
+; фона/своих, сохранение B/8 + B/64 (не слой), рисование B/8 + B/64 + 5; клетки откладывались — +3
+grp_cost:
+		ld	hl,gact
+		ld	b,4*SPR_MAX
+		xor	a
+gc0:		ld	(hl),a
+		inc	hl
+		dec	b
+		jp	nz,gc0
+		ld	hl,gs
+		ld	b,SPR_MAX
+		ld	a,0xFF
+gc1:		ld	(hl),a
+		inc	hl
+		dec	b
+		jp	nz,gc1
+		ld	b,0
+gc2:		ld	a,b
+		call	grp_of
+		cp	SPR_MAX
+		jp	nc,gc9
+		ld	(gc_g),a
+		ld	hl,gact
+		call	add_hl_a
+		ld	(hl),1
+		ld	a,(ex_any)
+		or	a
+		ld	a,3
+		call	nz,gc_add
+		ld	a,b			; прежнее место
+		call	rec_ptr
+		ld	a,(hl)
+		or	a
+		jp	z,gc5
+		ld	a,l
+		add	a,14
+		ld	e,a
+		ld	d,h
+		ld	a,(de)
+		or	a
+		jp	z,gc5
+		ld	a,l
+		add	a,9
+		ld	l,a
+		ld	c,(hl)			; L
+		inc	hl
+		inc	hl
+		ld	a,(hl)			; строк
+		push	af
+		call	gc_ext			; C = L, A = строк
+		pop	af
+		ld	c,a
+		push	bc
+		ld	a,b			; столбцов: rst[k]
+		ld	e,a
+		add	a,a
+		add	a,e
+		add	a,a
+		ld	hl,rst
+		call	add_hl_a
+		ld	a,(hl)
+		pop	bc
+		call	mul3			; A = 3 * A * C
+		call	div8
+		add	a,2
+		call	gc_add
+gc5:		ld	a,b			; новое место
+		call	new_ptr
+		ld	a,l
+		add	a,14
+		ld	l,a
+		ld	a,(hl)
+		or	a
+		jp	z,gc9
+		inc	hl
+		ld	a,(hl)			; слой?
+		or	a
+		jp	nz,gc6
+		ld	a,b			; область фона svr[k]
+		add	a,a
+		add	a,a
+		ld	hl,svr
+		call	add_hl_a
+		ld	c,(hl)
+		inc	hl
+		inc	hl
+		ld	a,(hl)
+		push	af
+		call	gc_ext
+		pop	af
+		ld	c,a
+		push	bc
+		ld	a,b			; столбцов: pps[k]
+		ld	e,a
+		add	a,a
+		add	a,e
+		add	a,a
+		ld	hl,pps
+		call	add_hl_a
+		ld	a,(hl)
+		pop	bc
+		call	mul3
+		call	div8b
+		call	gc_add
+gc6:		ld	a,b			; рисование: свои строки, ppd[k]
+		call	new_ptr
+		ld	a,l
+		add	a,9
+		ld	l,a
+		ld	c,(hl)
+		inc	hl
+		inc	hl
+		ld	a,(hl)
+		push	af
+		call	gc_ext
+		pop	af
+		ld	c,a
+		push	bc
+		ld	a,b
+		ld	e,a
+		add	a,a
+		add	a,a
+		add	a,a
+		add	a,e
+		add	a,e
+		add	a,e
+		ld	hl,ppd
+		call	add_hl_a
+		ld	a,(hl)
+		pop	bc
+		call	mul3
+		call	div8b
+		add	a,5
+		call	gc_add
+gc9:		inc	b
+		ld	a,b
+		cp	SPR_MAX
+		jp	nz,gc2
+		ld	hl,gd			; накладные расходы полос: d := d + d / 2 (по замерам)
+		ld	b,SPR_MAX
+gcs:		ld	a,(hl)
+		or	a
+		rra
+		add	a,(hl)
+		jp	nc,gcs1
+		ld	a,0xFF
+gcs1:		ld	(hl),a
+		inc	hl
+		dec	b
+		jp	nz,gcs
+		ret
+; gc_add: gd[gc_g] += A (BC сохраняются)
+gc_add:		push	hl
+		ld	hl,gc_g
+		ld	e,(hl)
+		ld	hl,gd
+		push	af
+		ld	a,e
+		call	add_hl_a
+		pop	af
+		add	a,(hl)
+		jp	nc,gca1
+		ld	a,0xFF
+gca1:		ld	(hl),a
+		pop	hl
+		ret
+; gc_ext: C = L верхней строки, A = строк -> gs[gc_g] := min(s), ge[gc_g] := max(e) (B сохраняется)
+gc_ext:		push	bc
+		ld	e,a
+		ld	a,c
+		sub	e
+		inc	a			; L нижней
+		push	af
+		ld	a,c
+		call	l2u
+		ld	(gc_s),a		; s
+		pop	af
+		call	l2u
+		inc	a
+		ld	e,a			; e
+		ld	a,(gc_s)
+		ld	d,a
+		ld	hl,gc_g
+		ld	a,(hl)
+		ld	hl,gs
+		call	add_hl_a
+		ld	a,d
+		cp	(hl)
+		jp	nc,gce1
+		ld	(hl),a
+gce1:		ld	a,SPR_MAX
+		call	add_hl_a
+		ld	a,e
+		cp	(hl)
+		jp	c,gce2
+		ld	(hl),a
+gce2:		pop	bc
+		ret
+; l2u: A = L строки экрана -> единицы от прерывания: ((295 - L) * 3) / 4 (строка луча = 40 + FF - L)
+l2u:		ld	c,a
+		ld	hl,0x127
+		ld	a,l
+		sub	c
+		ld	l,a
+		ld	a,h
+		sbc	a,0
+		ld	h,a
+		ld	d,h
+		ld	e,l
+		add	hl,hl
+		add	hl,de
+		ld	a,l
+		rrca
+		rrca
+		and	0x3F
+		ld	l,a
+		ld	a,h
+		rrca
+		rrca
+		and	0xC0
+		or	l
+		ret
+; mul3: A = 3 * A * C (A <= 3, C <= 23; результат < 256)
+mul3:		ld	e,a
+		xor	a
+		inc	e
+ml1:		dec	e
+		jp	z,ml2
+		add	a,c
+		jp	ml1
+ml2:		ld	e,a
+		add	a,a
+		add	a,e
+		ret
+; div8: A / 8; div8b: A / 8 + A / 64
+div8:		rrca
+		rrca
+		rrca
+		and	0x1F
+		ret
+div8b:		ld	e,a
+		call	div8
+		ld	d,a
+		ld	a,e
+		rlca
+		rlca
+		and	3
+		add	a,d
+		ret
+
+cr_end:		xor	a			; конец списка
+		ld	hl,(cr_ptr)
+		ld	(hl),a
+		ret
+; cr_add: в список (A, B) (BC, DE сохраняются)
+cr_add:		ld	hl,(cr_ptr)
+		ld	(hl),a
+		inc	hl
+		ld	(hl),b
+		inc	hl
+		ld	(cr_ptr),hl
+		ret
+
+; crit: после прерывания кадра — список действий cr_list
+crit:		ld	hl,cr_list
+ck0:		ld	a,(hl)
+		or	a
+		ret	z
+		inc	hl
+		ld	b,(hl)
+		inc	hl
+		push	hl
+		cp	2
+		jp	c,ck1
+		jp	z,ck2
+		cp	4
+		jp	z,ck4
+		call	draw1
+		jp	ck9
+ck4:		ld	c,DL_N			; ~256 тактов
+ck4a:		dec	c
+		jp	nz,ck4a
+		dec	b
+		jp	nz,ck4
+		jp	ck9
+ck1:		call	restore1
+		jp	ck9
+ck2:		ld	a,(ex_any)		; клетки откладывались?
+		or	a
+		jp	z,ck9
+		ld	a,b
+		call	rec_ptr
+		ld	a,l
+		add	a,5
+		ld	l,a
+		call	cells_rect
+ck9:		pop	hl
+		jp	ck0
+
+; grp_of: A = номер -> A = grp[номер], HL -> grp[номер]
+grp_of:		add	a,grp&0xFF		; grp — в пределах страницы
+		ld	l,a
+		ld	h,grp/256
+		ld	a,(hl)
+		ret
+
+; overl: B, C — номера; CY — какое-то из мест одного (прежнее, если нарисован; новое, если виден) пересекает
+; какое-то из мест другого (BC, D сохраняются)
+overl:		push	de
+		ld	a,b
+		call	place0
+		ld	(ov_a),hl
+		ld	a,b
+		call	place1
+		ld	(ov_a1),hl
+		ld	a,c
+		call	place0
+		ld	(ov_b),hl
+		ld	a,c
+		call	place1
+		ld	(ov_b1),hl
+		ld	hl,(ov_b)
+		ex	de,hl
+		ld	hl,(ov_a)
+		call	ovp
+		jp	c,ov_y
+		ld	hl,(ov_a1)
+		call	ovp
+		jp	c,ov_y
+		ld	hl,(ov_b1)
+		ex	de,hl
+		ld	hl,(ov_a)
+		call	ovp
+		jp	c,ov_y
+		ld	hl,(ov_a1)
+		call	ovp
+ov_y:		pop	de
+		ret
+; ovp: HL, DE — места или 0; CY — оба есть и пересекаются
+ovp:		ld	a,h
+		or	l
+		ret	z
+		ld	a,d
+		or	e
+		ret	z
+		jp	isect
+
+; place0 / place1: A = номер -> HL = прежнее место (rec+5, если нарисован) / новое (new+5, если виден), иначе 0
+place0:		call	rec_ptr
+		jp	pl1
+place1:		call	new_ptr
+pl1:		ld	a,(hl)
+		or	a
+		jp	z,plz
+		ld	a,5
+		jp	add_hl_a
+plz:		ld	hl,0
+		ret
+
+; cells_rect: HL -> (r0, r1, c0, c1): клетки, где VNT != NTS, — на экран
+cells_rect:
+		ld	a,(hl)
+		ld	(cr_r),a
+		inc	hl
+		ld	a,(hl)
+		ld	(cr_r1),a
+		inc	hl
+		ld	a,(hl)
+		ld	(cr_c0),a
+		inc	hl
+		ld	a,(hl)
+		ld	(cr_c1),a
+cr0:		ld	a,(cr_r)		; HL = VNT + 32 r + c0
+		ld	(rr_r),a
+		ld	l,a
+		ld	h,0
+		add	hl,hl
+		add	hl,hl
+		add	hl,hl
+		add	hl,hl
+		add	hl,hl
+		ld	a,(cr_c0)
+		call	add_hl_a
+		ld	de,VNT
+		add	hl,de
+		ld	a,(cr_c0)
+		ld	(rr_c),a
+cr1:		ld	a,h			; DE = NTS + то же смещение
+		sub	VNT/256
+		add	a,NTS/256
+		ld	d,a
+		ld	e,l
+		ld	a,(de)
+		cp	(hl)
+		jp	z,cr2
+		ld	a,(hl)
+		ld	(de),a
+		ld	(rr_t),a
+		push	hl
+		call	draw_cell
+		pop	hl
+cr2:		inc	hl
+		ld	a,(rr_c)
+		inc	a
+		ld	(rr_c),a
+		ld	b,a
+		ld	a,(cr_c1)
+		cp	b
+		jp	nc,cr1
+		ld	a,(cr_r)
+		inc	a
+		ld	(cr_r),a
+		ld	b,a
+		ld	a,(cr_r1)
+		cp	b
+		jp	nc,cr0
 		ret
