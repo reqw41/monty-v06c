@@ -108,6 +108,13 @@ nmi_run:
 
 ; Ожидание кадра главным циклом: обработчик игры — только если цикл действительно ждёт (условие не выполнено)
 ; и был кадр Вектора. Не зависит от скорости: тот же порядок, что у модели MSX в режиме coop.
+nmi_wait_a5d8:					; A5D8: процессы ждут сброса 705F бит 3 (A60B в обработчике)
+		push	af
+		ld	a,(0x705F)
+		and	0x08
+		jp	z,np9
+		pop	af
+		jp	nmi_poll
 nmi_wait_a5ca:					; A5CA: ждёт 7207 бит 7
 		push	af
 		ld	a,(0x7207)
@@ -121,13 +128,6 @@ nmi_wait_8c19:					; 8C19: ждёт сброса 70B1 бит 3
 		and	0x08
 		jp	z,np9
 		pop	af
-nmi_wait_a5d8:					; A5D8: процессы ждут сброса 705F бит 3 (A60B в обработчике)
-		push	af
-		ld	a,(0x705F)
-		and	0x08
-		jp	z,np9
-		pop	af
-		jp	nmi_poll
 nmi_poll:
 		push	af
 		ld	a,(nmi_pend)

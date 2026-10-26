@@ -121,7 +121,7 @@ for (let k = 0; k < Math.min(A.length, B.length); k++) {
   if (bad && !prevBad && ++runs > 12) break;
   prevBad = bad;
 }
-if (first < 0) console.log('совпадение по всем тикам');
+if (first < 0) console.log('совпадение по всем тикам' + (A.length !== B.length ? ` — НО тиков разное число (MSX ${A.length}, Вектор ${B.length})` : ''));
 let fv = -1;
 for (let k = 0; k < Math.min(vsn.length, vsv.length); k++) {
   const d = []; for (let i = 0; i < 800; i++) if (vsn[k][i] !== vsv[k][i]) d.push(i);
