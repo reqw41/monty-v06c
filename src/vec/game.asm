@@ -58,15 +58,14 @@ isr:
 		inc	hl
 		ld	(frames),hl
 		call	pal_load_isr
-		call	kb_scan
 		ld	a,(vstat)		; флаг кадра VDP
 		or	0x80
 		ld	(vstat),a
-		ld	a,1			; кадр для обработчика игры (запуск — в ожидании главного цикла, nmi_poll)
+		ld	a,(nmi_pend)		; долг кадров для обработчика игры (запуск — в ожидании главного цикла), до 4
+		cp	4
+		jp	nc,isr_x
+		inc	a
 		ld	(nmi_pend),a
-		ld	a,(in_nmi)
-		or	a
-		call	z,display
 isr_x:		pop	de
 		pop	bc
 		ld	hl,(isr_sp)
@@ -124,13 +123,26 @@ nmi_poll:
 		ld	a,(in_nmi)
 		or	a
 		jp	nz,np9
-		xor	a
-		ld	(nmi_pend),a
 		push	bc
 		push	de
 		push	hl
+		ld	hl,nmi_pend		; один кадр долга — один вызов обработчика
+		di
+		dec	(hl)
+		ei
 		call	nmi_run
-		pop	hl
+		ld	a,(nmi_pend)		; долг погашен — вывод; отстаём — пропуск, но не больше 4 подряд
+		or	a
+		jp	z,np5
+		ld	a,(np_skip)
+		inc	a
+		ld	(np_skip),a
+		cp	4
+		jp	c,np8
+np5:		xor	a
+		ld	(np_skip),a
+		call	display
+np8:		pop	hl
 		pop	de
 		pop	bc
 np9:		pop	af
@@ -192,10 +204,15 @@ frames:		ds	2
 isr_sp:		ds	2
 in_nmi:		ds	1
 nmi_pend:	ds	1
+np_waited:	ds	1
+np_ontime:	ds	1
+np_skip:	ds	1
 vstat:		ds	1
 fv_val:		ds	1
+vs_v:		ds	2
 vdirty:		ds	1
 nt_age:		ds	1
+anim_ok:	ds	1
 vregs:		ds	8
 pal_load:	ds	1
 tile_hi:	ds	1
@@ -227,7 +244,38 @@ rr_p:		ds	1
 rr_np:		ds	1
 rr_y:		ds	1
 spr_n:		ds	1
-spr_prev:	ds	2*SPR_MAX
+spr_rec:	ds	SREC*SPR_MAX
+sv_lo:		ds	1
+sv_col:		ds	1
+sp_px:		ds	1
+sp_py:		ds	1
+sp_rows:	ds	1
+sp_col:		ds	1
+sp_k:		ds	1
+sp_save:	ds	1
+sp_sv:		ds	2
+sp_cbits:	ds	1
+sp_c:		ds	1
+st_rows:	ds	1
+st_kind:	ds	1
+sv_zc:		ds	1
+sm_z0:		ds	1
+sm_z1:		ds	1
+sm_z2:		ds	1
+cl_h:		ds	3
+cl_m:		ds	3
+cl_n:		ds	1
+se_y:		ds	1
+se_r0:		ds	1
+se_r1:		ds	1
+tr_z0:		ds	1
+tr_z1:		ds	1
+tr_z2:		ds	1
+tr_line:	ds	1
+tr_first:	ds	1
+tr_last:	ds	1
+sm_off:		ds	1
+spr_trim:	ds	4*64
 sp_y:		ds	1
 sp_x:		ds	1
 sp_name:	ds	1
@@ -256,6 +304,11 @@ pat_flag:	ds	256
 anim_flag:	ds	256
 col_flag:	ds	256
 cmodes:		ds	256
+LIVE_MAX	equ	120
+		ALIGN	256
+live_list:	ds	2*LIVE_MAX+2
+		ALIGN	256
+sm_or:		ds	48
 tabs_end:
 		ds	128
 ISR_STACK:

@@ -23,4 +23,4 @@ for (let f = 0; f < +B; f++) {
   if (f === +A) m.onInstr = (pc) => { const k = pc < 0x7000 ? near[pc] : 'вне'; h.set(k, (h.get(k) || 0) + 1); n++; };
   m.frame();
 }
-console.log([...h].sort((a, b) => b[1] - a[1]).slice(0, 25).map(([k, v]) => `${k} ${(100 * v / n).toFixed(1)}%`).join('\n'));
+console.log([...h].sort((a, b) => b[1] - a[1]).slice(0, 400).map(([k, v]) => `${k} ${(100 * v / n).toFixed(1)}%`).join('\n'));

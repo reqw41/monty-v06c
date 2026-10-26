@@ -81,7 +81,7 @@ vmark_byte:
 		push	af
 		ld	a,h
 		cp	VNT/256
-		jp	c,vb_x
+		jp	c,vb_spr
 		cp	VNT/256+3
 		jp	c,vb_nt
 		cp	0xE0
@@ -128,13 +128,35 @@ vb_nt:		push	hl			; строка = (HL - VNT) >> 5
 		pop	hl
 vb_x:		pop	af
 		ret
+vb_spr:		cp	VSPR/256		; шаблоны спрайтов: таблицы обрезки — заново
+		jp	c,vb_x
+		xor	a
+		ld	(anim_ok),a
+		jp	vb_x
 
 ; --- vwrite: HL = адрес VDP, DE = источник, BC = байт: копирование в виртуальную VRAM ------------------
+; Быстрый путь: начало и конец в одной непрерывной области — прямое копирование и отметка диапазона.
 vwrite:
 		ld	a,b
 		or	c
 		ret	z
 		call	vmark
+		call	vspan			; HL = ОЗУ начала, CY = 1 — не непрерывно
+		jp	c,vw_slow
+		push	hl			; копирование
+		push	bc
+vwf1:		ld	a,(de)
+		ld	(hl),a
+		inc	hl
+		inc	de
+		dec	bc
+		ld	a,b
+		or	c
+		jp	nz,vwf1
+		pop	bc
+		pop	hl
+		jp	vmark_range
+vw_slow:	ld	hl,(vs_v)
 vw1:		push	hl
 		call	vmap
 		jp	c,vw2
@@ -155,6 +177,18 @@ vread:
 		ld	a,b
 		or	c
 		ret	z
+		call	vspan
+		jp	c,vr_slow
+vrf1:		ld	a,(hl)
+		ld	(de),a
+		inc	hl
+		inc	de
+		dec	bc
+		ld	a,b
+		or	c
+		jp	nz,vrf1
+		ret
+vr_slow:	ld	hl,(vs_v)
 vr1:		push	hl
 		call	vmap
 		ld	a,0
@@ -168,6 +202,145 @@ vr2:		ld	(de),a
 		ld	a,b
 		or	c
 		jp	nz,vr1
+		ret
+
+; vspan: HL = адрес VDP, BC = байт -> HL = ОЗУ начала, CY = 0, если начало и конец отображаются непрерывно
+; (vs_v := исходный HL)
+vspan:
+		ld	(vs_v),hl
+		push	de
+		push	hl
+		add	hl,bc			; конец = начало + BC - 1
+		dec	hl
+		call	vmap
+		jp	c,vsp_no
+		ex	de,hl			; DE = ОЗУ конца
+		pop	hl
+		push	hl
+		call	vmap
+		jp	c,vsp_no
+		push	hl			; ОЗУ конца - ОЗУ начала = BC - 1 ?
+		ld	a,e
+		sub	l
+		ld	l,a
+		ld	a,d
+		sbc	a,h
+		ld	h,a
+		inc	hl
+		ld	a,l
+		cp	c
+		jp	nz,vsp_no2
+		ld	a,h
+		cp	b
+		jp	nz,vsp_no2
+		pop	hl
+		pop	de			; исходный HL
+		pop	de
+		or	a
+		ret
+vsp_no2:	pop	hl
+vsp_no:		pop	hl
+		pop	de
+		scf
+		ret
+
+; vmark_range: HL = ОЗУ начала, BC = байт (непрерывно) — строки таблицы имён / тайлы банков / шаблоны спрайтов
+vmark_range:
+		ld	a,h
+		cp	VNT/256
+		jp	c,vmr_spr
+		cp	VNT/256+3
+		jp	c,vmr_nt
+		cp	0xE0
+		ret	c
+		push	hl			; тайлы: от (HL >> 3) & FF, (BC + 7) / 8 + 1 штук
+		push	bc
+		ld	a,l
+		rrca
+		rrca
+		rrca
+		and	0x1F
+		ld	e,a
+		ld	a,h
+		rrca
+		rrca
+		rrca
+		and	0xE0
+		or	e
+		ld	l,a
+		ld	h,pat_flag/256
+		ld	a,c			; штук = BC / 8 + 2 (не больше 256)
+		rrca
+		rrca
+		rrca
+		and	0x1F
+		ld	e,a
+		ld	a,b
+		rlca
+		rlca
+		rlca
+		rlca
+		rlca
+		and	0xE0
+		or	e
+		add	a,2
+		jp	nc,vmt1
+		ld	a,0xFF
+vmt1:		ld	e,a
+vmt2:		ld	(hl),1
+		inc	l
+		dec	e
+		jp	nz,vmt2
+		ld	a,(vdirty)
+		or	VD_PAT
+		ld	(vdirty),a
+		pop	bc
+		pop	hl
+		ret
+vmr_nt:		push	hl			; строки: от (HL - VNT) >> 5 до (HL + BC - 1 - VNT) >> 5
+		push	bc
+		call	vnt_row
+		ld	e,a
+		add	hl,bc
+		dec	hl
+		call	vnt_row
+		ld	d,a
+		ld	hl,row_dirty
+		ld	a,e
+		call	add_hl_a
+vmn1:		ld	(hl),1
+		inc	hl
+		ld	a,e
+		cp	d
+		jp	z,vmn2
+		inc	e
+		jp	vmn1
+vmn2:		pop	bc
+		pop	hl
+		ret
+vmr_spr:	cp	VSPR/256
+		ret	c
+		xor	a
+		ld	(anim_ok),a
+		ret
+; vnt_row: HL = адрес в VNT -> A = строка (до 23); остальные регистры сохраняются
+vnt_row:	push	de
+		ld	a,l
+		rlca
+		rlca
+		rlca
+		and	7
+		ld	e,a
+		ld	a,h
+		sub	VNT/256
+		add	a,a
+		add	a,a
+		add	a,a
+		or	e
+		pop	de
+		cp	24
+		ret	c
+		ld	a,23
 		ret
 
 ; --- FILL_VRAM: HL = адрес VDP, DE = число, A = байт -------------------------------------------------
@@ -467,13 +640,12 @@ wsn1:		push	hl
 		push	bc
 		ld	bc,0x7300
 		add	hl,bc
-		ld	c,4
-wsn2:		ld	a,(hl)
+		REPT	4
+		ld	a,(hl)
 		ld	(de),a
 		inc	hl
 		inc	de
-		dec	c
-		jp	nz,wsn2
+		ENDR
 		pop	bc
 		pop	hl
 		inc	hl
