@@ -23,7 +23,7 @@ const H = module.exports = {
   '8B20'(m, r) { r.c = 0x0f; r.e = 7; H.snap(m, r, 0x0f, 7); r.c = rd(m, 0x7301) & 0x0f; },
   '8B27'(m, r) { r.c = 0x0c; r.e = 4; H.snap(m, r, 0x0c, 4); r.c = rd(m, 0x7301) & 0x0f; },
   // 8C1F: опрос джойстика; 73EE := (73F0 & C0) | 73EE
-  '8C1F'(m, r) { z(m, r, 0x1f76); r.hl = 0x73ee; r.a = (rd(m, 0x73f0) & 0xc0) | rd(m, 0x73ee); wr(m, 0x73ee, r.a); },
+  '8C1F'(m, r) { if (m.input) m.input(m); else z(m, r, 0x1f76); r.hl = 0x73ee; r.a = (rd(m, 0x73f0) & 0xc0) | rd(m, 0x73ee); wr(m, 0x73ee, r.a); },
   // 8C44: A != 0 — шаг анимации ходьбы (91BD), 705F бит 6 := 0; иначе бит 6 := 1
   '8C44'(m, r) { if (r.a) { K['91BD'](m, r); wr(m, 0x705f, rd(m, 0x705f) & ~0x40); } else wr(m, 0x705f, rd(m, 0x705f) | 0x40); r.hl = 0x705f; },
   '8C3F'(m, r) { r.a = rd(m, 0x73ee) & 5; H['8C44'](m, r); },

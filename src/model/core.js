@@ -10,6 +10,7 @@ class Regs {
   get de() { return this.d << 8 | this.e; } set de(v) { this.d = v >> 8 & 0xff; this.e = v & 0xff; }
   get bc() { return this.b << 8 | this.c; } set bc(v) { this.b = v >> 8 & 0xff; this.c = v & 0xff; }
 }
+C.Regs = Regs;
 C.R = (m) => new Regs(m.cpu.getState());
 C.W = (m, r) => {
   const s = r._s;
