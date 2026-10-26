@@ -25,8 +25,10 @@ C.wr16 = (m, a, v) => { C.wr(m, a, v & 0xff); C.wr(m, a + 1, v >> 8); };
 C.ret = (m, r) => { r.pc = C.rd16(m, r.sp); r.sp = (r.sp + 2) & 0xffff; C.W(m, r); };
 // подмена: процедура модели вместо Z80-кода
 C.hook = (fn) => (m) => { const r = C.R(m); fn(m, r); C.ret(m, r); };
+// подмена с переходом: процедура модели, затем PC := to (без RET)
+C.jump = (fn, to) => (m) => { const r = C.R(m); fn(m, r); r.pc = to; C.W(m, r); };
 // модуль: { 'адрес': fn } -> { 'адрес': hook(fn) }
-C.hooks = (mod) => Object.fromEntries(Object.entries(mod).filter(([k]) => /^[0-9A-F]{4}$/.test(k)).map(([k, fn]) => [k, C.hook(fn)]));
+C.hooks = (mod) => Object.fromEntries(Object.entries(mod).filter(([k]) => /^[0-9A-F]{4}$/.test(k)).map(([k, fn]) => [k, mod.JUMPS && mod.JUMPS[k] !== undefined ? C.jump(fn, mod.JUMPS[k]) : C.hook(fn)]));
 // z: вызов ещё не переписанной Z80-процедуры из модели (регистры r -> процессор -> r; SP и PC не меняются)
 C.z = (m, r, addr) => {
   C.W(m, r); m.callSub(addr);

@@ -15,7 +15,9 @@ const F = require('./frame');
 const K = require('./collide');
 
 const b8 = (v) => v & 0xff;
+class GameOver extends Error { constructor() { super('конец игры'); } }
 const H = module.exports = {
+  GameOver,
   // 8B20/8B27: X героя (7301, 7305) := 16 * (X / 16) + (младшая тетрада < 8 ? E : C); CF
   snap(m, r, c, e) { const x = rd(m, 0x7301); if ((x & 0x0f) < 8) c = e; r.a = b8((x & 0xf0) + c); wr(m, 0x7301, r.a); wr(m, 0x7305, r.a); r.cf = 1; },
   '8B20'(m, r) { r.c = 0x0f; r.e = 7; H.snap(m, r, 0x0f, 7); r.c = rd(m, 0x7301) & 0x0f; },
@@ -82,7 +84,7 @@ const H = module.exports = {
         r.a = a0; H['8DD4'](m, r); return H['8E7E'](m, r);
       }
     }
-    r.a = a0; H['8DD4'](m, r); z(m, r, 0x8c13); H['8E7E'](m, r);
+    r.a = a0; H['8DD4'](m, r); require('./main')['8C13'](m, r); H['8E7E'](m, r);
   },
   // 8DE8: после ветки состояния — шаг (7076, 7077) и выход за край комнаты
   '8DE8'(m, r) {
@@ -171,11 +173,16 @@ const H = module.exports = {
       case 0x8b8e: {
         const t = b8(rd(m, 0x70a9) - 1); wr(m, 0x70a9, t);
         if (!(t & 0x80)) { r.bc = 0; L = 0x8c39; break; }
-        if (!rd(m, 0x7049)) throw new Error('герой: конец игры (8B9D) — не переписано');
+        if (!rd(m, 0x7049)) {                            // 8B9D: конец игры — надпись, дальше ждать огня
+          wr(m, 0x7049, 6); wr(m, 0x7303, 0); wr(m, 0x7307, 0); S['1FD6'](m, r);
+          for (let i = 0; i < 3; i++) wr(m, 0x70bd + i, 0);
+          r.bc = 0x0109; r.hl = 0x9409; r.de = 0x016c; U.AEA7(m, r);
+          throw new H.GameOver();                        // ожидание огня и перезапуск (8BBE..8BDE) — у порта своё
+        }
         wr(m, 0x7303, 6); wr(m, 0x7307, 0x0b);
         wr(m, 0x7077, rd(m, 0x707d)); wr(m, 0x7076, rd(m, 0x707e)); wr(m, 0x7079, rd(m, 0x707f)); wr(m, 0x7078, rd(m, 0x7080)); wr(m, 0x7075, rd(m, 0x7081));
         for (let i = 0; i < 8; i++) wr(m, 0x7300 + i, rd(m, 0x704b + i));
-        r.a = rd(m, 0x7081); require('./vram')['9156'](m, r); z(m, r, 0x8c13); return;
+        r.a = rd(m, 0x7081); require('./vram')['9156'](m, r); require('./main')['8C13'](m, r); return;
       }
       case 0x8c36: r.bc = 0; L = 0x8c39; break;
       case 0x8c39: r.a = rd(m, 0x7079); L = 0x8992; break;
