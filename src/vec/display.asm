@@ -28,10 +28,25 @@ dp1:		ld	a,(vdirty)
 		ld	hl,tile_hi
 		cp	(hl)
 		jp	z,dp2
-		ld	(hl),a
-		ld	h,anim_flag/256		; анимированные тайлы — из кэша изображений
+		ld	(bk_new),a
+		call	bank_diff		; col_flag: тайлы, чей шаблон в новом банке другой (огонь — через раз)
+		ld	a,(bk_new)
+		ld	(tile_hi),a
+		ld	h,col_flag/256		; они — из кэша изображений, их живые клетки — к перерисовке
 		call	cache_drop_flags
-		call	force_live
+		ld	a,col_flag/256
+		call	force_live_t
+		ld	hl,anim_set		; col_flag := 0
+bdz:		ld	a,(hl)
+		cp	0xFF
+		jp	z,dp2
+		push	hl
+		ld	l,a
+		ld	h,col_flag/256
+		ld	(hl),0
+		pop	hl
+		inc	hl
+		jp	bdz
 dp2:		ld	a,(vdirty)
 		and	VD_PAT
 		jp	z,dp3
@@ -40,35 +55,38 @@ dp2:		ld	a,(vdirty)
 		ld	(vdirty),a
 		ld	h,pat_flag/256		; тайлы с новыми шаблонами — из кэша изображений
 		call	cache_drop_flags
-		ld	a,(pat_flag+0xE0)	; шаблоны только E0/E8 (анимация цепи и ленты) — по списку
-		ld	b,a
+		ld	a,pat_flag/256		; живые клетки с ними (E0/E8 — лента и цепь) — к перерисовке
+		call	force_live_t
+		ld	a,(pat_flag+0xE0)	; другие тайлы (не E0/E8) отмечены?
+		push	af
 		ld	a,(pat_flag+0xE8)
-		or	b
-		ld	(pat_flag+0xE0),a
-		ld	(pat_flag+0xE8),a
 		push	af
 		xor	a
 		ld	(pat_flag+0xE0),a
 		ld	(pat_flag+0xE8),a
-		ld	hl,pat_flag		; другие тайлы отмечены?
+		ld	hl,pat_flag
 		ld	b,0
-		xor	a
 dpp1:		or	(hl)
 		inc	l
 		dec	b
 		jp	nz,dpp1
 		ld	b,a
 		pop	af
-		or	a
-		call	nz,force_live
+		ld	(pat_flag+0xE8),a
+		pop	af
+		ld	(pat_flag+0xE0),a
 		ld	a,b
 		or	a
-		ld	a,pat_flag/256
-		call	nz,force_tiles
+		jp	z,dpp2
+		ld	a,pat_flag/256		; редкость: все клетки отмеченных тайлов
+		call	force_tiles
 		ld	hl,pat_flag
 		ld	bc,256
 		ld	e,0
 		call	memfill
+		jp	dp3
+dpp2:		ld	(pat_flag+0xE0),a	; обычный случай — сбросить только E0/E8
+		ld	(pat_flag+0xE8),a
 dp3:		ld	a,(vdirty)
 		and	VD_COL
 		jp	z,dp4
@@ -207,6 +225,7 @@ rr1:		call	cache_flush
 		ld	(vdirty),a
 		call	bank_hi
 		ld	(tile_hi),a
+		ld	(fire_hi),a
 		call	live_build
 		jp	col_snapshot
 
@@ -258,6 +277,113 @@ fl1:		ld	e,(hl)
 		call	ft_mark1
 		pop	hl
 		jp	fl1
+
+; force_live_t: A = страница флагов по тайлам — живые клетки с отмеченным тайлом к перерисовке
+force_live_t:
+		ld	(flt_h),a
+		ld	hl,live_list
+flt1:		ld	e,(hl)
+		inc	hl
+		ld	d,(hl)
+		inc	hl
+		ld	a,d
+		cp	0xFF
+		ret	z
+		ld	a,(de)			; тайл клетки
+		push	hl
+		ld	l,a
+		ld	a,(flt_h)
+		ld	h,a
+		ld	a,(hl)
+		or	a
+		jp	z,flt2
+		ex	de,hl			; HL = адрес в VNT
+		call	ft_mark1
+flt2:		pop	hl
+		jp	flt1
+
+; bank_diff: col_flag[t] := 1 для тайлов anim_set, у которых шаблон в банке bk_new не тот, что показан
+; (tile_hi; огонь D0-D5 — fire_hi и только через раз: fire_skip)
+bank_diff:
+		ld	a,(fire_skip)
+		xor	1
+		ld	(fire_skip),a
+		ld	hl,anim_set
+bd0:		ld	a,(hl)
+		cp	0xFF
+		jp	z,bd_end
+		push	hl
+		ld	c,a
+		sub	0xD0
+		cp	6
+		ld	a,(tile_hi)
+		jp	nc,bd_cmp
+		ld	a,(fire_skip)
+		or	a
+		jp	nz,bd9
+		ld	a,(fire_hi)
+bd_cmp:		call	pat_ptr			; прежний
+		push	hl
+		ld	a,(bk_new)
+		call	pat_ptr			; новый
+		pop	de
+		ld	b,8
+bd1:		ld	a,(de)
+		cp	(hl)
+		jp	nz,bd_ch
+		inc	de
+		inc	hl
+		dec	b
+		jp	nz,bd1
+		jp	bd9
+bd_ch:		ld	l,c
+		ld	h,col_flag/256
+		ld	(hl),1
+bd9:		pop	hl
+		inc	hl
+		jp	bd0
+bd_end:		ld	a,(fire_skip)
+		or	a
+		ret	nz
+		ld	a,(bk_new)
+		ld	(fire_hi),a
+		ret
+
+; pat_ptr: C = тайл, A = банк (0..3) -> HL = шаблон (8 байт) (C сохраняется)
+pat_ptr:	or	a
+		jp	z,pp_b0
+		dec	a
+		add	a,a
+		add	a,a
+		add	a,a
+		ld	b,a
+		ld	l,c
+		ld	h,dslot/256
+		ld	a,(hl)
+		cp	0xFF
+		jp	z,pp_b0
+		ld	e,a			; dstore + 24 * номер + 8 * (банк - 1)
+		ld	d,0
+		ld	h,d
+		ld	l,e
+		add	hl,hl
+		add	hl,de
+		add	hl,hl
+		add	hl,hl
+		add	hl,hl
+		ld	de,dstore
+		add	hl,de
+		ld	a,b
+		jp	add_hl_a
+pp_b0:		ld	l,c			; банк 0: E000 + 8 * тайл
+		ld	h,0
+		add	hl,hl
+		add	hl,hl
+		add	hl,hl
+		ld	a,h
+		add	a,0xE0
+		ld	h,a
+		ret
 
 ; bank_hi: A = номер банка шаблонов по R4 (0 -> 0, 1 -> 1, 2 -> 2, 5 -> 3)
 bank_hi:	ld	a,(vregs+4)

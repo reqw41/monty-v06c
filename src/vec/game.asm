@@ -290,6 +290,10 @@ rs_n:		ds	1
 pu_lo:		ds	1
 ex_any:		ds	1
 t_now:		ds	1
+bk_new:		ds	1
+fire_hi:	ds	1
+fire_skip:	ds	1
+flt_h:		ds	1
 gc_g:		ds	1
 gc_s:		ds	1
 gact:		ds	SPR_MAX
