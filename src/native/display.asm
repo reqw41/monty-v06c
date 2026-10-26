@@ -50,8 +50,7 @@ dp1:		ld	a,(vdirty)
 		call	bank_diff		; col_flag: тайлы, чей шаблон в новом банке другой (огонь — через раз)
 		ld	a,(bk_new)
 		ld	(tile_hi),a
-		ld	h,col_flag/256		; их изображения устарели, их живые клетки — к перерисовке
-		call	cache_old_anim
+						; их живые клетки — к перерисовке
 		ld	a,col_flag/256
 		call	force_live_t
 		ld	hl,anim_set		; col_flag := 0
@@ -71,15 +70,7 @@ dp2:		ld	a,(vdirty)
 		ld	a,(vdirty)
 		and	0xFF-VD_PAT
 		ld	(vdirty),a
-		ld	a,(pat_flag+0xE0)	; тайлы с новыми шаблонами: E0/E8 — сразу, прочие — общим путём ниже
-		or	a
-		ld	a,0xE0
-		call	nz,cache_old_tile
-		ld	a,(pat_flag+0xE8)
-		or	a
-		ld	a,0xE8
-		call	nz,cache_old_tile
-		ld	a,pat_flag/256		; живые клетки с ними (E0/E8 — лента и цепь) — к перерисовке
+		ld	a,pat_flag/256		; тайлы с новой графикой: живые клетки с ними (E0/E8 — лента и цепь) —
 		call	force_live_t
 		ld	a,(pat_flag+0xE0)	; другие тайлы (не E0/E8) отмечены?
 		push	af
@@ -102,9 +93,7 @@ dpp1:		or	(hl)
 		ld	a,b
 		or	a
 		jp	z,dpp2
-		ld	h,pat_flag/256		; редкость: прочие тайлы — изображения устарели, все их клетки
-		call	cache_drop_flags
-		ld	a,pat_flag/256
+		ld	a,pat_flag/256		; к перерисовке; редкость: прочие тайлы — все их клетки
 		call	force_tiles
 		ld	hl,pat_flag
 		ld	bc,256
@@ -293,9 +282,8 @@ room_redraw:
 		call	trim_build
 		ld	a,1
 		ld	(anim_ok),a
-rr1:		call	bank_hi			; банк — до сброса кэша (запасы банков помечаются им)
+rr1:		call	bank_hi			; кадр анимации
 		ld	(tile_hi),a
-		call	cache_flush
 		call	pal_build
 		call	pal_fill
 		call	modes_build
@@ -771,9 +759,7 @@ cg2:		inc	hl
 		ld	a,c
 		or	a
 		ret	z
-		ld	h,col_flag/256		; тайлы групп с новым цветом — из кэша изображений
-		call	cache_drop_flags
-		ld	a,col_flag/256
+		ld	a,col_flag/256		; тайлы групп с новым цветом — их клетки к перерисовке
 		call	force_tiles
 		ld	hl,col_flag
 		ld	bc,256

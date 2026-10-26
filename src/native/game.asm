@@ -77,11 +77,9 @@ boot:
 		call	vi_off			; ВИ53 молчит, каналы SN — тоже (TURN_OFF_SOUND оригинала)
 		call	snd_off
 		call	pats_init		; шаблоны: банк 0 -> E000, различия -> dslot/dstore, спрайты -> VSPR
-		call	tc_init
 		call	se_init
 		call	bd_init
 		call	lv_init
-		call	cache_flush
 		ld	a,0xD0
 		ld	(VSAT),a
 		ld	a,1
@@ -306,7 +304,6 @@ unit_fw:	push	af			; tools/unit.js: ожидание кадра = обработ
 		INCLUDE	"gen/cart.asm"
 		ALIGN	256
 dlist:		ds	256			; список изменённых клеток (адреса в VNT)
-tc_tab:		ds	256			; адреса ячеек кэша изображений (младшие, старшие + 80h)
 ; таблицы спрайтов — в одной странице (адрес — одной командой)
 sprt:
 gact:		ds	SPR_MAX			; gact, gs, ge, gd — подряд
@@ -321,7 +318,6 @@ ppd:		ds	11*SPR_MAX
 ubr:		ds	4*SPR_MAX		; рамки спрайтов: прежнее и новое место (ub_build)
 sprt_end:
 		ASSERT	sprt/256 == (sprt_end-1)/256
-tcache2:	ds	24*TC_N			; кэш изображений тайлов
 se_tab:		ds	8*24			; адреса входа блоков по числу строк (se_init)
 bd_tab:		ds	48			; переходы банков: какие анимированные тайлы меняются (bd_init)
 ex_bb:		ds	4			; общая рамка отложенных клеток
@@ -329,9 +325,6 @@ lv_tile:	ds	33			; живые клетки: тайл корзины
 lv_beg:		ds	34			; начало корзины в live_list (+ всего)
 lv_pos:		ds	33			; счётчики/позиции при раскладке
 lv_idx		equ	0xF400			; тайл -> корзина (FF — не живой); бывший кэш тайлов в невидимой плоскости
-AB_N		equ	24			; запас изображений анимированных тайлов: abank[банк 0..3][номер в anim_set]
-abank		equ	0xF500			; ячейка (FF — нет; бит 7 — устарело); бывший кэш тайлов vec-сборки
-ab_img		equ	0xF560			; банк нынешнего изображения (tslot) по номеру в anim_set
 		INCLUDE	"gen/pats.asm"
 		INCLUDE	"../vec/vars.asm"
 		INCLUDE	"gen/spat.asm"			; ORG VSPR — шаблоны спрайтов прямо в образе
