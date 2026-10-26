@@ -11,6 +11,11 @@ const plan = { 120: [['space', true]], 128: [['space', false]] };
 for (const it of PLAN.split(/\s+/).filter(Boolean)) {
   const tp = it.match(/^(\d+):tp(\d+)\.(\d+)$/); if (tp) { (plan[+tp[1]] = plan[+tp[1]] || []).push(['tp', +tp[2], +tp[3]]); continue; }
   const mm = it.match(/^(\d+):(\w+)([+-])$/); (plan[+mm[1]] = plan[+mm[1]] || []).push([mm[2], mm[3] === '+']); }
+if (process.env.RND) {                                     // случайный ввод: каждые 6-30 итераций — смена клавиш
+  let x = +process.env.RND || 1; const rnd = (n) => { x = (x * 1103515245 + 12345) & 0x7fffffff; return x % n; };
+  const keys = ['left', 'right', 'up', 'down', 'space'];
+  for (let t = 200; t < N; t += 6 + rnd(25)) for (const k of keys) (plan[t] = plan[t] || []).push([k, rnd(3) === 0]);
+}
 const K = { space: 0x40, left: 0x44, up: 0x45, down: 0x46, right: 0x47 };
 const CHEAT = process.env.CHEAT === '1';
 function run(hooks) {

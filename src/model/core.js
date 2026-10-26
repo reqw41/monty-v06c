@@ -27,3 +27,10 @@ C.ret = (m, r) => { r.pc = C.rd16(m, r.sp); r.sp = (r.sp + 2) & 0xffff; C.W(m, r
 C.hook = (fn) => (m) => { const r = C.R(m); fn(m, r); C.ret(m, r); };
 // модуль: { 'адрес': fn } -> { 'адрес': hook(fn) }
 C.hooks = (mod) => Object.fromEntries(Object.entries(mod).filter(([k]) => /^[0-9A-F]{4}$/.test(k)).map(([k, fn]) => [k, C.hook(fn)]));
+// z: вызов ещё не переписанной Z80-процедуры из модели (регистры r -> процессор -> r; SP и PC не меняются)
+C.z = (m, r, addr) => {
+  C.W(m, r); m.callSub(addr);
+  const s = m.cpu.getState();
+  Object.assign(r, { a: s.a, b: s.b, c: s.c, d: s.d, e: s.e, h: s.h, l: s.l, ix: s.ix, iy: s.iy, zf: s.flags.Z, cf: s.flags.C });
+  r._s = s; s.pc = r.pc; s.sp = r.sp;
+};
