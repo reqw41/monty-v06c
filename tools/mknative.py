@@ -82,12 +82,11 @@ ANIM = [0x04, 0x05, 0x06, 0x38, 0xA0, 0xA3, 0xA4, 0xA7, 0xB8, 0xB9, 0xBA, 0xD0, 
 BANKS = [0x0000, 0x0800, 0x1000, 0x2800]
 other = [t for t in range(256) if t not in ANIM and any(V[b + 8 * t:b + 8 * t + 8] != V[8 * t:8 * t + 8] for b in BANKS[1:])]
 if other: print('ВНИМАНИЕ: различия банков вне набора:', ' '.join(f'{t:02X}' for t in other))
-P = ['; создано tools/mknative.py — не править', '; шаблоны тайлов: банк 0 (тайл t — pat0 + 8t)', 'pat0:']
-for t in range(256): P.append('\t\tdb\t' + ','.join(f'0x{x:02X}' for x in V[8 * t:8 * t + 8]))
-P += ['; различия банков 1, 2, 5: anim_set[i] -> pdiff + 24 i (по 8 байт на банк)', 'anim_set:\tdb\t' + ','.join(f'0x{t:02X}' for t in ANIM) + ',0xFF', 'pdiff:']
+V0 = open(os.path.join(ROOT, 'build/native/vram0.bin'), 'rb').read()   # на входе в A59D (банк 0 — сжатым, tools/pack.py)
+P = ['; создано tools/mknative.py — не править'] + ['; различия банков 1, 2, 5: anim_set[i] -> pdiff + 24 i (по 8 байт на банк)', 'anim_set:\tdb\t' + ','.join(f'0x{t:02X}' for t in ANIM) + ',0xFF', 'pdiff:']
 for t in ANIM:
     for b in BANKS[1:]: P.append('\t\tdb\t' + ','.join(f'0x{x:02X}' for x in V[b + 8 * t:b + 8 * t + 8]))
-P += ['; начальные цвета групп', 'col0:\t\tdb\t' + ','.join(f'0x{x:02X}' for x in V[0x2000:0x2020])]
+P += ['; цвета групп на входе в начало уровня', 'col0:\t\tdb\t' + ','.join(f'0x{x:02X}' for x in V0[0x2000:0x2020])]
 S = ['; создано tools/mknative.py — не править', '; шаблоны спрайтов (VDP 3800) — прямо по рабочему адресу VSPR (часть образа)', '\t\tORG\tVSPR', 'spat:']
 for i in range(0, 0x800, 16): S.append('\t\tdb\t' + ','.join(f'0x{x:02X}' for x in V[0x3800 + i:0x3810 + i]))
 open(os.path.join(ROOT, 'src/native/gen/spat.asm'), 'w').write('\n'.join(S) + '\n')

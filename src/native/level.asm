@@ -1,31 +1,98 @@
-; Начало уровня. Пока — уровень 1 со снимка модели MSX на первой итерации (tools/vsnap.js): ОЗУ игры,
-; таблица имён, цвета, регистры VDP; комната выводится целиком на первом выводе.
-level_snap:
-		ld	hl,0x7000
-		ld	de,snap_ram
-		ld	bc,0x0400
-		call	copy_de_hl
-		ld	hl,VNT
-		ld	de,snap_nt
-		ld	bc,0x0300
-		call	copy_de_hl
+; Начало игры: меню (уровень — клавиши 1, 2, 3), затем начало уровня как у оригинала (A59D). ОЗУ игры, цвета
+; и регистры — состояние оригинала на входе в A59D (tools/vsnap.js: ram0, vram0, vreg0; ОЗУ — сжатым,
+; tools/pack.py); таблицу имён оригинал перед этим очищает, комнату и строку состояния рисует A067.
+; game_init: ОЗУ игры, цвета, регистры (до установки стека игры: ОЗУ включает его область)
+game_init:	ld	hl,0x7000
+		ld	de,ram0_pk
+		call	unpack
 		ld	hl,VCOL
-		ld	de,snap_col
+		ld	de,col0
 		ld	bc,32
 		call	copy_de_hl
 		ld	hl,vregs
-		ld	de,snap_reg
+		ld	de,reg0
 		ld	bc,8
-		call	copy_de_hl
-		ld	a,8
-		call	sat_copy
+		jp	copy_de_hl
+game_start:	ld	hl,menu_txt		; меню: текст оригинала (8293), строка 15, 23 клетки
+		ld	de,0x01E5
+		ld	c,23
+		call	nt_put
 		ld	a,(vdirty)
 		or	VD_NT
 		ld	(vdirty),a
 		ld	a,2
 		ld	(nt_age),a
-		ret
-snap_ram:	INCBIN	"../../build/native/ram.bin"
-snap_nt:	INCBIN	"../../build/native/vram.bin",0x1800,0x300
-snap_col:	INCBIN	"../../build/native/vram.bin",0x2000,32
-snap_reg:	INCBIN	"../../build/native/vreg.bin"
+gs1:		ld	a,1
+		ld	(kb_req),a
+		call	frame_wait
+		ld	a,(kbmat+2)		; «1» .. «3» — биты 1..3
+		ld	b,1
+		rrca
+		rrca
+		jp	c,gs2
+		inc	b
+		rrca
+		jp	c,gs2
+		inc	b
+		rrca
+		jp	nc,gs1
+gs2:		ld	a,b
+		ld	(0x71A6),a
+		ld	de,0x01E5		; текст меню — тайлом 0
+		ld	bc,23
+		xor	a
+		call	nt_fill
+; A59D: начало уровня
+L_A59D:		ld	a,6
+		ld	(0x7049),a
+		ld	hl,0x705F
+		ld	a,(hl)
+		or	4
+		ld	(hl),a
+		call	L_AC06
+		ld	a,0xFF
+		ld	(0x70A9),a
+		ld	a,1
+		ld	(0x70AD),a
+		ld	hl,1
+		ld	(0x72E0),hl
+		ld	a,8
+		ld	(0x71A8),a
+		call	L_A067
+		call	L_8E7E
+		ld	a,5
+		ld	(0x7079),a
+		jp	mn9			; A5CA: ждать кадра, дальше главный цикл
+
+; unpack: DE = сжатое (tools/pack.py), HL = куда. B портится
+unpack:		ld	a,(de)
+		inc	de
+		cp	0xFF
+		ret	z
+		cp	0x80
+		jp	nc,upk_r
+		inc	a
+		ld	b,a
+upk_l:		ld	a,(de)
+		ld	(hl),a
+		inc	de
+		inc	hl
+		dec	b
+		jp	nz,upk_l
+		jp	unpack
+upk_r:		and	0x7F
+		add	a,2
+		ld	b,a
+		ld	a,(de)
+		inc	de
+upk_s:		ld	(hl),a
+		inc	hl
+		dec	b
+		jp	nz,upk_s
+		jp	unpack
+
+; к этому времени пробел, запятая, точка, 0, 1, 8 — уже графика игры: пустое — тайл 0, «1» — буквой I
+menu_txt:	db	"SELECT",0,"LEVEL",0,0,0,"I",0,0,"2",0,0,"3",0,0
+ram0_pk:	INCBIN	"../../build/native/ram0.pk"
+pat0_pk:	INCBIN	"../../build/native/pat0.pk"
+reg0:		INCBIN	"../../build/native/vreg0.bin"

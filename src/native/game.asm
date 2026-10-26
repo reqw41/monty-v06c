@@ -79,17 +79,16 @@ boot:
 		ld	(VSAT),a
 		ld	a,1
 		ld	(kb_req),a
-		call	level_snap		; уровень 1: ОЗУ игры, таблица имён, цвета, регистры — со снимка
-		ld	sp,GSTACK		; (после снимка: он перекрывает и область стека игры)
+		call	game_init
+		ld	sp,GSTACK
 		ei
-		jp	main_loop
+		jp	game_start		; меню и начало уровня (level.asm)
 
 ; pats_init: шаблоны из снимка VRAM (gen/pats.asm)
 pats_init:
-		ld	hl,0xE000		; банк 0
-		ld	de,pat0
-		ld	bc,0x0800
-		call	copy_de_hl
+		ld	hl,0xE000		; банк 0 (сжатый)
+		ld	de,pat0_pk
+		call	unpack
 		ld	hl,dslot		; различия: dslot[t] := номер, dstore — 24 байта на тайл
 		ld	bc,256
 		ld	e,0xFF
