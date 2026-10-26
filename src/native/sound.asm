@@ -19,6 +19,8 @@ ac0:		ld	(hl),0xFF
 L_AC1A:		push	af
 		ld	a,1
 		ld	(snd_busy),a
+		pop	af
+		push	af
 		push	hl
 		push	de
 		push	bc
