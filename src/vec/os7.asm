@@ -202,11 +202,19 @@ fv2:		pop	hl
 		inc	hl
 		dec	de
 		jp	fv1
-fv3:		xor	a			; как OS7: в конце чтение статуса (сброс флага кадра)
-		ld	(vstat),a
+fv3:		ld	a,b			; выход как у OS7: HL, B — как на входе, C = значение, DE = 0,
+		ld	(fv_val),a		; A = статус (чтение статуса в конце сбрасывает флаг кадра)
 		pop	hl
 		pop	de
 		pop	bc
+		pop	af
+		ld	a,(fv_val)
+		ld	c,a
+		ld	de,0
+		ld	a,(vstat)
+		push	af
+		xor	a
+		ld	(vstat),a
 		pop	af
 		ret
 
@@ -261,16 +269,16 @@ tc2:		ld	b,h
 		ret
 
 ; --- PUT_VRAM: A = таблица, DE = первый элемент, HL = источник, z_iy = число элементов ------------------
+; Выход как у OS7 (1C27 -> 1D01): HL = источник + байт, BC = 0098h, D = FFh, E = младший байт числа байт,
+; A = старший байт адреса VDP | 40h; особый путь (таблица 0 при 73C7 = 1, LDIR в ОЗУ): HL, DE += n, BC = 0.
 os7_PUT_VRAM:
-		push	af
-		push	bc
-		push	de
-		push	hl
 		cp	0			; таблица 0 при 73C7 = 1 — в копию атрибутов в ОЗУ ((8002) = 7300)
 		jp	nz,pv1
+		push	af
 		ld	a,(0x73C7)
 		cp	1
 		jp	nz,pv0
+		pop	af
 		ex	de,hl			; DE = источник, HL = элемент
 		add	hl,hl
 		add	hl,hl
@@ -284,35 +292,38 @@ os7_PUT_VRAM:
 		ld	b,h
 		ld	c,l
 		pop	hl
-		call	z_ldir
-		jp	pv9
-pv0:		xor	a
+		jp	z_ldir
+pv0:		pop	af
 pv1:		push	hl			; источник
 		call	tab_addr		; HL = адрес VDP, C = сдвиг
 		call	tab_count		; BC = байт
 		pop	de
-		call	vwrite
-pv9:		pop	hl
-		pop	de
-		pop	bc
-		pop	af
-		ret
-
-; --- GET_VRAM: A = таблица, DE = первый элемент, HL = приёмник, z_iy = число ----------------------------
-os7_GET_VRAM:
-		push	af
-		push	bc
-		push	de
 		push	hl
+		push	bc
+		call	vwrite			; DE (источник) продвинут на BC
+		pop	bc
+		pop	hl
+		ld	a,h
+		or	0x40
+		jp	vio_out
+
+; --- GET_VRAM: A = таблица, DE = первый элемент, HL = приёмник, z_iy = число; выход как у OS7 (1BA3 -> 1D3E):
+; HL = приёмник + байт, BC = 0098h, D = FFh, E = младший байт числа, A = старший байт адреса VDP
+os7_GET_VRAM:
 		push	hl
 		call	tab_addr
 		call	tab_count
 		pop	de
+		push	hl
+		push	bc
 		call	vread
-		pop	hl
-		pop	de
 		pop	bc
-		pop	af
+		pop	hl
+		ld	a,h
+vio_out:	ex	de,hl			; HL = источник/приёмник после копирования
+		ld	e,c
+		ld	d,0xFF
+		ld	bc,0x0098
 		ret
 
 ; --- WRITE_REGISTER: B = регистр, C = значение ----------------------------------------------------------
@@ -348,15 +359,7 @@ wr1:		cp	1
 		ld	(vdirty),a
 		ld	a,2
 		ld	(nt_age),a
-wr1a:		ld	a,c
-		and	0x20			; разрешение прерывания кадра при ждущем кадре — обработчик сразу
-		jp	z,wr9
-		ld	a,(vstat)
-		and	0x80
-		jp	z,wr9
-		pop	hl
-		pop	af
-		jp	nmi_now
+wr1a:		jp	wr9			; (разрешение прерывания кадра: обработчик — в ближайшем ожидании, nmi_poll)
 wr2:		cp	4
 		jp	z,wr3
 		cp	7

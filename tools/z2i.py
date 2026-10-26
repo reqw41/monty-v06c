@@ -23,6 +23,7 @@ LO, HI = 0x800C, 0xBFFF            # 8000-800B — заголовок Coleco, н
 PTR_TABLES = {0x8913: 11, 0xA20A: 8, 0x9477: 100, 0xAD0B: 10}
 PTR_WORDS = {0xA8A3, 0xA8A8, 0xA8AD, 0xA8B2}   # таблица процессов A8A1: [счётчик, процедура, перезагрузка] x4 (A5D8)
 CONSTS = {0x8282}                   # адреса команд, у которых число 8000-BFFF — не адрес (8282: сигнатура AA55)
+HOOKS = {0xA5CA: 'call\tnmi_wait_a5ca', 0x8C19: 'call\tnmi_wait_8c19'}   # ожидание кадра: здесь «NMI» (как на MSX)
 MANUAL = {0xAE46: 0xAE4F}           # адрес начала: адрес конца (не включая) — вставка руками src/vec/manual/
 OS7 = {}
 for l in open(os.path.join(ROOT, 'src/monty.ctl')):
@@ -58,7 +59,7 @@ for i, (k, a, _) in enumerate(items):
         e = items[i + 1][1] if i + 1 < len(items) else HI + 1
         datab.update(range(a, e))
 
-warn, refs, labels = [], set(), {0x8195, 0x8413, 0xA9B3, 0x8025}   # метки для платформенного слоя
+warn, refs, labels = [], set(), {0x8195, 0x8413, 0xA9B3, 0x8025, 0xA5D1}   # метки для платформенного слоя
 
 
 def ref(v, at):
@@ -213,7 +214,8 @@ for b in body:
     elif b[0] == 'raw': out.append(b[1])
     elif b[0] == 'ins':
         _, a, txt, lines = b
-        if a in labels: out.append(f'L_{a:04X}:')
+        if a in labels or a in HOOKS: out.append(f'L_{a:04X}:')
+        if a in HOOKS: out.append(f'\t\t{HOOKS[a]}\t\t; ожидание кадра — обработчик игры здесь')
         out.append(f'\t\t{lines[0]}\t\t; {a:04X} {txt}')
         for x in lines[1:]: out.append(f'\t\t{x}')
     else:

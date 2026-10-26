@@ -142,11 +142,18 @@ class MSX1 {
 
   get pc() { return this.cpu.get_pc(); }
   step() {
-    if ((this.vstat & 0x80) && (this.vreg[1] & 0x20) && this.cpu.get_iff1()) { this.cpu.interrupt(false, 0xff); this.irqs++; }
+    if ((this.vstat & 0x80) && (this.vreg[1] & 0x20) && this.cpu.get_iff1()) {
+      // coop: кадр только в точках ожидания главного цикла (как в порте на Векторе: nmi_poll в A5CA, 8C19)
+      const pc = this.cpu.get_pc();
+      const waits = pc === 0xa5ca ? !(this.mem[0x7207] & 0x80) : pc === 0x8c19 ? !!(this.mem[0x70b1] & 0x08) : false;
+      if (!this.coop || (this.coop.has(pc) && waits && this.coopPend)) {
+        this.cpu.interrupt(false, 0xff); this.irqs++; this.coopPend = false;
+      }
+    }
     if (this.cov) this.cov.add(this.cpu.get_pc());
     const c = this.cpu.run_instruction();
     this.t += c; this.total += c;
-    if (this.t >= T_FRAME) { this.t -= T_FRAME; this.frames++; this.vstat |= 0x80; }
+    if (this.t >= T_FRAME) { this.t -= T_FRAME; this.frames++; this.vstat |= 0x80; this.coopPend = true; }
     return c;
   }
   runFrames(n) {

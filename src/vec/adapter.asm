@@ -29,6 +29,9 @@ os7_CONTROLLER_SCAN:
 		push	af
 		push	bc
 		push	hl
+		di				; опрос клавиатуры прямо сейчас (как PPI у MSX); прерывание тоже опрашивает порты
+		call	kb_scan
+		ei
 		ld	a,(kbmat+0)
 		ld	b,0
 		rla				; бит 7 — вниз

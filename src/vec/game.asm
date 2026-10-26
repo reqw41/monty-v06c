@@ -46,12 +46,12 @@ boot:
 
 ; --- прерывание кадра Вектора: свой стек, «NMI» VDP (A9B3) при разрешённом прерывании VDP, вывод -------
 isr:
+		push	af			; флаги — первыми: ADD HL,SP ниже меняет CY прерванной программы
 		push	hl
 		ld	hl,0
 		add	hl,sp
 		ld	(isr_sp),hl
 		ld	sp,ISR_STACK
-		push	af
 		push	bc
 		push	de
 		ld	hl,(frames)
@@ -62,19 +62,17 @@ isr:
 		ld	a,(vstat)		; флаг кадра VDP
 		or	0x80
 		ld	(vstat),a
+		ld	a,1			; кадр для обработчика игры (запуск — в ожидании главного цикла, nmi_poll)
+		ld	(nmi_pend),a
 		ld	a,(in_nmi)
 		or	a
-		jp	nz,isr_x
-		ld	a,(vregs+1)
-		and	0x20
-		call	nz,nmi_run
-		call	display
+		call	z,display
 isr_x:		pop	de
 		pop	bc
-		pop	af
 		ld	hl,(isr_sp)
 		ld	sp,hl
 		pop	hl
+		pop	af
 		ei
 		ret
 
@@ -98,6 +96,44 @@ nmi_run:
 		ld	(z_t),a
 		xor	a
 		ld	(in_nmi),a
+		ret
+
+; Ожидание кадра главным циклом: обработчик игры — только если цикл действительно ждёт (условие не выполнено)
+; и был кадр Вектора. Не зависит от скорости: тот же порядок, что у модели MSX в режиме coop.
+nmi_wait_a5ca:					; A5CA: ждёт 7207 бит 7
+		push	af
+		ld	a,(0x7207)
+		and	0x80
+		jp	nz,np9
+		pop	af
+		jp	nmi_poll
+nmi_wait_8c19:					; 8C19: ждёт сброса 70B1 бит 3
+		push	af
+		ld	a,(0x70B1)
+		and	0x08
+		jp	z,np9
+		pop	af
+nmi_poll:
+		push	af
+		ld	a,(nmi_pend)
+		or	a
+		jp	z,np9
+		ld	a,(vregs+1)
+		and	0x20
+		jp	z,np9
+		ld	a,(in_nmi)
+		or	a
+		jp	nz,np9
+		xor	a
+		ld	(nmi_pend),a
+		push	bc
+		push	de
+		push	hl
+		call	nmi_run
+		pop	hl
+		pop	de
+		pop	bc
+np9:		pop	af
 		ret
 
 ; nmi_now: разрешение прерывания VDP при ждущем кадре (WRITE_REGISTER) — обработчик сразу, все регистры целы
@@ -155,7 +191,9 @@ pvars:
 frames:		ds	2
 isr_sp:		ds	2
 in_nmi:		ds	1
+nmi_pend:	ds	1
 vstat:		ds	1
+fv_val:		ds	1
 vdirty:		ds	1
 nt_age:		ds	1
 vregs:		ds	8

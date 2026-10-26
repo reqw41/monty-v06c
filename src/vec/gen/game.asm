@@ -1064,6 +1064,7 @@ L_8C13:
 		ld	(hl),a
 		pop	af
 L_8C19:
+		call	nmi_wait_8c19		; ожидание кадра — обработчик игры здесь
 		ld	(z_t),a		; 8C19 BIT 3,(HL)
 		ld	a,(hl)
 		and	0x08
@@ -3530,11 +3531,13 @@ L_A59D:
 		ld	a,0x05		; A5C5 LD A,$05
 		ld	(0x7079),a		; A5C7 LD ($7079),A
 L_A5CA:
+		call	nmi_wait_a5ca		; ожидание кадра — обработчик игры здесь
 		ld	a,(0x7207)		; A5CA LD A,($7207)
 		ld	(z_t),a		; A5CD BIT 7,A
 		and	0x80
 		ld	a,(z_t)
 		jp	z,L_A5CA		; A5CF JR Z,$A5CA
+L_A5D1:
 		xor	a		; A5D1 XOR A
 		ld	(0x7207),a		; A5D2 LD ($7207),A
 		ld	hl,D_A8A1		; A5D5 LD HL,$A8A1
