@@ -278,8 +278,7 @@ room_redraw:
 		ld	a,(anim_ok)		; таблица анимации — после изменения шаблонов (кроме E0/E8)
 		or	a
 		jp	nz,rr1
-		call	anim_build
-		call	trim_build
+		call	anim_build		; (обрезка шаблонов спрайтов — при старте: они не меняются)
 		ld	a,1
 		ld	(anim_ok),a
 rr1:		call	bank_hi			; кадр анимации

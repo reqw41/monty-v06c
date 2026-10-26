@@ -878,6 +878,7 @@ spr_one:
 		inc	hl
 		ld	a,(hl)
 		and	0x0F
+		ld	(sp_cr),a
 		ld	hl,cmap
 		call	add_hl_a
 		ld	a,(hl)
@@ -903,7 +904,8 @@ so0:		ld	(st_rows),a
 		ld	(sv_col),a
 		call	trim_sprite		; Z — пусто
 		ret	z
-		call	spr_masks
+		call	ps_find			; враг с готовыми сдвигами — маска не нужна
+		call	nz,spr_masks
 		ld	a,(sp_k)
 		call	new_ptr
 		ld	de,9
@@ -1085,6 +1087,23 @@ cs_sv:		call	st_sv
 pu3:
 ; spr_paint: по ppd[sp_k] (столбцы, маски, входы) и sv_lo/sp_ci из spr_new — спрайт в экран
 spr_paint:
+		ld	a,(sp_k)		; маски: готовые сдвиги (ps_hi[k] != 0) или ячейка спрайта
+		add	a,ps_hi&0xFF
+		ld	l,a
+		ld	h,ps_hi/256
+		ld	a,(hl)
+		or	a
+		jp	z,spp0
+		ld	(sp_mskp),a
+		ld	a,l
+		sub	ps_hi-ps_lo
+		ld	l,a
+		ld	a,(hl)
+		jp	spp2
+spp0:		ld	a,(sp_mpage)
+		ld	(sp_mskp),a
+		ld	a,SM_OFS
+spp2:		ld	(so_mofs+1),a
 		ld	a,(sp_k)
 		call	new_ptr
 		ld	a,l
@@ -1184,9 +1203,9 @@ so4:		ld	a,(hl)
 		ld	a,(de)
 		inc	de
 		push	de
-		add	a,SM_OFS		; маска: ячейка + D0 + 16 * столбец
+so_mofs:	add	a,SM_OFS		; маска: ячейка + D0 + 16 * столбец (или готовый сдвиг: блок + R * столбец)
 		ld	e,a
-		ld	a,(sp_mpage)
+		ld	a,(sp_mskp)
 		ld	d,a
 		ld	a,(st_kind)
 		or	a
@@ -1296,6 +1315,19 @@ sy0:		ld	a,b
 		add	a,ppd&0xFF
 		ld	l,a
 		ld	h,ppd/256
+		ld	a,(sy_k)		; шаг столбцов масок: 16 или строк готового сдвига
+		add	a,ps_hi&0xFF
+		ld	e,a
+		ld	d,ps_hi/256
+		ld	a,(de)
+		or	a
+		ld	a,16
+		jp	z,sy4
+		ld	a,e
+		add	a,ps_r-ps_hi
+		ld	e,a
+		ld	a,(de)
+sy4:		ld	(cb_st),a
 		push	hl
 		ld	a,l
 		add	a,4
@@ -1303,6 +1335,8 @@ sy0:		ld	a,b
 		ld	d,h			; маски — с +4
 		inc	l
 		call	cb_to
+		ld	a,16
+		ld	(cb_st),a
 		pop	hl
 		ld	a,e
 		sub	l
@@ -1341,7 +1375,7 @@ se_ptr:		add	a,a
 		ld	h,a
 		ld	(sy_se),hl
 		ret
-; cb_to: C = столбец, B = пустые (биты 0..2), HL — куда столбцы экрана, DE — куда смещения масок (16 * j):
+; cb_to: C = столбец, B = пустые (биты 0..2), HL — куда столбцы экрана, DE — куда смещения масок (cb_st * j):
 ; столбцы C + j, кроме пустых и вне экрана; HL, DE — за последними записанными (внутри страниц)
 cb_to:		ld	a,b
 		rrca
@@ -1360,7 +1394,7 @@ cbt1:		ld	a,b
 		jp	nc,cbt2
 		ld	(hl),a
 		inc	l
-		ld	a,16
+		ld	a,(cb_st)
 		ld	(de),a
 		inc	e
 cbt2:		ld	a,b
@@ -1372,7 +1406,8 @@ cbt2:		ld	a,b
 		ret	nc
 		ld	(hl),a
 		inc	l
-		ld	a,32
+		ld	a,(cb_st)
+		add	a,a
 		ld	(de),a
 		inc	e
 		ret
@@ -1505,23 +1540,24 @@ smz1:		ld	a,(hl)
 		ret
 
 ; rot_init: rot_tab[s - 1][b] = b, повёрнутый вправо на s (s = 1..7); mk_key := FF (масок нет)
-rot_init:	ld	hl,rot_tab
-		ld	c,1
-ri0:		ld	e,0
-ri1:		ld	a,e
-		ld	b,c
-ri2:		rrca
-		dec	b
-		jp	nz,ri2
+rot_init:	ld	hl,rot_tab		; s = 1: из самого байта, дальше — из таблицы s - 1
+ri0:		ld	a,l
+		rrca
 		ld	(hl),a
 		inc	l
-		inc	e
-		jp	nz,ri1
-		inc	h
-		inc	c
-		ld	a,c
-		cp	8
 		jp	nz,ri0
+ri1:		ld	d,h			; DE — таблица s - 1
+		ld	e,l
+		inc	h
+ri2:		ld	a,(de)
+		rrca
+		ld	(hl),a
+		inc	e
+		inc	l
+		jp	nz,ri2
+		ld	a,h
+		cp	rot_tab/256+6
+		jp	nz,ri1
 		ld	hl,mk_key
 		ld	bc,4*SPR_MAX
 		ld	e,0xFF
@@ -2035,3 +2071,299 @@ cr2:		inc	hl
 		cp	b
 		jp	nc,cr0
 		ret
+
+; --- готовые сдвиги кадров врагов: при старте (ps_build) для кадров ps_names — все 8 сдвигов по столбцам
+; (столбец j — R байт с первой непустой строки, R — строк по обрезке; блок 3R байт — в одной странице);
+; ps_tab[8 * номер + s] — адрес блока, ps_rr[номер] — R; ps_idx[имя / 4] — номер (FF — нет)
+ps_names:	db	0x0C,0x10,0x14,0x18,0x1C,0x20,0x24,0x28,0x2C,0x30,0x68,0x78,0xFF
+PS_N		equ	12
+; ps_find: для спрайта sp_k — враг (цвет не 6, 11) с готовыми сдвигами: ps_lo/hi/r[k] := блок, R; Z.
+; Иначе ps_hi[k] := 0, NZ
+ps_find:	ld	a,(sp_k)
+		add	a,ps_hi&0xFF
+		ld	l,a
+		ld	h,ps_hi/256
+		ld	(hl),0
+		ld	a,(sp_cr)
+		cp	6
+		jp	z,psf_n
+		cp	11
+		jp	z,psf_n
+		ld	a,(sp_name)
+		rrca
+		rrca
+		and	0x3F
+		ld	l,a
+		ld	h,0
+		ld	de,ps_idx
+		add	hl,de
+		ld	a,(hl)
+		cp	0xFF
+		jp	z,psf_n
+		ld	c,a			; C = номер
+		ld	hl,ps_rr
+		call	add_hl_a
+		ld	b,(hl)			; B = R
+		ld	a,c			; ps_tab + 2 * (8 * номер + s)
+		add	a,a
+		add	a,a
+		add	a,a
+		ld	l,a
+		ld	a,(sp_x)
+		and	7
+		add	a,l
+		ld	l,a
+		ld	h,0
+		add	hl,hl
+		ld	de,ps_tab
+		add	hl,de
+		ld	e,(hl)
+		inc	hl
+		ld	d,(hl)
+		ld	a,d			; места не хватило — масками
+		or	a
+		jp	z,psf_n
+		ld	a,(sp_k)
+		add	a,ps_lo&0xFF
+		ld	l,a
+		ld	h,ps_lo/256
+		ld	(hl),e
+		ld	a,l
+		add	a,ps_hi-ps_lo
+		ld	l,a
+		ld	(hl),d
+		add	a,ps_r-ps_hi
+		ld	l,a
+		ld	(hl),b
+		xor	a
+		ret
+psf_n:		or	1
+		ret
+
+; ps_build: блоки готовых сдвигов (после trim_build и rot_init) — в свободные места ps_rg
+ps_build:	ld	hl,ps_idx
+		ld	bc,64
+		ld	e,0xFF
+		call	memfill
+		ld	hl,ps_rg
+		ld	(ps_rp),hl
+		call	ps_nrg
+		ld	hl,ps_names
+		ld	c,0
+pbd0:		ld	a,(hl)
+		cp	0xFF
+		ret	z
+		push	hl
+		push	bc
+		ld	(ps_nm),a
+		rrca				; ps_idx[имя / 4] := номер
+		rrca
+		and	0x3F
+		ld	hl,ps_idx
+		call	add_hl_a
+		ld	(hl),c
+		ld	a,(ps_nm)		; обрезка: первая, последняя
+		ld	l,a
+		ld	h,0
+		ld	de,spr_trim
+		add	hl,de
+		ld	a,(hl)
+		ld	(ps_f),a
+		inc	hl
+		ld	b,(hl)
+		sub	b
+		cpl
+		inc	a
+		inc	a			; R = последняя - первая + 1
+		ld	(ps_r0),a
+		ld	a,c
+		ld	hl,ps_rr
+		call	add_hl_a
+		ld	a,(ps_r0)
+		ld	(hl),a
+		xor	a
+		ld	(ps_s),a
+pbd1:		ld	a,(ps_s)		; m = FFh >> s
+		ld	b,a
+		ld	a,0xFF
+		inc	b
+pbd6:		dec	b
+		jp	z,pbd7
+		or	a
+		rra
+		jp	pbd6
+pbd7:		ld	(ps_m),a
+		ld	a,(ps_r0)		; блок 3R
+		ld	b,a
+		add	a,a
+		add	a,b
+		call	ps_alloc		; HL — блок
+		ld	(ps_dst),hl
+		ld	a,h			; места нет — у этого кадра масок готовых нет (ps_tab — 0)
+		or	l
+		jp	z,pbd5
+		pop	bc			; ps_tab[8 * номер + s] := HL
+		push	bc
+		ld	a,c
+		add	a,a
+		add	a,a
+		add	a,a
+		ld	b,a
+		ld	a,(ps_s)
+		add	a,b
+		ld	l,a
+		ld	h,0
+		add	hl,hl
+		ld	de,ps_tab
+		add	hl,de
+		ex	de,hl
+		ld	hl,(ps_dst)
+		ex	de,hl
+		ld	(hl),e
+		inc	hl
+		ld	(hl),d
+		ld	a,(ps_nm)		; источник: VSPR + 8 * имя + первая
+		ld	l,a
+		ld	h,0
+		add	hl,hl
+		add	hl,hl
+		add	hl,hl
+		ld	de,VSPR
+		add	hl,de
+		ld	a,(ps_f)
+		call	add_hl_a
+		ld	a,(ps_r0)
+		ld	b,a			; B — строк
+		push	hl
+		ld	hl,(ps_dst)
+		ex	de,hl
+		pop	hl
+pbd2:		push	bc
+		ld	a,(hl)			; 24 бита: левая, правая, 0 — вправо на s
+		ld	(ps_c0),a
+		push	hl
+		ld	a,16
+		call	add_hl_a
+		ld	a,(hl)
+		ld	(ps_c1),a
+		pop	hl
+		xor	a
+		ld	(ps_c2),a
+		ld	a,(ps_s)		; s != 0: по таблице поворота, m = FFh >> s: r0 & m, (r0 & ~m) | (r1 & m), r1 & ~m
+		or	a
+		jp	z,pbd4
+		push	hl
+		push	de
+		add	a,rot_tab/256-1
+		ld	h,a
+		ld	a,(ps_c0)
+		ld	l,a
+		ld	d,(hl)			; D = r0
+		ld	a,(ps_c1)
+		ld	l,a
+		ld	e,(hl)			; E = r1
+		ld	a,(ps_m)
+		ld	c,a			; C = m
+		and	d
+		ld	(ps_c0),a
+		ld	a,c
+		cpl
+		and	e
+		ld	(ps_c2),a
+		ld	a,c
+		cpl
+		and	d
+		ld	b,a
+		ld	a,c
+		and	e
+		or	b
+		ld	(ps_c1),a
+		pop	de
+		pop	hl
+pbd4:		ld	a,(ps_r0)		; столбцы: DE, DE + R, DE + 2R
+		ld	c,a
+		push	de
+		ld	a,(ps_c0)
+		ld	(de),a
+		ld	a,e
+		add	a,c
+		ld	e,a
+		ld	a,(ps_c1)
+		ld	(de),a
+		ld	a,e
+		add	a,c
+		ld	e,a
+		ld	a,(ps_c2)
+		ld	(de),a
+		pop	de
+		inc	e
+		inc	hl
+		pop	bc
+		dec	b
+		jp	nz,pbd2
+pbd5:		ld	a,(ps_s)
+		inc	a
+		ld	(ps_s),a
+		cp	8
+		jp	nz,pbd1
+		pop	bc
+		pop	hl
+		inc	hl
+		inc	c
+		jp	pbd0
+; ps_alloc: A = байт -> HL = блок в одной странице (из ps_p; конец места — следующее место ps_rg); 0 — нет места
+ps_alloc:	ld	c,a
+psa0:		ld	hl,(ps_p)
+		ld	a,h
+		or	l
+		ret	z
+		ld	a,l
+		add	a,c
+		jp	nc,psa1
+		jp	z,psa1			; ровно до конца страницы
+		inc	h			; не помещается в страницу — со следующей
+		ld	l,0
+psa1:		push	hl			; конец места?
+		ld	a,l
+		add	a,c
+		ld	e,a
+		ld	a,h
+		adc	a,0
+		ld	d,a			; DE = HL + n
+		ld	hl,(ps_end)
+		ld	a,l
+		sub	e
+		ld	a,h
+		sbc	a,d
+		pop	hl
+		jp	c,psa2			; не помещается
+		ex	de,hl
+		ld	(ps_p),hl
+		ex	de,hl
+		ret
+psa2:		call	ps_nrg
+		jp	psa0
+; ps_nrg: следующее место из ps_rg -> ps_p, ps_end
+ps_nrg:		push	hl
+		push	de
+		ld	hl,(ps_rp)
+		ld	e,(hl)
+		inc	hl
+		ld	d,(hl)
+		inc	hl
+		ex	de,hl
+		ld	(ps_p),hl
+		ex	de,hl
+		ld	e,(hl)
+		inc	hl
+		ld	d,(hl)
+		inc	hl
+		ex	de,hl
+		ld	(ps_end),hl
+		ex	de,hl
+		ld	(ps_rp),hl
+		pop	de
+		pop	hl
+		ret
+; свободные места (начало, конец): невидимая плоскость — бывший кэш тайлов, затем основная память
+ps_rg:		dw	0xF300, 0xF400, 0xF500, 0xF820, ps_heap, 0x7000, 0, 0	; 0 — места нет

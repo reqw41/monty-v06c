@@ -43,6 +43,12 @@ ml_n		equ	0x7FD2
 cu_i		equ	0x7FD3
 cu_j		equ	0x7FD4
 mg		equ	0x7FD5			; crit_plan: спрайт в группе из нескольких (6)
+ps_lo		equ	0x7FDB			; готовые сдвиги спрайта k: блок (мл., ст.; ст. 0 — нет), строк (по 6)
+ps_hi		equ	0x7FE1
+ps_r		equ	0x7FE7
+cb_st		equ	0x7FED			; cb_to: шаг столбцов масок
+sp_mskp		equ	0x7FEE			; рисование: страница масок
+sp_cr		equ	0x7FEF			; исходный цвет спрайта
 GSTACK		equ	0x73C0			; стек игры (как у оригинала)
 ; переменные только нативной сборки — 7FA0-7FFF (за копией цветов; чистятся при загрузке)
 a4_n		equ	0x7FA0
@@ -78,15 +84,24 @@ boot:
 		ld	bc,0x0400
 		ld	e,0
 		call	memfill
-		ld	hl,0x8000		; экран и невидимая плоскость
-		ld	bc,0x8000
-		ld	e,0
-		call	memfill
+		ld	sp,0			; экран и невидимая плоскость (8000-FFFF) — нулями через стек: PUSH по 2 байта
+		ld	hl,0			; (прерывания запрещены)
+		ld	b,0
+bclr:		REPT	64
+		push	hl
+		ENDR
+		dec	b
+		jp	nz,bclr
+		ld	sp,0x0100
 		call	vi_off			; ВИ53 молчит, каналы SN — тоже (TURN_OFF_SOUND оригинала)
 		call	snd_off
 		call	pats_init		; шаблоны: банк 0 -> E000, различия -> dslot/dstore, спрайты -> VSPR
 		call	se_init
 		call	rot_init
+		call	trim_build
+		call	ps_build		; готовые сдвиги кадров врагов
+		ld	a,16
+		ld	(cb_st),a
 		call	bd_init
 		call	lv_init
 		ld	a,0xD0
@@ -338,6 +353,23 @@ lv_pos:		ds	33			; счётчики/позиции при раскладке
 lv_idx		equ	0xF400			; тайл -> корзина (FF — не живой); бывший кэш тайлов в невидимой плоскости
 		INCLUDE	"gen/pats.asm"
 		INCLUDE	"../vec/vars.asm"
+ps_idx:		ds	64			; готовые сдвиги: имя / 4 -> номер (sprites.asm, ps_build)
+ps_tab:		ds	2*8*PS_N
+ps_rr:		ds	PS_N
+ps_rp:		ds	2
+ps_p:		ds	2
+ps_end:		ds	2
+ps_nm:		ds	1
+ps_f:		ds	1
+ps_r0:		ds	1
+ps_s:		ds	1
+ps_dst:		ds	2
+ps_c0:		ds	1
+ps_c1:		ds	1
+ps_c2:		ds	1
+ps_m:		ds	1
+ps_heap:					; дальше до 7000 — место готовых сдвигов
+		ASSERT	ps_heap < 0x7000 - 0x400
 		INCLUDE	"gen/spat.asm"			; ORG VSPR — шаблоны спрайтов прямо в образе
 
 		IFDEF STRICT
