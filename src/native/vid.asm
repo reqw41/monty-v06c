@@ -276,6 +276,15 @@ sc1:		push	hl
 ; вывод тогда по всем строкам). Регистры, кроме A, сохраняются
 mark_row:
 dl_add:		push	de
+		ld	a,h			; уже ждёт вывода — в списке есть
+		add	a,(PND-VNT)/256
+		ld	d,a
+		ld	e,l
+		ld	a,(de)
+		or	a
+		jp	nz,dla_x
+		inc	a
+		ld	(de),a
 		ld	a,(dl_n)
 		cp	DL_MAX
 		jp	nc,dla_o
@@ -294,5 +303,5 @@ dl_add:		push	de
 		ret
 dla_o:		ld	a,1
 		ld	(dl_ovf),a
-		pop	de
+dla_x:		pop	de
 		ret

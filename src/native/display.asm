@@ -1,6 +1,6 @@
 ; Вывод виртуальной VRAM на экран Вектора раз в кадр (из прерывания).
 ; Отметки: row_dirty[24] (записи в таблицу имён), pat_flag[256] (тайлы с новыми шаблонами), vdirty (VD_*).
-; Показанное: NTS (копия таблицы имён), col_shown (цвета), tile_hi (номер банка шаблонов 0-3); спрайты — spr_rec (sprites.asm).
+; Клетки к выводу: PND (1 — ждёт), список dlist; col_shown (цвета), tile_hi (кадр анимации 0-3); спрайты — spr_rec.
 ; Пока экран VDP выключен (R1 бит 6 = 0) — не рисуем; при включении — полная перерисовка с палитрой.
 
 ; display: подготовка и, если есть спрайты к перерисовке, — ожидание кадра и короткая часть (меню)
@@ -462,18 +462,19 @@ flt1:		ld	c,(hl)			; корзина (из непустых)
 		ld	l,a
 		ld	h,live_list/256
 		push	de
-flt2:		ld	e,(hl)			; DE = клетка в VNT: NTS := не VNT, в список
+flt2:		ld	e,(hl)			; DE = клетка в VNT: к выводу (PND), в список
 		inc	l
 		ld	d,(hl)
 		inc	l
 		push	hl
 		ld	a,d
-		add	a,(NTS-VNT)/256
+		add	a,(PND-VNT)/256
 		ld	h,a
 		ld	l,e
-		ld	a,(de)
-		cpl
-		ld	(hl),a
+		ld	a,(hl)			; уже ждёт вывода — в списке есть
+		or	a
+		jp	nz,flt5
+		inc	(hl)
 		ld	a,(dl_n)
 		cp	DL_MAX
 		jp	nc,flt_o
@@ -668,18 +669,10 @@ bank_hi:	ld	a,(vregs+4)
 
 ; force_all: все клетки — к перерисовке
 force_all:
-		ld	hl,NTS
-		ld	de,VNT
+		ld	hl,PND
 		ld	bc,768
-fa1:		ld	a,(de)
-		cpl
-		ld	(hl),a
-		inc	hl
-		inc	de
-		dec	bc
-		ld	a,b
-		or	c
-		jp	nz,fa1
+		ld	e,1
+		call	memfill
 		ld	a,1			; список — переполнен: вывод по строкам
 		ld	(dl_ovf),a
 		ld	hl,row_dirty
@@ -702,21 +695,8 @@ ftn:		inc	l
 		cp	(VNT+768)/256
 		jp	nz,ftl
 		ret
-ft_mark:	call	ft_mark1
+ft_mark:	call	dl_add			; клетка — к выводу
 		jp	ftn
-; ft_mark1: HL = адрес клетки в VNT — NTS := не VNT, в список (регистры, кроме A, сохраняются)
-ft_mark1:	push	de
-		ld	a,(hl)
-		cpl
-		ld	e,a
-		push	hl
-		ld	a,h
-		add	a,(NTS-VNT)/256		; NTS выровнена так же, как VNT
-		ld	h,a
-		ld	(hl),e
-		pop	hl
-		pop	de
-		jp	dl_add
 
 ; col_snapshot: col_shown := VCOL
 col_snapshot:
@@ -766,7 +746,7 @@ cg2:		inc	hl
 		ld	e,0
 		jp	memfill
 
-; draw_list: клетки из списка изменённых, где VNT != NTS — на экран; при dr_ex клетки под прежними местами
+; draw_list: клетки из списка, ждущие вывода (PND), — на экран; при dr_ex клетки под прежними местами
 ; перерисовываемых спрайтов откладываются (остаются в списке). Список переполнен — по строкам (draw_rows)
 draw_list:
 		ld	a,(dl_ovf)
@@ -786,12 +766,12 @@ dl1:		ld	e,(hl)
 		push	hl
 		ex	de,hl			; HL = VNT + клетка
 		ld	a,h
-		add	a,(NTS-VNT)/256
+		add	a,(PND-VNT)/256
 		ld	d,a
-		ld	e,l			; DE = NTS + клетка
+		ld	e,l			; DE = PND + клетка
 		ld	a,(de)
-		cp	(hl)
-		jp	z,dl8			; уже показана
+		or	a
+		jp	z,dl8			; уже выведена
 		ld	a,l			; строка и столбец
 		and	31
 		ld	(rr_c),a
@@ -834,8 +814,9 @@ dl1:		ld	e,(hl)
 		ld	a,h
 		ld	(bc),a
 		jp	dl8
-dl_go:		ld	a,(hl)
+dl_go:		xor	a
 		ld	(de),a
+		ld	a,(hl)
 		ld	(rr_t),a
 		ld	a,1
 		ld	(drew_any),a
@@ -853,7 +834,7 @@ dl8:		pop	hl
 		ld	bc,24
 		ld	e,0
 		jp	memfill
-dl_full:	ld	hl,row_dirty		; переполнение: все строки (вывод — где VNT != NTS)
+dl_full:	ld	hl,row_dirty		; переполнение: все строки (вывод — где PND = 1)
 		ld	bc,24
 		ld	e,1
 		call	memfill
@@ -863,7 +844,7 @@ dl_full:	ld	hl,row_dirty		; переполнение: все строки (вы�
 		ld	(dl_n),a
 		ret
 
-; draw_rows: в отмеченных строках перерисовать клетки, где VNT != NTS (VNT и NTS выровнены одинаково)
+; draw_rows: в отмеченных строках перерисовать клетки, ждущие вывода (PND; выровнена так же, как VNT)
 draw_rows:
 		xor	a
 		ld	(rr_r),a
@@ -875,7 +856,7 @@ dr0:		ld	a,(hl)
 		xor	a
 		ld	(dr_skip),a
 		push	hl
-		ld	a,(rr_r)		; HL = VNT + 32 * r, DE = NTS + 32 * r
+		ld	a,(rr_r)		; HL = VNT + 32 * r, DE = PND + 32 * r
 		ld	l,a
 		ld	h,0
 		add	hl,hl
@@ -884,7 +865,7 @@ dr0:		ld	a,(hl)
 		add	hl,hl
 		add	hl,hl
 		ld	a,h
-		add	a,NTS/256
+		add	a,PND/256
 		ld	d,a
 		ld	e,l
 		ld	a,h
@@ -892,7 +873,7 @@ dr0:		ld	a,(hl)
 		ld	h,a
 		ld	b,32
 dr1:		ld	a,(de)
-		cp	(hl)
+		or	a
 		jp	nz,dr_draw
 dr2:		inc	l
 		inc	e
@@ -928,8 +909,9 @@ dr_draw:	ld	a,(dr_ex)
 		ld	(dr_skip),a
 		ld	(ex_any),a
 		jp	dr2
-dr_go:		ld	a,(hl)
+dr_go:		xor	a
 		ld	(de),a
+		ld	a,(hl)
 		ld	(rr_t),a
 		ld	a,l
 		and	31

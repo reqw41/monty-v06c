@@ -5,6 +5,7 @@
 ; Память — src/vec/mem.asm; ОЗУ игры 7000-73FF — как у оригинала (сверка tools/lockstep.js).
 		DEVICE	NOSLOT64K
 		INCLUDE	"../vec/mem.asm"
+PND		equ	NTS			; клетка ждёт вывода (1) — по адресу клетки в VNT (выровнена так же)
 VD_PAT		equ	0x01			; отметки для вывода (display.asm)
 VD_COL		equ	0x02
 VD_NT		equ	0x04

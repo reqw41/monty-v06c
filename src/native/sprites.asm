@@ -18,7 +18,7 @@ SREC		equ	16			; запись: нарисован, Y X имя цвет, r0 r1 c0
 						; пустые столбцы, метка (+13)
 
 ; spr_plan: новые атрибуты (spr_new) и метки перерисовки в spr_rec: спрайт отмечен, если атрибуты не те
-; (или spr_force), если под нарисованным изменились клетки (VNT != NTS) и, до замыкания, если его прямоугольник
+; (или spr_force), если под нарисованным клетки ждут вывода (PND) и, до замыкания, если его прямоугольник
 ; пересекает прежний или новый прямоугольник отмеченного. A = число отмеченных.
 spr_plan:					; один проход: атрибуты VSAT против нарисованных (запись +1..+4); изменённым
 		ld	de,VSAT			; (или при spr_force) — метка, новые атрибуты, видимость, место
@@ -206,14 +206,11 @@ spd2:		push	af
 		ld	a,e
 		add	a,VNT/256
 		ld	h,a
-		ld	a,e
-		add	a,NTS/256
-		push	bc
-		ld	b,a
+		ld	a,e			; ждёт вывода (PND)?
+		add	a,PND/256
+		ld	h,a
 		ld	a,(hl)
-		ld	h,b
-		pop	bc
-		cp	(hl)
+		or	a
 		jp	nz,spd_m
 		pop	af
 		inc	a
@@ -1817,7 +1814,7 @@ grp_of:		add	a,grp&0xFF		; grp — в пределах страницы
 		ld	a,(hl)
 		ret
 
-; cells_rect: HL -> (r0, r1, c0, c1): клетки, где VNT != NTS, — на экран
+; cells_rect: HL -> (r0, r1, c0, c1): клетки, ждущие вывода (PND), — на экран
 cells_rect:
 		ld	a,(hl)
 		ld	(cr_r),a
@@ -1845,20 +1842,20 @@ cr0:		ld	a,(cr_r)		; HL = VNT + 32 r + c0
 		add	hl,de
 		ld	a,(cr_c0)
 		ld	(rr_c),a
-cr1:		ld	a,h			; DE = NTS + то же смещение
+cr1:		ld	a,h			; DE = PND + то же смещение
 		sub	VNT/256
-		add	a,NTS/256
+		add	a,PND/256
 		ld	d,a
 		ld	e,l
 		ld	a,(cr_force)		; все клетки (стирание врага одной плоскости)
 		or	a
 		jp	nz,cr1f
 		ld	a,(de)
-		cp	(hl)
+		or	a
 		jp	z,cr2
-cr1f:
-		ld	a,(hl)
+cr1f:		xor	a
 		ld	(de),a
+		ld	a,(hl)
 		ld	(rr_t),a
 		push	hl
 		call	draw_cell
