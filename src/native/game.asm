@@ -38,6 +38,11 @@ snd_acc		equ	0x7FC8			; накопитель 60/50
 txt_c		equ	0x7FC9			; txt_draw: цвет, строка экрана, столбец
 txt_l		equ	0x7FCA
 txt_h		equ	0x7FCB
+ml		equ	0x7FCC			; crit_plan: отмеченные спрайты (до 6), сколько, i, j
+ml_n		equ	0x7FD2
+cu_i		equ	0x7FD3
+cu_j		equ	0x7FD4
+mg		equ	0x7FD5			; crit_plan: спрайт в группе из нескольких (6)
 GSTACK		equ	0x73C0			; стек игры (как у оригинала)
 ; переменные только нативной сборки — 7FA0-7FFF (за копией цветов; чистятся при загрузке)
 a4_n		equ	0x7FA0

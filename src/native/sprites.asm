@@ -1653,9 +1653,9 @@ ts_e:		xor	a
 crit_plan:
 		ld	hl,cr_list
 		ld	(cr_ptr),hl
-		ld	b,0			; grp[k] := k для отмеченных, иначе FF
-		ld	de,grp
-cg0:		ld	a,b
+		ld	de,ml			; отмеченные -> ml (по возрастанию), grp[k] := k, неотмеченные — FF
+		ld	b,0
+cq0:		ld	a,b
 		add	a,a
 		add	a,a
 		add	a,a
@@ -1665,108 +1665,208 @@ cg0:		ld	a,b
 		ld	h,spr_rec/256
 		ld	a,(hl)
 		or	a
-		ld	a,0xFF
-		jp	z,cgx1
+		ld	c,0xFF
+		jp	z,cq1
+		ld	c,b
 		ld	a,b
-cgx1:		ld	(de),a
+		ld	(de),a
 		inc	e
+cq1:		ld	a,b
+		add	a,grp&0xFF
+		ld	l,a
+		ld	h,grp/256
+		ld	(hl),c
+		ld	a,b			; mg[k] := 0 (не объединялся)
+		add	a,mg&0xFF
+		ld	l,a
+		ld	h,mg/256
+		ld	(hl),0
 		inc	b
 		ld	a,b
 		cp	SPR_MAX
-		jp	nz,cg0
-cu0:		xor	a			; объединение пересекающихся (рамки ubr — прежние и новые места)
-		ld	(spx_ch),a
-		ld	b,0
-cu1:		ld	a,b
+		jp	nz,cq0
+		ld	a,e
+		sub	ml&0xFF
+		ld	(ml_n),a
+		ld	hl,ml			; объединение: пары (i, j) из ml, рамки пересекаются — группа j -> группа i
+cu1:		ld	a,(ml_n)
+		ld	b,a
+		ld	a,l
+		sub	ml&0xFF
+		inc	a
+		cp	b
+		jp	nc,gp0			; i — последний
+		push	hl
+		ld	a,(hl)
+		ld	(cu_i),a
+		call	ub_ld			; рамка i -> D, E, C, ub_c1
+		pop	hl
+		push	hl
+cu2:		inc	l
+		ld	a,l
+		sub	ml&0xFF
+		ld	b,a
+		ld	a,(ml_n)
+		cp	b
+		jp	z,cu8
+		push	hl
+		ld	a,(hl)			; j
+		ld	(cu_j),a
 		call	grp_of
-		cp	SPR_MAX
-		jp	nc,cu8
-		ld	(cu_g),a
-		ld	a,b
-		push	bc			; i (C — c0 рамки i)
-		call	ub_ld
-cu2:		inc	b
-		ld	a,b
-		cp	SPR_MAX
-		jp	nc,cu7
-		call	grp_of
-		cp	SPR_MAX
-		jp	nc,cu2
-		ld	hl,cu_g
-		cp	(hl)
-		jp	z,cu2
 		ld	(cu_gj),a
-		ld	a,b
+		ld	a,(cu_i)
+		call	grp_of
+		ld	(cu_g),a
+		ld	hl,cu_gj
+		cp	(hl)
+		jp	z,cu7			; уже вместе
+		ld	a,(cu_j)
 		call	ub_hit
-		jp	nc,cu2
-		push	bc			; все с grp = grp[j] -> grp[i]
-		ld	a,(cu_gj)
-		ld	c,a
-		ld	hl,grp
-		ld	b,SPR_MAX
+		jp	nc,cu7
+		ld	a,(cu_i)		; оба — в группе из нескольких
+		add	a,mg&0xFF
+		ld	l,a
+		ld	h,mg/256
+		ld	(hl),1
+		ld	a,(cu_j)
+		add	a,mg&0xFF
+		ld	l,a
+		ld	(hl),1
+		ld	hl,ml			; все с grp = grp[j] -> grp[i]
+		ld	a,(ml_n)
+		ld	b,a
 cu3:		ld	a,(hl)
-		cp	c
+		push	hl
+		add	a,grp&0xFF
+		ld	l,a
+		ld	h,grp/256
+		ld	a,(cu_gj)
+		cp	(hl)
 		jp	nz,cu4
 		ld	a,(cu_g)
 		ld	(hl),a
-cu4:		inc	hl
+cu4:		pop	hl
+		inc	l
 		dec	b
 		jp	nz,cu3
-		pop	bc
-		ld	a,1
-		ld	(spx_ch),a
+cu7:		pop	hl
 		jp	cu2
-cu7:		pop	bc
-cu8:		inc	b
+cu8:		pop	hl
+		inc	l
+		jp	cu1
+gp0:		ld	a,(ml_n)		; ml — по верхней строке рамки (вставками; равные — по номеру)
+		cp	2
+		jp	c,gq9
+		ld	c,1			; p
+gq1:		ld	a,c
+		add	a,ml&0xFF
+		ld	l,a
+		ld	h,ml/256
+		ld	b,(hl)			; B = ml[p]
 		ld	a,b
-		cp	SPR_MAX
-		jp	nz,cu1
-		ld	a,(spx_ch)
+		call	ub_r0
+		ld	d,a			; D = её верх
+		ld	e,c			; E = q
+gq2:		ld	a,e
 		or	a
-		jp	nz,cu0
-gp0:		ld	a,0xFF			; группа с наименьшей верхней строкой клеток (прежнее и новое место)
-		ld	(gp_y),a
-		ld	(gp_g),a
-		ld	b,0
-gp1:		ld	a,b
+		jp	z,gq3
+		add	a,(ml&0xFF)-1
+		ld	l,a
+		ld	h,ml/256
+		ld	a,(hl)			; ml[q - 1]
+		push	af
+		call	ub_r0
+		cp	d
+		jp	c,gq4			; меньше или равно — стоп
+		jp	z,gq4
+		ld	a,e			; (ub_r0 портит HL)
+		add	a,ml&0xFF
+		ld	l,a
+		ld	h,ml/256
+		pop	af
+		ld	(hl),a			; ml[q] := ml[q - 1]
+		dec	e
+		jp	gq2
+gq4:		pop	af
+gq3:		ld	a,e
+		add	a,ml&0xFF
+		ld	l,a
+		ld	h,ml/256
+		ld	(hl),b
+		inc	c
+		ld	a,(ml_n)
+		cp	c
+		jp	nz,gq1
+gq9:		ld	hl,(cr_ptr)		; группы — по первому в порядке ml; DE -> список
+		ex	de,hl
+		ld	hl,ml
+		ld	a,(ml_n)
+		or	a
+		jp	z,gp_x
+		ld	b,a
+gp1:		ld	a,(hl)			; k
+		push	hl
+		push	bc
+		ld	c,a
+		call	ub_r0			; места нет (рамка пуста) — и дальше нет
+		cp	0xFF
+		jp	z,gp_e
+		ld	a,c
 		add	a,grp&0xFF
 		ld	l,a
 		ld	h,grp/256
 		ld	a,(hl)
 		cp	SPR_MAX
-		jp	nc,gp3
-		ld	e,a
-		ld	a,b			; верх: r0 рамки (прежнее и новое место)
-		add	a,a
-		add	a,a
-		add	a,ubr&0xFF
-		ld	l,a
-		ld	h,ubr/256
-		ld	c,(hl)
-gp1b:		ld	a,(gp_y)
-		cp	c
-		jp	c,gp3
-		jp	z,gp3
+		jp	nc,gp3			; группа уже выведена
+		ld	b,a
 		ld	a,c
-		ld	(gp_y),a
-		ld	a,e
-		ld	(gp_g),a
-gp3:		inc	b
-		ld	a,b
-		cp	SPR_MAX
-		jp	nz,gp1
-		ld	a,(gp_g)
-		cp	0xFF
-		jp	z,cr_end
-		ld	c,a			; C = группа, DE -> список
-		ld	hl,(cr_ptr)
-		ex	de,hl
+		add	a,mg&0xFF
+		ld	l,a
+		ld	h,mg/256
+		ld	a,(hl)
+		or	a
+		jp	nz,gp_m
+		ld	a,c			; одиночный: фон, клетки (если нарисован), рисование
+		add	a,grp&0xFF
+		ld	l,a
+		ld	h,grp/256
+		ld	(hl),0xFE
+		ld	a,c
+		add	a,a
+		add	a,a
+		add	a,a
+		add	a,a
+		ld	l,a
+		ld	h,spr_rec/256
+		ld	a,(hl)
+		or	a
+		jp	z,gp2
+		ld	a,1
+		ld	(de),a
+		inc	de
+		ld	a,c
+		ld	(de),a
+		inc	de
+		ld	a,2
+		ld	(de),a
+		inc	de
+		ld	a,c
+		ld	(de),a
+		inc	de
+gp2:		ld	a,3
+		ld	(de),a
+		inc	de
+		ld	a,c
+		ld	(de),a
+		inc	de
+		jp	gp3
+gp_m:		ld	c,b			; группа C из нескольких: по номерам
 		ld	a,1			; фон назад (нарисованные), по возрастанию
 		call	gp_emit
 		ld	a,2			; клетки под прежними местами
 		call	gp_emit
-		ld	hl,grp+SPR_MAX-1	; спрайты, с последнего; группа обработана (FE)
-		ld	b,SPR_MAX
+		ld	b,SPR_MAX		; спрайты, с последнего; группа выведена (FE)
+		ld	hl,grp+SPR_MAX-1
 gp8:		dec	b
 		ld	a,(hl)
 		cp	c
@@ -1782,10 +1882,26 @@ gp9:		dec	l
 		ld	a,b
 		or	a
 		jp	nz,gp8
-		ex	de,hl
+gp3:		pop	bc
+		pop	hl
+		inc	l
+		dec	b
+		jp	nz,gp1
+		jp	gp_x
+gp_e:		pop	bc
+		pop	hl
+gp_x:		ex	de,hl
 		ld	(cr_ptr),hl
-		jp	gp0
-; gp_emit: A = действие — (A, k) в список DE для нарисованных k группы C, по возрастанию
+		jp	cr_end
+; ub_r0: A = номер -> A = верх рамки (HL портится)
+ub_r0:		add	a,a
+		add	a,a
+		add	a,ubr&0xFF		; (страница sprt)
+		ld	l,a
+		ld	h,ubr/256
+		ld	a,(hl)
+		ret
+; gp_emit: A = действие — (A, k) в список DE для нарисованных k группы C, по возрастанию номеров
 gp_emit:	ld	(gp_a),a
 		ld	hl,grp
 		ld	b,0
