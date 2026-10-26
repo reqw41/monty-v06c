@@ -20,7 +20,7 @@ function ramsum(_, rd) { const b = []; for (let a = 0x7000; a < 0x7340; a++) { i
 for (const [k, v] of Object.entries(sym)) if (/^L_[0-9A-F]{4}$/.test(k)) { v2c.set(v, parseInt(k.slice(2), 16)); c2v.set(parseInt(k.slice(2), 16), v); }
 function msx() {
   const m = new MSX1().loadSnap('entry');
-  if (process.env.COOP !== '0') { m.coop = new Set([0xA5CA, 0x8C19]); } const path = []; let st = false, t = -1, f = 0; const ev = { 30: [1, 1], 48: [1, 0] };
+  if (process.env.COOP !== '0') { m.coop = new Set([0xA5CA, 0x8C19, 0xA5D8]); } const path = []; let st = false, t = -1, f = 0; const ev = { 30: [1, 1], 48: [1, 0] };
   while (t <= IT && f < 20000) {
     if (ev[f]) m.key(ev[f][0], ev[f][1]);
     const end = m.frames + 1;

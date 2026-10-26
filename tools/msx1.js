@@ -144,9 +144,10 @@ class MSX1 {
   get pc() { return this.cpu.get_pc(); }
   step() {
     if ((this.vstat & 0x80) && (this.vreg[1] & 0x20) && this.cpu.get_iff1()) {
-      // coop: кадр только в точках ожидания главного цикла (как в порте на Векторе: nmi_poll в A5CA, 8C19)
+      // coop: кадр только в точках ожидания главного цикла (как в порте на Векторе: nmi_poll в A5CA, 8C19, A5D8 —
+      // ожидание A60B при 705F бит 3)
       const pc = this.cpu.get_pc();
-      const waits = pc === 0xa5ca ? !(this.mem[0x7207] & 0x80) : pc === 0x8c19 ? !!(this.mem[0x70b1] & 0x08) : false;
+      const waits = pc === 0xa5ca ? !(this.mem[0x7207] & 0x80) : pc === 0x8c19 ? !!(this.mem[0x70b1] & 0x08) : pc === 0xa5d8 ? !!(this.mem[0x705f] & 0x08) : false;
       if (!this.coop || (this.coop.has(pc) && waits && this.coopPend)) {
         this.cpu.interrupt(false, 0xff); this.irqs++; this.coopPend = false;
       }

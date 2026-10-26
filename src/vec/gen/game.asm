@@ -3542,6 +3542,7 @@ L_A5D1:
 		ld	(0x7207),a		; A5D2 LD ($7207),A
 		ld	hl,D_A8A1		; A5D5 LD HL,$A8A1
 L_A5D8:
+		call	nmi_wait_a5d8		; ожидание кадра — обработчик игры здесь
 		ld	e,(hl)		; A5D8 LD E,(HL)
 		ld	a,(0x705F)		; A5D9 LD A,($705F)
 		ld	(z_t),a		; A5DC BIT 3,A

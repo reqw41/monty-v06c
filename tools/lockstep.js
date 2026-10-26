@@ -17,6 +17,8 @@ const LV = +(process.env.LV || 1), CHEAT = process.env.CHEAT === '1';   // ур�
 const plan = {};
 plan[FIRE] = [['space', true]]; plan[FIRE + 8] = [['space', false]];
 for (const it of PLAN.split(/\s+/).filter(Boolean)) {
+  const st = it.match(/^(\d+):s([0-9A-F=,]+)$/i);   // тик:sАДР=ЗН,... — запись в ОЗУ игры (телепорт: s71A7=r,71A8=c,7079=9)
+  if (st) { (plan[+st[1]] = plan[+st[1]] || []).push(['set', st[2].split(',').map((x) => x.split('=').map((y) => parseInt(y, 16)))]); continue; }
   const mm = it.match(/^(\d+):(\w+)([+-])$/); (plan[+mm[1]] = plan[+mm[1]] || []).push([mm[2], mm[3] === '+']);
 }
 const MSXK = { space: 0x40, left: 0x44, up: 0x45, down: 0x46, right: 0x47 };
@@ -28,7 +30,7 @@ const vsn = [], vsv = [], psn = [], psv = [];
 const PATS = process.env.PATS === '1';   // сверять и шаблоны: банки 0, 1, 2, 5 и спрайты (вид через vpat_read)
 function runMsx() {
   const m = new MSX1().loadSnap('entry');
-  if (process.env.COOP !== '0') { m.coop = new Set([0xA5CA, 0x8C19]); }
+  if (process.env.COOP !== '0') { m.coop = new Set([0xA5CA, 0x8C19, 0xA5D8]); }
   const snaps = []; let started = false, tick = -1;
   const ev = { 30: [LV, 1], 48: [LV, 0] };
   let f = 0;
@@ -41,7 +43,7 @@ function runMsx() {
       if (started && pc === SYNC) {
         tick++;
         if (CHEAT) m.mem[0x7049] = 6;
-        for (const [k, d] of plan[tick] || []) m.key(MSXK[k], d);
+        for (const [k, d] of plan[tick] || []) if (k === 'set') { for (const [a, v] of d) m.mem[a] = v; } else m.key(MSXK[k], d);
         snaps.push(Buffer.from(m.mem.subarray(LO, HI))); vsn.push(Buffer.concat([Buffer.from(m.vram.subarray(0x1800, 0x1B00)), Buffer.from(m.vram.subarray(0x2000, 0x2020))]));
         if (PATS) psn.push(Buffer.concat([0, 0x800, 0x1000, 0x2800, 0x3800].map((b) => Buffer.from(m.vram.subarray(b, b + 0x800)))));
       }
@@ -59,7 +61,7 @@ function runVec() {
     if (started && pc === sym['L_' + SYNC.toString(16).toUpperCase()]) {
       tick++;
       if (CHEAT) m.wr(0x7049, 6);
-      for (const [k, d] of plan[tick] || []) { const e = VECK[k]; if (d) m.keyboard.matrix[e[0]] |= e[1]; else m.keyboard.matrix[e[0]] &= ~e[1]; }
+      for (const [k, d] of plan[tick] || []) { if (k === 'set') { for (const [a, v] of d) m.wr(a, v); continue; } const e = VECK[k]; if (d) m.keyboard.matrix[e[0]] |= e[1]; else m.keyboard.matrix[e[0]] &= ~e[1]; }
       const b = Buffer.alloc(HI - LO); for (let a = LO; a < HI; a++) b[a - LO] = m.rd(a); snaps.push(b);
       const v = Buffer.alloc(800); for (let a = 0; a < 768; a++) v[a] = m.rd(sym.VNT + a); for (let a = 0; a < 32; a++) v[768 + a] = m.rd(sym.VCOL + a); vsv.push(v);
       if (PATS) psv.push(vecPats(m));

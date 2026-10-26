@@ -45,11 +45,11 @@ const F = module.exports = {
     const sv = Object.assign({}, r);
     if (rd(m, 0x70b1) & 0x80) return;
     wr(m, 0x70b1, rd(m, 0x70b1) | 0x80);
-    if (rd(m, 0x70b1) & 8) { wr(m, 0x70b1, rd(m, 0x70b1) & ~8); z(m, r, 0x919a); }
+    if (rd(m, 0x70b1) & 8) { wr(m, 0x70b1, rd(m, 0x70b1) & ~8); require('./collide')['919A'](m, r); }
     const f = rd(m, 0x705f);
     if (!(f & 2)) {
-      if (f & 8) z(m, r, 0xa60b);
-      if (rd(m, 0x70b1) & 0x10) { wr(m, 0x70b1, rd(m, 0x70b1) & ~0x10); z(m, r, 0x8eb0); }
+      if (f & 8) require('./screen').A60B(m, r);
+      if (rd(m, 0x70b1) & 0x10) { wr(m, 0x70b1, rd(m, 0x70b1) & ~0x10); require('./screen')['8EB0'](m, r); }
       wr(m, 0x7097, rd(m, 0x7097) + 1); wr16(m, 0x7047, rd16(m, 0x7047) + 1);
       const a = (rd(m, 0x7011) + 1) & 0xff;
       if (!(a & 0x80)) {

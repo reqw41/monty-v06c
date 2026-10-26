@@ -25,7 +25,7 @@ for (const it of (process.env.SET || '').split(/\s+/).filter(Boolean)) {   // SE
 const K = { space: 0x40, left: 0x44, up: 0x45, down: 0x46, right: 0x47 };
 const CHEAT = process.env.CHEAT === '1';
 function run(hooks) {
-  const m = new MSX1().loadSnap('entry'); m.coop = new Set([0xA5CA, 0x8C19]); if (!hooks && process.env.COV) m.cov = COVS;
+  const m = new MSX1().loadSnap('entry'); m.coop = new Set([0xA5CA, 0x8C19, 0xA5D8]); if (!hooks && process.env.COV) m.cov = COVS;
   const out = []; let st = false, t = -1, f = 0; const ev = { 30: [LV, 1], 48: [LV, 0] };
   while (out.length < N && f < 40000) {
     if (ev[f]) m.key(ev[f][0], ev[f][1]);

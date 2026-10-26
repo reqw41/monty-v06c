@@ -23,7 +23,7 @@ LO, HI = 0x800C, 0xBFFF            # 8000-800B — заголовок Coleco, н
 PTR_TABLES = {0x8913: 11, 0xA20A: 8, 0x9477: 100, 0xAD0B: 10}
 PTR_WORDS = {0xA8A3, 0xA8A8, 0xA8AD, 0xA8B2}   # таблица процессов A8A1: [счётчик, процедура, перезагрузка] x4 (A5D8)
 CONSTS = {0x8282}                   # адреса команд, у которых число 8000-BFFF — не адрес (8282: сигнатура AA55)
-HOOKS = {0xA5CA: 'call\tnmi_wait_a5ca', 0x8C19: 'call\tnmi_wait_8c19'}   # ожидание кадра: здесь «NMI» (как на MSX)
+HOOKS = {0xA5CA: 'call\tnmi_wait_a5ca', 0x8C19: 'call\tnmi_wait_8c19', 0xA5D8: 'call\tnmi_wait_a5d8'}   # ожидание кадра: здесь «NMI» (как на MSX)
 MANUAL = {0xAE46: 0xAE4F}           # адрес начала: адрес конца (не включая) — вставка руками src/vec/manual/
 OS7 = {}
 for l in open(os.path.join(ROOT, 'src/monty.ctl')):
