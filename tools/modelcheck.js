@@ -19,7 +19,7 @@ if (process.env.RND) {                                     // случайный
 const K = { space: 0x40, left: 0x44, up: 0x45, down: 0x46, right: 0x47 };
 const CHEAT = process.env.CHEAT === '1';
 function run(hooks) {
-  const m = new MSX1().loadSnap('entry'); m.coop = new Set([0xA5CA, 0x8C19]);
+  const m = new MSX1().loadSnap('entry'); m.coop = new Set([0xA5CA, 0x8C19]); if (!hooks && process.env.COV) m.cov = COVS;
   const out = []; let st = false, t = -1, f = 0; const ev = { 30: [LV, 1], 48: [LV, 0] };
   while (out.length < N && f < 40000) {
     if (ev[f]) m.key(ev[f][0], ev[f][1]);
@@ -38,6 +38,7 @@ function run(hooks) {
   }
   return out;
 }
+const COVS = new Set();
 const hits = {};
 const hooks = new Map(Object.entries(HOOKS).filter(([k]) => !ONLY || ONLY.split(',').includes(k)).map(([k, fn]) => [parseInt(k, 16), (m) => { hits[k] = (hits[k] || 0) + 1; return fn(m); }]));
 const A = run(null), B = run(hooks);
@@ -48,3 +49,8 @@ for (let k = 0; k < Math.min(A.length, B.length); k++) {
   if (d.length) { console.log(`итерация ${k}: ${d.length} байт:`, d.slice(0, 14).map((i) => `${name(i)}=${A[k][i].toString(16)}/${B[k][i].toString(16)}`).join(' ')); process.exit(1); }
 }
 console.log('совпадение по всем итерациям');
+if (process.env.COV) {                                     // COV=A6B3-A894: не исполненные в эталоне инструкции диапазона
+  const [lo, hi] = process.env.COV.split('-').map((x) => parseInt(x, 16));
+  const ins = require('fs').readFileSync(__dirname + '/../build/monty.skool', 'utf8').split('\n').map((l) => l.match(/^[ *c]\$([0-9A-F]{4}) /)).filter(Boolean).map((x) => parseInt(x[1], 16)).filter((a) => a >= lo && a < hi);
+  const miss = ins.filter((a) => !COVS.has(a)); console.log(`покрытие ${ins.length - miss.length}/${ins.length}; нет:`, miss.map((a) => a.toString(16)).join(' '));
+}
