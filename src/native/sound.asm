@@ -166,6 +166,10 @@ ac6a:		inc	a
 		jp	ac6n
 
 ; snd_off (1FD6): все каналы и шум — без звука
+; snd_quiet: эффект прервать, каналы — без звука (меню)
+snd_quiet:	ld	a,(0x702C)
+		and	0x3F
+		ld	(0x702C),a
 snd_off:	ld	a,1			; из логики — под флагом (звук идёт в прерывании)
 		ld	(snd_busy),a
 		call	snd_off0

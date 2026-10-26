@@ -13,15 +13,20 @@ game_init:	ld	hl,0x7000
 		ld	de,reg0
 		ld	bc,8
 		jp	copy_de_hl
-game_start:	ld	hl,menu_txt		; меню: текст оригинала (8293), строка 15, 23 клетки
-		ld	de,0x01E5
+; game_start: стартовая комната уровня 1 с Джо, поверх — надпись выбора уровня (клавиши 1, 2, 3; звук молчит);
+; выбран — надпись стирается, комната заново для выбранного уровня (от него зависят предметы и строка
+; состояния), дальше игра
+MENU_POS	equ	0x01E5			; строка 15, столбец 5 — как у оригинала
+game_start:	ld	a,1
+		ld	(0x71A6),a
+		call	a59d
+		call	snd_quiet
+		ld	hl,menu_sav		; клетки под надписью
+		ld	de,MENU_POS
 		ld	c,23
+		call	nt_get
+		ld	hl,menu_txt
 		call	nt_put
-		ld	a,(vdirty)
-		or	VD_NT
-		ld	(vdirty),a
-		ld	a,2
-		ld	(nt_age),a
 gs1:		ld	a,1
 		ld	(kb_req),a
 		call	frame_wait
@@ -36,14 +41,19 @@ gs1:		ld	a,1
 		inc	b
 		rrca
 		jp	nc,gs1
-gs2:		ld	a,b
+gs2:
+L_A59D:		ld	a,b			; (метка — для стендов: выбор сделан)
 		ld	(0x71A6),a
-		ld	de,0x01E5		; текст меню — тайлом 0
-		ld	bc,23
-		xor	a
-		call	nt_fill
-; A59D: начало уровня
-L_A59D:		ld	a,6
+		ld	hl,menu_sav		; надпись — стереть
+		ld	de,MENU_POS
+		ld	c,23
+		call	nt_put
+		xor	a			; состояние героя — как до первого начала (8E7E запоминает его для возрождения)
+		ld	(0x7079),a
+		call	a59d
+		jp	mn9			; A5CA: ждать кадра, дальше главный цикл
+; a59d (A59D): начало уровня
+a59d:		ld	a,6
 		ld	(0x7049),a
 		ld	hl,0x705F
 		ld	a,(hl)
@@ -62,7 +72,7 @@ L_A59D:		ld	a,6
 		call	L_8E7E
 		ld	a,5
 		ld	(0x7079),a
-		jp	mn9			; A5CA: ждать кадра, дальше главный цикл
+		ret
 
 ; unpack: DE = сжатое (tools/pack.py), HL = куда. B портится
 unpack:		ld	a,(de)
@@ -91,8 +101,10 @@ upk_s:		ld	(hl),a
 		jp	nz,upk_s
 		jp	unpack
 
-; к этому времени пробел, запятая, точка, 0, 1, 8 — уже графика игры: пустое — тайл 0, «1» — буквой I
-menu_txt:	db	"SELECT",0,"LEVEL",0,0,0,"I",0,0,"2",0,0,"3",0,0
+; к этому времени пробел, знаки и часть цифр — уже графика игры, цифры — цветом этажа: пустое — тайл 0,
+; уровни — римскими (буквы белые)
+menu_txt:	db	"SELECT",0,"LEVEL",0,0,"I",0,"II",0,"III",0
+		ASSERT	$ - menu_txt == 23
 ram0_pk:	INCBIN	"../../build/native/ram0.pk"
 pat0_pk:	INCBIN	"../../build/native/pat0.pk"
 reg0:		INCBIN	"../../build/native/vreg0.bin"
