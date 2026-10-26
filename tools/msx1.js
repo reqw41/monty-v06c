@@ -98,6 +98,47 @@ class MSX1 {
   key(code, down) { const r = code >> 3, b = code & 7; if (down) this.kb[r] &= ~(1 << b); else this.kb[r] |= 1 << b; }
   keysOff() { this.kb.fill(0xff); }
 
+  // Старт игры: на 30-м кадре клавиша уровня «1»..«3», на 150-м огонь (пробел). До огня идёт
+  // вступительная сцена (ряд 0, столбец 8 = комната 0, флаг 705F бит 2); по огню переход на два столбца
+  // вправо, в стартовую комнату (0,10) = 2, там 8AB3 снимает флаг и 8E7E рисует инвентарь. Плюс 120 кадров.
+  startGame(level = 1) {
+    const ev = { 30: [level, 1], 48: [level, 0], 150: [0x40, 1], 168: [0x40, 0] };
+    for (let f = 0; f < 300; f++) { if (ev[f]) this.key(ev[f][0], ev[f][1]); this.runFrames(1); }
+    return this;
+  }
+  // Телепорт в идущей игре (после startGame). Номер комнаты = A4C5[ряд 71A7] + столбец 71A8: пирамида 9 рядов
+  // по 3..19 комнат, в ряду r столбцы 8-r..10+r, комнаты 0..98. Ряд и столбец подменяются, затем гибель
+  // (7079 := 9): при возрождении A067 рисует новую комнату; потом вызывается 8EB0 — палитра этажа
+  // (93C0 + 7*min(ряд,8)) и темнота нижних этажей, как при естественной смене ряда (A9B3).
+  // Герой появляется в точке возрождения прежней комнаты (707C-7085, пишет 8E7E) — с cheats() падение безопасно.
+  // Вызывать до teleport() нельзя, пока не прошла вступительная сцена (флаг 705F бит 2).
+  teleport(r, c) {
+    this.mem[0x71a7] = r; this.mem[0x71a8] = c; this.mem[0x7079] = 9;
+    let drawn = -1;
+    for (let f = 0; f < 300; f++) {
+      const end = this.frames + 1;
+      while (this.frames < end) { if (drawn < 0 && this.cpu.get_pc() === 0xa067) drawn = f; this.step(); }
+      if (drawn >= 0 && f === drawn + 20) break;
+    }
+    if (drawn < 0) throw new Error('телепорт: A067 не вызвана');
+    this.callSub(0x8eb0);
+    return this;
+  }
+  // Вызов подпрограммы игры как CALL: возврат на ловушку FFF0, затем PC восстанавливается
+  callSub(addr, limit = 2e6) {
+    const st = this.cpu.getState(), ret = st.pc;
+    st.sp = (st.sp - 2) & 0xffff; this.mem[st.sp] = 0xf0; this.mem[(st.sp + 1) & 0xffff] = 0xff; st.pc = addr;
+    this.cpu.setState(st);
+    let n = 0; while (this.cpu.get_pc() !== 0xfff0 && n++ < limit) this.step();
+    if (n >= limit) throw new Error(`callSub ${addr.toString(16)}: нет возврата`);
+    const s2 = this.cpu.getState(); s2.pc = ret; this.cpu.setState(s2);
+    return n;
+  }
+  // Читы для обхода: падение любой высоты безопасно (8AD5 CP 1Ch -> CP FFh; высота = 7300 - 707C),
+  // жизни 7049 держатся на 6 (проверяется каждый кадр в runFrames)
+  cheats() { this.mem[0x8ad6] = 0xff; this.infLives = true; return this; }
+  static roomIndex(r, c) { return [-8, -4, 2, 10, 20, 32, 46, 62, 80][r] + c; }
+
   get pc() { return this.cpu.get_pc(); }
   step() {
     if ((this.vstat & 0x80) && (this.vreg[1] & 0x20) && this.cpu.get_iff1()) { this.cpu.interrupt(false, 0xff); this.irqs++; }
@@ -107,7 +148,10 @@ class MSX1 {
     if (this.t >= T_FRAME) { this.t -= T_FRAME; this.frames++; this.vstat |= 0x80; }
     return c;
   }
-  runFrames(n) { const f = this.frames + n; while (this.frames < f) this.step(); }
+  runFrames(n) {
+    const f = this.frames + n;
+    while (this.frames < f) { this.step(); if (this.infLives && this.t < 32) this.mem[0x7049] = 6; }
+  }
   // VRAM -> RGB (Graphics II / Graphics I по R0/R1), без спрайтов и с ними
   rgb(sprites = true) {
     const PAL = [[0, 0, 0], [0, 0, 0], [33, 200, 66], [94, 220, 120], [84, 85, 237], [125, 118, 252], [212, 82, 77], [66, 235, 245],
