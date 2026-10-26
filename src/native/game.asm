@@ -32,6 +32,8 @@ lv_nn		equ	0x7FBB
 sp_pm		equ	0x7FBC
 vi_dv		equ	0x7FC0			; ВИ53: заданные делители счётчиков 0..2 (0 — молчит)
 vi_rnd		equ	0x7FC6			; случайное для шума
+snd_busy	equ	0x7FC7			; логика меняет состояние эффекта — прерывание звук не трогает
+snd_acc		equ	0x7FC8			; накопитель 60/50
 GSTACK		equ	0x73C0			; стек игры (как у оригинала)
 ; переменные только нативной сборки — 7FA0-7FFF (за копией цветов; чистятся при загрузке)
 a4_n		equ	0x7FA0
@@ -144,6 +146,23 @@ isr:
 isr1:		ld	hl,(frames)
 		inc	hl
 		ld	(frames),hl
+		IFNDEF	STRICT
+		ld	a,(snd_busy)		; звук — по прерыванию: эффекты 60 шагов/с (6 на 5 кадров Вектора), ВИ53
+		or	a
+		jp	nz,isr2
+		ld	a,(snd_acc)
+		add	a,6
+is_s:		cp	5
+		jp	c,is_s2
+		sub	5
+		push	af
+		call	L_AC6D
+		pop	af
+		jp	is_s
+is_s2:		ld	(snd_acc),a
+		call	snd_vi53
+isr2:
+		ENDIF
 		call	pal_load_isr
 		ld	a,1
 		ld	(nmi_pend),a
