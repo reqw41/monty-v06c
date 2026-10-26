@@ -179,20 +179,48 @@ b $841E
 c $88D1
 b $8913
 c $8929
+@ $8AC9 label=LANDING
 b $8CB6
 c $8CC2
+@ $8F13 label=ROOM_DOWN
+@ $8F04 label=ROOM_UP
+@ $8EB0 label=FLOOR_PALETTE
+@ $8E7E label=SAVE_RESPAWN
+@ $8DFA label=ROOM_STEP_X
 b $9207
 c $9208
 b $9363
 c $9369
 b $9378
-c $A067
+@ $9444 label=ROOM_TS
+b $9444 Номер набора тайлов по коду записи комнаты (K & 3F, 33 байта), см. tools/roomdec.py
+@ $9477 label=ROOM_TAB
+w $9477 Начала описаний комнат 0..98 (+ конец); описание i — от слова i до слова i+1
+W $9477,200,2
+@ $9541 label=ROOM_DATA
+b $9541 Описания 99 комнат (потоки записей: код K и 0..3 параметра; формат — tools/roomdec.py)
+b $9FC0
+@ $9FD1 label=TILESETS
+b $9FD1 Наборы тайлов для записей комнат: T(0) — ширина/признак, T(1..) — номера тайлов
+@ $A067 label=DRAW_ROOM
+c $A067 Рисует комнату: очистка (A1DF), номер (A4B5) -> 7015, поток описания (A4CE), объекты, инвентарь (A548). Повтор на Python: tools/roomdec.py, сверено со всеми 297 комнатами
+@ $A1DF label=CLEAR_ROOM
 b $A20A
-c $A21A
-b $A496
-c $A4B5
-b $A4C5
-c $A4CE
+@ $A21A label=ROOM_RECT
+c $A21A Примитивы записей комнаты (таблица A20A): прямоугольник; A27C треугольник, A2F0 столбец, A318 полоса, A30E столбец с шапкой, A340 узор
+@ $A405 label=ROOM_ENEMY
+@ $A3AB label=ROOM_DOOR
+@ $A36A label=ROOM_ITEM
+@ $A496 label=ENEMY_Y
+b $A496 Враги (A405): Y по младшей тетраде p1, затем X по старшей (A4A5)
+@ $A4B5 label=ROOM_INDEX
+c $A4B5 A := ROW_BASE[ряд 71A7] + столбец 71A8
+@ $A4C5 label=ROW_BASE
+b $A4C5 Номер первой комнаты ряда минус столбец: комната = [ряд] + столбец (A4B5)
+@ $A4CE label=ROOM_PTRS
+c $A4CE 7190/7192 := начало и конец описания A (71A5 := A)
+@ $A548 label=DRAW_INVENTORY
+@ $A514 label=OBJ_TAKEN
 b $A8A1
 c $A8B7
 b $A92E
@@ -201,7 +229,9 @@ b $A9AD
 c $A9B3
 b $AA88
 c $AA96
-b $AB0C
+@ $AB0C label=MIRROR_PAIRS
+b $AB0C Пары тайлов для зеркалирования (исходный, зеркальный), конец FF
+@ $AB29 label=MIRROR_ROOM
 c $AB21
 b $ABB3
 c $ABED
@@ -212,6 +242,7 @@ c $AE2E
 b $AE38
 c $AE3A
 b $AE94
-c $AEA7
+@ $AEA7 label=PUT_BLOCK
+c $AEA7 B строк по C тайлов из HL в таблицу имён с клетки DE; 7000 бит 2 — шаг строки 32 (иначе C), бит 3 — HL+1 на строку, бит 4 — чтение
 b $AFFF
 i $10000
