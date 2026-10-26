@@ -523,6 +523,20 @@ restore1:	ld	a,b
 		ld	a,(de)			; фон сохранял он сам?
 		or	a
 		ret	z
+		cp	2			; одной плоскостью — клетки под прежним местом заново
+		jp	nz,rs_b
+		ld	a,l
+		add	a,5
+		ld	l,a
+		ld	a,1
+		ld	(cr_force),a
+		push	bc
+		call	cells_rect
+		pop	bc
+		xor	a
+		ld	(cr_force),a
+		ret
+rs_b:
 		ld	a,l
 		add	a,9
 		ld	l,a
@@ -612,10 +626,22 @@ pp9:		inc	b
 pm0:		ld	a,b
 		call	new_ptr
 		push	hl
-		ld	a,l
-		add	a,15
+		inc	hl			; +4: цвет
+		inc	hl
+		inc	hl
+		inc	hl
+		ld	a,(hl)
+		and	0x0F
+		ld	c,a
+		ld	a,(spr_E)
+		cp	c
+		ld	c,0
+		jp	nz,pm0a
+		ld	c,2			; враг цвета палитры 4 — одной плоскостью (8000), без фона
+pm0a:		ld	a,l
+		add	a,11
 		ld	l,a
-		ld	(hl),0
+		ld	(hl),c
 		pop	hl
 		ld	a,l
 		add	a,9
@@ -637,7 +663,7 @@ pm0:		ld	a,b
 		cp	SPR_MAX
 		jp	nz,pm0
 		ld	b,0
-pm1:		ld	a,b			; оба готовы?
+pm1:		ld	a,b			; оба готовы и не одной плоскостью?
 		call	new_ptr
 		ld	a,l
 		add	a,14
@@ -645,12 +671,20 @@ pm1:		ld	a,b			; оба готовы?
 		ld	a,(hl)
 		or	a
 		jp	z,pm8
+		inc	hl
+		ld	a,(hl)
+		or	a
+		jp	nz,pm8
 		ld	a,l
-		add	a,16
+		add	a,15
 		ld	l,a
 		ld	a,(hl)
 		or	a
 		jp	z,pm8
+		inc	hl
+		ld	a,(hl)
+		or	a
+		jp	nz,pm8
 		ld	a,b			; X тот же, |dY| <= 7?
 		call	new_ptr
 		inc	hl
@@ -861,9 +895,16 @@ spr_put:
 		add	a,14
 		ld	l,a
 		ld	a,c
-		xor	1
-		ld	(hl),a			; +14: с фоном
-		jp	z,spr_paint
+		ld	(sp_sp),a
+		or	a
+		jp	z,pu_n
+		cp	1
+		ld	a,0			; +14: 0 — слой (без фона), 2 — одной плоскостью
+		jp	z,pu_l
+		ld	a,2
+pu_l:		ld	(hl),a
+		jp	spr_paint
+pu_n:		ld	(hl),1			; +14: 1 — с фоном
 		ld	a,l			; запись +9..+12 := svr[k]
 		sub	5
 		ld	l,a
@@ -999,11 +1040,15 @@ spr_paint:
 		ld	a,(hl)
 		ld	(cs_and+2),a
 		ld	b,0x80
-so3:		ld	a,(sp_cbits)
+so3:		ld	a,(sp_sp)		; одной плоскостью: только 8000, OR
+		cp	2
+		ld	a,0xFF
+		jp	z,so3k
+		ld	a,(sp_cbits)
 		rlca
 		ld	(sp_cbits),a
 		sbc	a,a			; FF — OR, 00 — AND
-		ld	(st_kind),a
+so3k:		ld	(st_kind),a
 		ld	hl,(pp_m)
 		ex	de,hl
 		ld	hl,(pp_h)
@@ -1035,6 +1080,9 @@ so6:		pop	de
 		pop	hl
 		dec	c
 		jp	nz,so4
+		ld	a,(sp_sp)
+		cp	2
+		ret	z
 		ld	a,b
 		add	a,0x20
 		ld	b,a
@@ -1675,6 +1723,8 @@ gc2:		ld	a,b
 		ld	a,(de)
 		or	a
 		jp	z,gc5
+		cp	2
+		jp	z,gc_sp
 		ld	a,l
 		add	a,9
 		ld	l,a
@@ -1698,6 +1748,49 @@ gc2:		ld	a,b
 		pop	bc
 		call	mul3			; A = 3 * A * C
 		call	div8
+		add	a,2
+		call	gc_add
+		jp	gc5
+gc_sp:		ld	a,l			; одной плоскостью: стирание — клетки прямоугольника r0 r1 c0 c1
+		add	a,5
+		ld	l,a
+		ld	a,(hl)			; r0 -> L = DF - 8 r0
+		push	af
+		add	a,a
+		add	a,a
+		add	a,a
+		ld	c,a
+		ld	a,0xDF
+		sub	c
+		ld	c,a
+		inc	hl
+		pop	af
+		ld	d,a
+		ld	a,(hl)			; r1 - r0 + 1 строк клеток
+		sub	d
+		inc	a
+		ld	d,a
+		inc	hl
+		ld	e,(hl)
+		inc	hl
+		ld	a,(hl)			; c1 - c0 + 1 столбцов
+		sub	e
+		inc	a
+		ld	e,a
+		push	de
+		ld	a,d			; строк точек = 8 * клеток
+		add	a,a
+		add	a,a
+		add	a,a
+		call	gc_ext
+		pop	de
+		xor	a			; клеток = D * E; 3 единицы на клетку + 2
+ggs1:		add	a,e
+		dec	d
+		jp	nz,ggs1
+		ld	c,a
+		add	a,a
+		add	a,c
 		add	a,2
 		call	gc_add
 gc5:		ld	a,b			; новое место
@@ -2026,9 +2119,13 @@ cr1:		ld	a,h			; DE = NTS + то же смещение
 		add	a,NTS/256
 		ld	d,a
 		ld	e,l
+		ld	a,(cr_force)		; все клетки (стирание врага одной плоскости)
+		or	a
+		jp	nz,cr1f
 		ld	a,(de)
 		cp	(hl)
 		jp	z,cr2
+cr1f:
 		ld	a,(hl)
 		ld	(de),a
 		ld	(rr_t),a

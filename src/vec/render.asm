@@ -60,6 +60,11 @@ pal_build:
 		ld	(used+1),a
 		ld	(used+6),a
 		ld	(used+11),a
+		call	spr_ecolor		; цвет врагов комнаты — в палитре на индексе 4 (только плоскость 8000)
+		ld	(spr_E),a
+		ld	hl,used
+		call	add_hl_a
+		ld	(hl),1
 		ld	hl,NT
 		ld	bc,768
 pb1:		push	bc
@@ -131,6 +136,18 @@ pb7:		ld	hl,used
 		ld	a,(hl)
 		or	a
 		jp	z,pb8
+		ld	a,(spr_E)		; цвет врагов — индекс 4, остальные — по порядку мимо 4
+		cp	b
+		ld	a,4
+		jp	z,pb7b
+		ld	a,c
+		cp	4
+		jp	nz,pb7a
+		inc	c
+pb7a:		ld	a,c
+		inc	c
+pb7b:		push	bc
+		ld	c,a
 		ld	hl,cmap
 		ld	a,b
 		call	add_hl_a
@@ -146,7 +163,7 @@ pb7:		ld	hl,used
 		ld	(hl),e
 		inc	hl
 		ld	(hl),e
-		inc	c
+		pop	bc
 pb8:		inc	b
 		ld	a,b
 		cp	16
@@ -175,6 +192,30 @@ pb11:		ld	hl,cmap
 		jp	nz,pb9
 		ld	a,(cmap+1)		; прозрачный 0 — цвет фона (R7 = 1)
 		ld	(cmap+0),a
+		ret
+
+; spr_ecolor: A = цвет врагов комнаты — первый видимый спрайт VSAT с цветом 15, 12 или 14 (иначе 15)
+spr_ecolor:
+		ld	hl,VSAT
+		ld	b,SPR_MAX
+sec1:		ld	a,(hl)
+		cp	0xD0
+		jp	z,sec9
+		inc	hl
+		inc	hl
+		inc	hl
+		ld	a,(hl)
+		and	0x0F
+		inc	hl
+		cp	15
+		ret	z
+		cp	12
+		ret	z
+		cp	14
+		ret	z
+		dec	b
+		jp	nz,sec1
+sec9:		ld	a,15
 		ret
 
 used_count:	ld	hl,used

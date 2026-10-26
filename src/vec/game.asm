@@ -20,6 +20,7 @@ cmodes		equ	0xEF00			; режимы плоскостей по байту цве�
 pat_flag	equ	0xF000			; тайлы с новыми шаблонами
 anim_flag	equ	0xF100			; тайлы с различием банков
 spr_trim	equ	0xF200			; обрезка шаблонов спрайтов (4 x 64)
+live_list	equ	0xFF00			; живые клетки (2 x LIVE_MAX + 2)
 SPR_SLOTS	equ	0xF900			; ячейки фона спрайтов (6 по 256, до FEFF)
 NT		equ	VNT			; для render.asm
 coltab		equ	VCOL
@@ -294,6 +295,9 @@ bk_new:		ds	1
 fire_hi:	ds	1
 fire_skip:	ds	1
 flt_h:		ds	1
+spr_E:		ds	1
+sp_sp:		ds	1
+cr_force:	ds	1
 gc_g:		ds	1
 gc_s:		ds	1
 gact:		ds	SPR_MAX
@@ -365,8 +369,6 @@ LIVE_MAX	equ	120
 spr_rec:	ds	0x80			; записи спрайтов (SREC x SPR_MAX)
 spr_new:	ds	SREC*SPR_MAX		; новые атрибуты (spr_rec + 80h)
 grp:		ds	SPR_MAX
-		ALIGN	256
-live_list:	ds	2*LIVE_MAX+2
 tabs_end:
 		ds	128
 ISR_STACK:
