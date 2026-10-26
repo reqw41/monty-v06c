@@ -12,7 +12,8 @@ for (const l of fs.readFileSync('build/vec/monty.sym', 'latin1').split('\n')) {
   const m = l.match(/^(\w+):\s+EQU\s+0x([0-9A-F]+)/i); if (m) sym[m[1]] = parseInt(m[2], 16);
 }
 const N = +(process.argv[2] || 400), FIRE = +(process.argv[3] || 120), PLAN = process.argv[4] || '';
-const SYNC = +(process.env.SYNC || 0xA9B3);   // точка тика: A9B3 (обработчик) или 8C13 (ожидание кадра в главном цикле)
+const SYNC = +(process.env.SYNC || 0xA9B3);
+const LV = +(process.env.LV || 1), CHEAT = process.env.CHEAT === '1';   // уровень; жизни 7049 := 6 на каждой итерации   // точка тика: A9B3 (обработчик) или 8C13 (ожидание кадра в главном цикле)
 const plan = {};
 plan[FIRE] = [['space', true]]; plan[FIRE + 8] = [['space', false]];
 for (const it of PLAN.split(/\s+/).filter(Boolean)) {
@@ -28,7 +29,7 @@ function runMsx() {
   const m = new MSX1().loadSnap('entry');
   if (process.env.COOP !== '0') { m.coop = new Set([0xA5CA, 0x8C19]); }
   const snaps = []; let started = false, tick = -1;
-  const ev = { 30: [1, 1], 48: [1, 0] };
+  const ev = { 30: [LV, 1], 48: [LV, 0] };
   let f = 0;
   while (snaps.length < N && f < 20000) {
     if (ev[f]) m.key(ev[f][0], ev[f][1]);
@@ -38,6 +39,7 @@ function runMsx() {
       if (pc === 0xa59d) started = true;
       if (started && pc === SYNC) {
         tick++;
+        if (CHEAT) m.mem[0x7049] = 6;
         for (const [k, d] of plan[tick] || []) m.key(MSXK[k], d);
         snaps.push(Buffer.from(m.mem.subarray(LO, HI))); vsn.push(Buffer.concat([Buffer.from(m.vram.subarray(0x1800, 0x1B00)), Buffer.from(m.vram.subarray(0x2000, 0x2020))]));
       }
@@ -54,6 +56,7 @@ function runVec() {
     if (pc === sym.L_A59D) started = true;
     if (started && pc === sym['L_' + SYNC.toString(16).toUpperCase()]) {
       tick++;
+      if (CHEAT) m.wr(0x7049, 6);
       for (const [k, d] of plan[tick] || []) { const e = VECK[k]; if (d) m.keyboard.matrix[e[0]] |= e[1]; else m.keyboard.matrix[e[0]] &= ~e[1]; }
       const b = Buffer.alloc(HI - LO); for (let a = LO; a < HI; a++) b[a - LO] = m.rd(a); snaps.push(b);
       const v = Buffer.alloc(800); for (let a = 0; a < 768; a++) v[a] = m.rd(sym.VNT + a); for (let a = 0; a < 32; a++) v[768 + a] = m.rd(sym.VCOL + a); vsv.push(v);
@@ -61,7 +64,7 @@ function runVec() {
   };
   let f = 0;
   while (snaps.length < N && f < 30000) {
-    if (f === 300) m.keyboard.matrix[2] |= 0x02; if (f === 320) m.keyboard.matrix[2] &= ~0x02;
+    if (f === 300) m.keyboard.matrix[2] |= 1 << LV; if (f === 320) m.keyboard.matrix[2] &= ~(1 << LV);
     m.frame(); f++;
   }
   return snaps;
