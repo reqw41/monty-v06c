@@ -58,6 +58,7 @@ fl_m		equ	0x7FF5
 fl_g		equ	0x7FF6
 fl_bb		equ	0x7FF8
 lv_dirty	equ	0x7FFC			; список живых клеток устарел (в клетку поставлен живой тайл)
+in_isr		equ	0x7FFD			; идёт прерывание (короткая часть в нём): dc_draw не разрешает прерывания
 GSTACK		equ	0x73C0			; стек игры (как у оригинала)
 ; переменные только нативной сборки — 7FA0-7FFF (за копией цветов; чистятся при загрузке)
 a4_n		equ	0x7FA0
@@ -169,6 +170,17 @@ isr:
 		ld	sp,ISR_STACK
 		push	bc
 		push	de
+		ld	a,(crit_pend)		; вывод подготовлен — спрайты сейчас, пока луч наверху кадра (короткая часть)
+		or	a
+		jp	z,isr0
+		xor	a
+		ld	(crit_pend),a
+		inc	a
+		ld	(in_isr),a
+		call	crit
+		xor	a
+		ld	(in_isr),a
+isr0:
 		ld	a,(kb_req)		; клавиатура — по запросу (раз в шаг, после чтения игрой)
 		or	a
 		jp	z,isr1
@@ -223,20 +235,19 @@ frame_wait:
 		jp	nz,fw2
 		inc	a
 		ld	(dp_done),a
+		ld	a,(crit_pend)		; прошлый вывод ещё не дорисован прерыванием — новую подготовку не начинать
+		or	a
+		jp	nz,fw2
 		ld	hl,disp_n
 		inc	(hl)
-		ld	a,(hl)
+		ld	a,(nmi_pend)		; кадр ещё не пришёл — время есть (иначе ждали бы): готовим вывод
+		or	a
+		jp	z,fwp
+		ld	a,(hl)			; уже пришёл (отстаём) — вывод не реже раза в DSKIP шагов
 		cp	DSKIP
 		jp	c,fw2
-		ld	(hl),0
-		call	disp_prep
-		ld	a,(crit_pend)		; кадр пришёл во время подготовки — короткая часть со следующим
-		or	a
-		jp	z,fw2
-		di
-		xor	a
-		ld	(nmi_pend),a
-		ei
+fwp:		ld	(hl),0
+		call	disp_prep		; crit_pend = 1 — спрайты нарисует следующее прерывание (isr), не ждём
 fw2:		ld	a,(nmi_pend)		; кадра ждать
 		or	a
 		jp	z,fw2
@@ -245,13 +256,7 @@ fw2:		ld	a,(nmi_pend)		; кадра ждать
 		ld	(nmi_pend),a
 		ei
 		ld	(dp_done),a
-		ld	a,(crit_pend)
-		or	a
-		jp	z,fw3
-		xor	a
-		ld	(crit_pend),a
-		call	crit
-fw3:		call	frame_handler
+		call	frame_handler
 		ld	hl,(np_sp)
 		ld	sp,hl
 		pop	hl

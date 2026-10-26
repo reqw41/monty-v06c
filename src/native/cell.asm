@@ -151,5 +151,8 @@ dc_draw:	ld	a,c
 		ld	hl,(dc_sp)
 		ld	sp,hl
 		ex	de,hl
+		ld	a,(in_isr)		; из прерывания (короткая часть) — не разрешать
+		or	a
+		ret	nz
 		ei
 		ret
