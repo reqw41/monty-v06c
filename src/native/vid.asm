@@ -234,6 +234,14 @@ pp2:		inc	hl
 		ld	l,e
 		ld	h,pat_flag/256
 		ld	(hl),1
+		ld	a,e			; не лента и не цепь (E0, E8) — отметка «другие» (pat_oth)
+		cp	0xE0
+		jp	z,pp3
+		cp	0xE8
+		jp	z,pp3
+		ld	a,1
+		ld	(pat_oth),a
+pp3:
 		ld	a,(vdirty)
 		or	VD_PAT
 		ld	(vdirty),a

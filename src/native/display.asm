@@ -72,36 +72,20 @@ dp2:		ld	a,(vdirty)
 		ld	(vdirty),a
 		ld	a,pat_flag/256		; тайлы с новой графикой: живые клетки с ними (E0/E8 — лента и цепь) —
 		call	force_live_t
-		ld	a,(pat_flag+0xE0)	; другие тайлы (не E0/E8) отмечены?
-		push	af
-		ld	a,(pat_flag+0xE8)
-		push	af
-		xor	a
-		ld	(pat_flag+0xE0),a
+		xor	a			; E0/E8 — сбросить; другие тайлы (pat_oth — отмечается при записи) — редкость:
+		ld	(pat_flag+0xE0),a	; все их клетки (по карте)
 		ld	(pat_flag+0xE8),a
-		ld	hl,pat_flag
-		ld	b,0
-dpp1:		or	(hl)
-		inc	l
-		dec	b
-		jp	nz,dpp1
-		ld	b,a
-		pop	af
-		ld	(pat_flag+0xE8),a
-		pop	af
-		ld	(pat_flag+0xE0),a
-		ld	a,b
+		ld	a,(pat_oth)
 		or	a
-		jp	z,dpp2
-		ld	a,pat_flag/256		; к перерисовке; редкость: прочие тайлы — все их клетки
+		jp	z,dp3
+		xor	a
+		ld	(pat_oth),a
+		ld	a,pat_flag/256
 		call	force_tiles
 		ld	hl,pat_flag
 		ld	bc,256
 		ld	e,0
 		call	memfill
-		jp	dp3
-dpp2:		ld	(pat_flag+0xE0),a	; обычный случай — сбросить только E0/E8
-		ld	(pat_flag+0xE8),a
 dp3:		ld	a,(vdirty)
 		and	VD_COL
 		jp	z,dp4
@@ -275,13 +259,7 @@ room_redraw:
 		ld	bc,256
 		ld	e,0
 		call	memfill
-		ld	a,(anim_ok)		; таблица анимации — после изменения шаблонов (кроме E0/E8)
-		or	a
-		jp	nz,rr1
-		call	anim_build		; (обрезка шаблонов спрайтов — при старте: они не меняются)
-		ld	a,1
-		ld	(anim_ok),a
-rr1:		call	bank_hi			; кадр анимации
+		call	bank_hi			; кадр анимации
 		ld	(tile_hi),a
 		call	pal_build
 		call	pal_fill
@@ -296,7 +274,10 @@ rr1:		call	bank_hi			; кадр анимации
 		jp	col_snapshot
 
 ; Живые клетки (анимированные тайлы anim_set и лента/цепь E0-EF) — по корзинам тайлов: lv_idx[тайл] = корзина
-; (0..32) или FF; корзина b — элементы live_list с lv_beg[b] по lv_beg[b + 1] - 1 (адреса в VNT по 2 байта).
+; (0..32) или FF; корзина b — элементы с lv_beg[b] по lv_beg[b + 1] - 1: адрес клетки в VNT — младший байт
+; в live_list, старший — в live_hi (до LIVE_N клеток; в комнатах — до 189).
+LIVE_N		equ	250
+live_hi		equ	0xF100			; (бывшие флаги анимации тайлов — не читались)
 LV_N		equ	33
 ; lv_init: lv_idx и lv_tile (при загрузке)
 lv_init:	xor	a
@@ -359,7 +340,7 @@ lb2:		inc	hl
 		ld	a,h
 		cp	(VNT+768)/256
 		jp	nz,lb1
-		ld	hl,lv_pos		; начала: lv_beg[b] = сумма (не больше LIVE_MAX), lv_pos := lv_beg
+		ld	hl,lv_pos		; начала: lv_beg[b] = сумма (не больше LIVE_N), lv_pos := lv_beg
 		ld	de,lv_beg
 		ld	b,LV_N
 		ld	c,0
@@ -368,9 +349,9 @@ lb3:		ld	a,c
 		ld	a,(hl)
 		ld	(hl),c
 		add	a,c
-		cp	LIVE_MAX
+		cp	LIVE_N
 		jp	c,lb4
-		ld	a,LIVE_MAX
+		ld	a,LIVE_N
 lb4:		ld	c,a
 		inc	hl
 		inc	de
@@ -394,16 +375,15 @@ lb5:		ld	e,(hl)
 		call	add_hl_a
 		ld	a,(hl)
 		cp	c
-		jp	nc,lb6			; корзина полна (предел LIVE_MAX)
+		jp	nc,lb6			; корзина полна (предел LIVE_N)
 		inc	(hl)
-		add	a,a
-		ld	e,a
+		ld	e,a			; адрес клетки: младший — live_list, старший — live_hi
 		ld	d,live_list/256
 		pop	hl
 		push	hl
 		ld	a,l
 		ld	(de),a
-		inc	e
+		ld	d,live_hi/256
 		ld	a,h
 		ld	(de),a
 lb6:		pop	hl
@@ -456,14 +436,13 @@ flt1:		ld	c,(hl)			; корзина (из непустых)
 		sub	c
 		jp	z,flt3
 		ld	b,a
-		ld	a,c
-		add	a,a
-		ld	l,a
+		ld	l,c
 		ld	h,live_list/256
 		push	de
 flt2:		ld	e,(hl)			; DE = клетка в VNT: к выводу (PND), в список
-		inc	l
+		ld	h,live_hi/256
 		ld	d,(hl)
+		ld	h,live_list/256
 		inc	l
 		push	hl
 		ld	a,d
@@ -706,6 +685,8 @@ col_snapshot:
 
 ; col_changed: группы с новым цветом -> их клетки к перерисовке (палитра и режимы — при смене комнаты)
 col_changed:
+		xor	a
+		ld	(col_oth),a
 		ld	hl,VCOL
 		ld	de,col_shown
 		ld	b,0
@@ -715,7 +696,13 @@ cg1:		ld	a,(de)
 		jp	z,cg2
 		ld	a,(hl)
 		ld	(de),a
-		push	hl			; col_flag[8b .. 8b+7] := 1
+		ld	a,b			; группа не 1C, 1D — по карте
+		and	0xFE
+		cp	0x1C
+		jp	z,cg1a
+		ld	a,1
+		ld	(col_oth),a
+cg1a:		push	hl			; col_flag[8b .. 8b+7] := 1
 		ld	a,b
 		add	a,a
 		add	a,a
@@ -738,8 +725,14 @@ cg2:		inc	hl
 		ld	a,c
 		or	a
 		ret	z
-		ld	a,col_flag/256		; тайлы групп с новым цветом — их клетки к перерисовке
-		call	force_tiles
+		ld	a,(col_oth)		; тайлы групп с новым цветом — их клетки к перерисовке: только группы
+		or	a			; ленты и цепи (1C, 1D: тайлы E0-EF — живые) — по списку живых клеток,
+		ld	a,col_flag/256		; иначе — по карте
+		jp	nz,cgc1
+		call	force_live_t
+		jp	cgc2
+cgc1:		call	force_tiles
+cgc2:
 		ld	hl,col_flag
 		ld	bc,256
 		ld	e,0
@@ -926,19 +919,6 @@ dr_go:		xor	a
 		pop	hl
 		jp	dr2
 
-; anim_build: anim_flag[t] := 1, если у тайла t есть различие банков (dslot)
-anim_build:
-		ld	hl,anim_flag
-		ld	de,dslot
-anb1:		ld	a,(de)
-		inc	a			; FF -> 0
-		jp	z,anb2
-		ld	a,1
-anb2:		ld	(hl),a
-		inc	l
-		inc	e
-		jp	nz,anb1
-		ret
 
 ; pal_fill: цвета MSX вне палитры -> индекс ближайшего из палитры (по merge_pairs)
 pal_fill:

@@ -49,6 +49,8 @@ ps_r		equ	0x7FE7
 cb_st		equ	0x7FED			; cb_to: шаг столбцов масок
 sp_mskp		equ	0x7FEE			; рисование: страница масок
 sp_cr		equ	0x7FEF			; исходный цвет спрайта
+pat_oth		equ	0x7FF0			; новая графика у тайлов не E0/E8 (pat_put)
+col_oth		equ	0x7FF1			; новый цвет у групп не 1C/1D (col_changed)
 GSTACK		equ	0x73C0			; стек игры (как у оригинала)
 ; переменные только нативной сборки — 7FA0-7FFF (за копией цветов; чистятся при загрузке)
 a4_n		equ	0x7FA0
