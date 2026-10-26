@@ -17,6 +17,8 @@ dl_n		equ	0x7FA8
 dl_ovf		equ	0x7FA9
 dl_cnt		equ	0x7FAA
 dl_k		equ	0x7FAB
+kb_req		equ	0x7FAC
+rs_mode		equ	0x7FAD
 GSTACK		equ	0x73C0			; стек игры (как у оригинала)
 ; переменные только нативной сборки — 7FA0-7FFF (за копией цветов; чистятся при загрузке)
 a4_n		equ	0x7FA0
@@ -58,9 +60,14 @@ boot:
 		call	memfill
 		call	pats_init		; шаблоны: банк 0 -> E000, различия -> dslot/dstore, спрайты -> VSPR
 		call	tc_init
+		call	se_init
+		call	bd_init
+		call	lv_init
 		call	cache_flush
 		ld	a,0xD0
 		ld	(VSAT),a
+		ld	a,1
+		ld	(kb_req),a
 		call	level_snap		; уровень 1: ОЗУ игры, таблица имён, цвета, регистры — со снимка
 		ld	sp,GSTACK		; (после снимка: он перекрывает и область стека игры)
 		ei
@@ -114,8 +121,13 @@ isr:
 		ld	sp,ISR_STACK
 		push	bc
 		push	de
+		ld	a,(kb_req)		; клавиатура — по запросу (раз в шаг, после чтения игрой)
+		or	a
+		jp	z,isr1
+		xor	a
+		ld	(kb_req),a
 		call	kb_scan
-		ld	hl,(frames)
+isr1:		ld	hl,(frames)
 		inc	hl
 		ld	(frames),hl
 		call	pal_load_isr
@@ -262,6 +274,13 @@ unit_fw:	push	af			; tools/unit.js: ожидание кадра = обработ
 dlist:		ds	256			; список изменённых клеток (адреса в VNT)
 tc_tab:		ds	256			; адреса ячеек кэша изображений (младшие, старшие + 80h)
 tcache2:	ds	24*TC_N			; кэш изображений тайлов
+se_tab:		ds	8*24			; адреса входа блоков по числу строк (se_init)
+bd_tab:		ds	48			; переходы банков: какие анимированные тайлы меняются (bd_init)
+ex_bb:		ds	4			; общая рамка отложенных клеток
+lv_tile:	ds	33			; живые клетки: тайл корзины
+lv_beg:		ds	34			; начало корзины в live_list (+ всего)
+lv_pos:		ds	33			; счётчики/позиции при раскладке
+lv_idx		equ	0xF400			; тайл -> корзина (FF — не живой); бывший кэш тайлов в невидимой плоскости
 ; таблицы спрайтов — в одной странице (адрес — одной командой)
 sprt:
 gact:		ds	SPR_MAX			; gact, gs, ge, gd — подряд

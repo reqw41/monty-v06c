@@ -37,7 +37,9 @@ in4:		ld	a,(kbmat+7)		; пробел — огонь
 		ld	a,b
 		or	0x40
 		ld	b,a
-in5:		ld	a,b
+in5:		ld	a,1			; следующий опрос клавиатуры — в ближайшем прерывании
+		ld	(kb_req),a
+		ld	a,b
 		ld	(0x73EF),a
 		or	0x80
 		ld	(0x73EE),a
@@ -739,7 +741,9 @@ game_over:	ld	a,6
 		ld	hl,C_9409
 		ld	de,0x016C
 		call	L_AEA7
-go1:		call	frame_wait
+go1:		ld	a,1
+		ld	(kb_req),a
+		call	frame_wait
 		ld	a,(kbmat+7)
 		and	0x80
 		jp	z,go1

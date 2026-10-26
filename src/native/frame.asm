@@ -153,9 +153,7 @@ fh3:		ld	a,c
 		ld	(0x7011),a
 fh5:		ld	hl,0x7207
 		dec	(hl)
-		ld	a,8
-		call	sat_copy
-		call	L_AC6D
+		call	L_AC6D			; (атрибуты спрайтов -> VSAT — перед выводом, disp_prep)
 		ld	hl,0x70B1
 		ld	a,(hl)
 		and	0x7F

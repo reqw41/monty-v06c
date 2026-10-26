@@ -23,6 +23,8 @@ disp_prep:
 		ld	a,(vregs+1)
 		and	0x40
 		ret	z
+		ld	a,8			; атрибуты спрайтов 7300 -> VSAT (WR_SPR_NM_TBL обработчика кадра — здесь)
+		call	sat_copy
 		xor	a
 		ld	(drew_any),a
 		ld	a,(vdirty)
@@ -180,14 +182,73 @@ eb9:		inc	b
 		jp	nz,eb0
 		ld	a,c
 		ld	(ex_n),a
+		ld	hl,ex_r			; общая рамка: r0 мин., r1 макс., c0 мин., c1 макс.
+		ld	de,0xFF00
+		ld	bc,0xFF00
+		ld	a,(ex_n)
+		or	a
+		jp	z,ebb9
+ebb0:		push	af
+		ld	a,(hl)
+		cp	d
+		jp	nc,ebb1
+		ld	d,a
+ebb1:		inc	hl
+		ld	a,(hl)
+		cp	e
+		jp	c,ebb2
+		ld	e,a
+ebb2:		inc	hl
+		ld	a,(hl)
+		cp	b
+		jp	nc,ebb3
+		ld	b,a
+ebb3:		inc	hl
+		ld	a,(hl)
+		cp	c
+		jp	c,ebb4
+		ld	c,a
+ebb4:		inc	hl
+		pop	af
+		dec	a
+		jp	nz,ebb0
+ebb9:		ld	a,d
+		ld	(ex_bb),a
+		ld	a,e
+		ld	(ex_bb+1),a
+		ld	a,b
+		ld	(ex_bb+2),a
+		ld	a,c
+		ld	(ex_bb+3),a
 		ret
 
+et_no:		or	a
+		ret
 ; ex_test: строка rr_r, столбец C — в одном из ex_r? CY — да (HL, DE, B портятся)
 ex_test:
 		ld	a,(ex_n)
 		or	a
 		ret	z
 		ld	b,a
+		ld	a,(rr_r)		; вне общей рамки — сразу нет
+		ld	hl,ex_bb
+		cp	(hl)
+		jp	c,et_no
+		inc	hl
+		ld	d,(hl)
+		cp	d
+		jp	z,et_r
+		jp	nc,et_no
+et_r:		inc	hl
+		ld	a,c
+		cp	(hl)
+		jp	c,et_no
+		inc	hl
+		ld	d,(hl)
+		cp	d
+		jp	z,et_c
+		jp	nc,et_no
+et_c:
 		ld	hl,ex_r
 		ld	a,(rr_r)
 		ld	d,a
@@ -247,65 +308,262 @@ rr1:		call	cache_flush
 		call	live_build
 		jp	col_snapshot
 
-; live_build: список «живых» клеток (анимированные тайлы и E0-EF) — смещения в VNT по 2 байта, конец FFFF
-live_build:
-		ld	de,live_list
-		ld	hl,VNT
-lb1:		ld	a,(hl)
-		cp	0xE0
-		jp	nc,lb2
-		push	de
-		ld	e,a
-		ld	d,anim_flag/256
+; Живые клетки (анимированные тайлы anim_set и лента/цепь E0-EF) — по корзинам тайлов: lv_idx[тайл] = корзина
+; (0..32) или FF; корзина b — элементы live_list с lv_beg[b] по lv_beg[b + 1] - 1 (адреса в VNT по 2 байта).
+LV_N		equ	33
+; lv_init: lv_idx и lv_tile (при загрузке)
+lv_init:	ld	hl,lv_idx
+		ld	bc,256
+		ld	e,0xFF
+		call	memfill
+		ld	de,anim_set
+		ld	bc,lv_tile
+		ld	h,lv_idx/256
+		xor	a
+lvi1:		push	af
 		ld	a,(de)
-		pop	de
-		or	a
-		jp	z,lb3
-lb2:		ld	a,e			; не больше LIVE_MAX
-		cp	(live_list+2*LIVE_MAX)&0xFF
-		jp	z,lb3
-		ld	a,l
-		ld	(de),a
+		cp	0xFF
+		jp	z,lvi2
+		ld	l,a
+		ld	(bc),a
+		pop	af
+		ld	(hl),a
+		inc	a
 		inc	de
-		ld	a,h
-		ld	(de),a
-		inc	de
-lb3:		inc	hl
+		inc	bc
+		jp	lvi1
+lvi2:		pop	af
+		ld	e,0xE0			; E0..EF — следующие корзины
+lvi3:		ld	l,e
+		ld	(hl),a
+		push	af
+		ld	a,e
+		ld	(bc),a
+		pop	af
+		inc	bc
+		inc	a
+		inc	e
+		jp	nz,lvi3
+		ret
+
+; live_build: корзины живых клеток комнаты (два прохода по VNT: подсчёт, раскладка)
+live_build:
+		ld	hl,lv_pos		; счётчики := 0
+		ld	b,LV_N
+		xor	a
+lbz:		ld	(hl),a
+		inc	hl
+		dec	b
+		jp	nz,lbz
+		ld	hl,VNT
+		ld	d,lv_idx/256
+lb1:		ld	e,(hl)
+		ld	a,(de)
+		cp	0xFF
+		jp	z,lb2
+		push	hl
+		ld	hl,lv_pos
+		call	add_hl_a
+		inc	(hl)
+		pop	hl
+lb2:		inc	hl
 		ld	a,h
 		cp	(VNT+768)/256
 		jp	nz,lb1
-		ld	a,0xFF
+		ld	hl,lv_pos		; начала: lv_beg[b] = сумма (не больше LIVE_MAX), lv_pos := lv_beg
+		ld	de,lv_beg
+		ld	b,LV_N
+		ld	c,0
+lb3:		ld	a,c
 		ld	(de),a
+		ld	a,(hl)
+		ld	(hl),c
+		add	a,c
+		cp	LIVE_MAX
+		jp	c,lb4
+		ld	a,LIVE_MAX
+lb4:		ld	c,a
+		inc	hl
 		inc	de
+		dec	b
+		jp	nz,lb3
+		ld	a,c
+		ld	(de),a			; lv_beg[LV_N] — всего
+		ld	hl,VNT			; раскладка
+lb5:		ld	e,(hl)
+		ld	d,lv_idx/256
+		ld	a,(de)
+		cp	0xFF
+		jp	z,lb7
+		push	hl
+		ld	e,a
+		ld	hl,lv_beg+1		; конец корзины
+		call	add_hl_a
+		ld	c,(hl)
+		ld	a,e
+		ld	hl,lv_pos
+		call	add_hl_a
+		ld	a,(hl)
+		cp	c
+		jp	nc,lb6			; корзина полна (предел LIVE_MAX)
+		inc	(hl)
+		add	a,a
+		ld	e,a
+		ld	d,live_list/256
+		pop	hl
+		push	hl
+		ld	a,l
 		ld	(de),a
+		inc	e
+		ld	a,h
+		ld	(de),a
+lb6:		pop	hl
+lb7:		inc	hl
+		ld	a,h
+		cp	(VNT+768)/256
+		jp	nz,lb5
 		ret
 
-; force_live_t: A = страница флагов по тайлам — живые клетки с отмеченным тайлом к перерисовке
+; force_live_t: A = страница флагов по тайлам — живые клетки отмеченных тайлов к перерисовке (по корзинам)
 force_live_t:
 		ld	(flt_h),a
-		ld	hl,live_list
-flt1:		ld	e,(hl)
-		inc	hl
-		ld	d,(hl)
-		inc	hl
-		ld	a,d
-		cp	0xFF
-		ret	z
-		ld	a,(de)			; тайл клетки
-		push	hl
-		ld	l,a
+		ld	hl,lv_tile
+		ld	de,lv_beg
+		ld	b,LV_N
+flt1:		push	hl
+		ld	l,(hl)			; флаг тайла корзины
 		ld	a,(flt_h)
 		ld	h,a
 		ld	a,(hl)
+		pop	hl
 		or	a
-		jp	z,flt2
-		ex	de,hl			; HL = адрес в VNT
+		jp	z,flt3
+		push	hl
+		push	de
+		push	bc
+		ld	a,(de)			; с
+		ld	c,a
+		inc	de
+		ld	a,(de)			; по
+		sub	c
+		jp	z,flt4
+		ld	b,a
+		ld	a,c
+		add	a,a
+		ld	l,a
+		ld	h,live_list/256
+flt2:		ld	e,(hl)
+		inc	l
+		ld	d,(hl)
+		inc	l
+		push	hl
+		ex	de,hl
 		call	ft_mark1
-flt2:		pop	hl
-		jp	flt1
+		pop	hl
+		dec	b
+		jp	nz,flt2
+flt4:		pop	bc
+		pop	de
+		pop	hl
+flt3:		inc	hl
+		inc	de
+		dec	b
+		jp	nz,flt1
+		ret
 
 ; bank_diff: col_flag[t] := 1 для тайлов anim_set, у которых шаблон в банке bk_new не тот, что в tile_hi
-bank_diff:
+bank_diff:					; по таблице переходов банков (bd_init): col_flag анимированных тайлов
+		ld	a,(tile_hi)
+		add	a,a
+		add	a,a
+		ld	b,a
+		ld	a,(bk_new)
+		add	a,b
+		ld	b,a
+		add	a,a
+		add	a,b			; 3 * (4 * старый + новый)
+		ld	hl,bd_tab
+		call	add_hl_a
+		ld	de,anim_set
+		ld	c,3
+bdt0:		ld	a,(hl)
+		ld	b,8
+bdt1:		rrca
+		push	af
+		jp	nc,bdt2
+		ld	a,(de)
+		cp	0xFF
+		jp	z,bdt3
+		push	hl
+		ld	l,a
+		ld	h,col_flag/256
+		ld	(hl),1
+		pop	hl
+bdt2:		inc	de
+		pop	af
+		dec	b
+		jp	nz,bdt1
+		inc	hl
+		dec	c
+		jp	nz,bdt0
+		ret
+bdt3:		pop	af
+		ret
+
+; bd_init: таблица bd_tab[4 * старый + новый] — 3 байта, бит i: у anim_set[i] шаблоны банков различаются
+bd_init:	ld	hl,bd_tab
+		xor	a
+		ld	(tile_hi),a
+bi0:		xor	a
+		ld	(bk_new),a
+bi1:		push	hl
+		call	bank_diff_slow
+		pop	hl
+		ld	de,anim_set		; флаги -> 3 байта, флаги сбросить
+		ld	c,3
+bi2:		ld	b,8
+		ld	(hl),0
+bi3:		ld	a,(de)
+		cp	0xFF
+		jp	z,bi4
+		push	hl
+		ld	l,a
+		ld	h,col_flag/256
+		ld	a,(hl)
+		ld	(hl),0
+		pop	hl
+		rrca
+		ld	a,(hl)
+		rra
+		ld	(hl),a
+		inc	de
+		dec	b
+		jp	nz,bi3
+		jp	bi5
+bi4:		ld	a,(hl)
+		or	a
+		rra
+		ld	(hl),a
+		dec	b
+		jp	nz,bi4
+bi5:		inc	hl
+		dec	c
+		jp	nz,bi2
+		ld	a,(bk_new)
+		inc	a
+		ld	(bk_new),a
+		cp	4
+		jp	nz,bi1
+		ld	a,(tile_hi)
+		inc	a
+		ld	(tile_hi),a
+		cp	4
+		jp	nz,bi0
+		xor	a
+		ld	(tile_hi),a
+		ret
+
+bank_diff_slow:
 		ld	hl,anim_set
 bd0:		ld	a,(hl)
 		cp	0xFF
