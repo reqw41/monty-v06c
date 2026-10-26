@@ -2,13 +2,15 @@
 // Сверка JS-модели: две модели MSX (coop) с одинаковым вводом — без подмен и с подменами процедур из
 // src/model/hooks.js; сравнение по итерациям главного цикла (A5D1): ОЗУ 7000-733F (без буфера OS7 7210-723F),
 // таблица имён, цвета, атрибуты спрайтов (VRAM 1B00-1B7F). Первое расхождение — печать.
-//   node tools/modelcheck.js [итераций] [уровень] ["план тик:клавиша+/-"] [список подмен через запятую]
+//   node tools/modelcheck.js [итераций] [уровень] ["план тик:клавиша+/- тик:tpРЯД.СТОЛБЕЦ"] [список подмен через запятую]
 'use strict';
 const MSX1 = require('./msx1');
 const HOOKS = require('../src/model/hooks');
 const N = +(process.argv[2] || 600), LV = +(process.argv[3] || 1), PLAN = process.argv[4] || '', ONLY = process.argv[5];
 const plan = { 120: [['space', true]], 128: [['space', false]] };
-for (const it of PLAN.split(/\s+/).filter(Boolean)) { const mm = it.match(/^(\d+):(\w+)([+-])$/); (plan[+mm[1]] = plan[+mm[1]] || []).push([mm[2], mm[3] === '+']); }
+for (const it of PLAN.split(/\s+/).filter(Boolean)) {
+  const tp = it.match(/^(\d+):tp(\d+)\.(\d+)$/); if (tp) { (plan[+tp[1]] = plan[+tp[1]] || []).push(['tp', +tp[2], +tp[3]]); continue; }
+  const mm = it.match(/^(\d+):(\w+)([+-])$/); (plan[+mm[1]] = plan[+mm[1]] || []).push([mm[2], mm[3] === '+']); }
 const K = { space: 0x40, left: 0x44, up: 0x45, down: 0x46, right: 0x47 };
 const CHEAT = process.env.CHEAT === '1';
 function run(hooks) {
@@ -22,7 +24,7 @@ function run(hooks) {
       if (pc === 0xa59d && !st) { st = true; if (hooks) m.hooks = hooks; }   // подмены — с начала игры (меню Muffie зависит от времени)
       if (st && pc === 0xa5d1) {
         t++; if (CHEAT) m.mem[0x7049] = 6;
-        for (const [k, d] of plan[t] || []) m.key(K[k], d);
+        for (const [k, d, c] of plan[t] || []) if (k === 'tp') { m.mem[0x71a7] = d; m.mem[0x71a8] = c; m.mem[0x7079] = 9; } else m.key(K[k], d);
         out.push(Buffer.concat([Buffer.from(m.mem.subarray(0x7000, 0x7340)), Buffer.from(m.vram.subarray(0x1800, 0x1b80)), Buffer.from(m.vram.subarray(0x2000, 0x2020)), Buffer.from(m.psg.subarray(0, 11)), Buffer.from(m.mem.subarray(0x20f7, 0x20fb))]));
       }
       m.step();
