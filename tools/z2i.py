@@ -21,6 +21,7 @@ IMG = open(os.path.join(ROOT, 'build/monty_entry.bin'), 'rb').read()
 LO, HI = 0x800C, 0xBFFF            # 8000-800B — заголовок Coleco, не нужен
 
 PTR_TABLES = {0x8913: 11, 0xA20A: 8, 0x9477: 100, 0xAD0B: 10}
+PTR_WORDS = {0xA8A3, 0xA8A8, 0xA8AD, 0xA8B2}   # таблица процессов A8A1: [счётчик, процедура, перезагрузка] x4 (A5D8)
 CONSTS = {0x8282}                   # адреса команд, у которых число 8000-BFFF — не адрес (8282: сигнатура AA55)
 MANUAL = {0xAE46: 0xAE4F}           # адрес начала: адрес конца (не включая) — вставка руками src/vec/manual/
 OS7 = {}
@@ -33,6 +34,7 @@ items = []                          # ('c', адрес, текст) | ('b', ад
 ptr_words = set()                   # адреса слов-указателей в данных
 for a, n in PTR_TABLES.items():
     for k in range(n): ptr_words.add(a + 2 * k)
+ptr_words |= PTR_WORDS
 kind = None
 for l in open(os.path.join(ROOT, 'build/monty.skool')):
     m = re.match(r'^([cbw* @])\$([0-9A-F]{4}) (.*?)\s*(;.*)?$', l)
@@ -56,7 +58,7 @@ for i, (k, a, _) in enumerate(items):
         e = items[i + 1][1] if i + 1 < len(items) else HI + 1
         datab.update(range(a, e))
 
-warn, refs, labels = [], set(), set()
+warn, refs, labels = [], set(), {0x8195, 0x8413, 0xA9B3, 0x8025}   # метки для платформенного слоя
 
 
 def ref(v, at):
@@ -193,9 +195,11 @@ while i < len(items):
         if txt.startswith('DJNZ') and nxt and re.match(r'(JR|JP|CALL|RET) N?Z|ADC|SBC', nxt or ''):
             warn.append(f'{a:04X}: DJNZ, дальше флаги ({nxt}) — у i8080 DEC B меняет флаги')
         i += 1
-    else:
-        e = items[i + 1][1] if i + 1 < len(items) else HI + 1
-        body.append(('data', a, e)); i += 1
+    else:                           # подряд идущие строки данных — один блок (слово может стоять на стыке строк)
+        j = i + 1
+        while j < len(items) and items[j][0] == 'b' and items[j][1] not in MANUAL: j += 1
+        e = items[j][1] if j < len(items) else HI + 1
+        body.append(('data', a, e)); i = j
 
 for b in body:                      # предварительно: метки целей указателей в данных
     if b[0] == 'data':

@@ -2,6 +2,7 @@
 ;   python3 tools/mkvecdata.py && (cd src/vec && ../../tools/sjasmplus --nologo --i8080 --sym=../../build/vec/viewer.sym viewer.asm)
 ; Раскладка: 0000 загрузчик и RST 38h; 0100 код и данные; 7000 теневая таблица имён; 7600 переменные; стек до 8000.
 		DEVICE	NOSLOT64K
+		DEFINE	VIEWER
 NT		equ	0x7000
 NT_SIZE		equ	0x0500
 STACK_TOP	equ	0x8000
@@ -40,6 +41,8 @@ main_loop:
 
 ; show_room: комната req_room уровня req_lv, ряд req_row (для палитры этажа)
 show_room:
+		ld	a,tiles0/256
+		ld	(tile_hi),a
 		ld	a,(req_lv)
 		ld	(lv_cur),a
 		ld	a,(req_row)
@@ -92,8 +95,10 @@ isr1:		ld	hl,(frames)
 		ret
 
 		INCLUDE	"room.asm"
+		INCLUDE	"util.asm"
 		INCLUDE	"render.asm"
 		INCLUDE	"gen/data.asm"
+		INCLUDE	"gen/pal.asm"
 code_end:
 		ASSERT	code_end <= NT
 
@@ -134,6 +139,7 @@ rr_m:		ds	6
 rr_p:		ds	1
 rr_np:		ds	1
 rr_y:		ds	1
+tile_hi:	ds	1
 vars_end:
 		ASSERT	vars_end < STACK_TOP - 0x200
 

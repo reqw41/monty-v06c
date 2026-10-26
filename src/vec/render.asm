@@ -1,6 +1,7 @@
 ; Цвета комнаты, палитра и вывод теневой таблицы имён в 3 плоскости (8000 — бит 2 индекса, A000 — бит 1,
 ; C000 — бит 0; E000 невидима: палитра Вектора парами). Поле MSX 256x192: строка Y -> младший байт 0DFh - Y.
 
+		IFDEF	VIEWER
 ; --- col_build: coltab := colors_base, элементы 1..7 := палитра этажа (row_cur), темнота (FLOOR_PALETTE 8EB0)
 col_build:
 		ld	hl,coltab
@@ -46,6 +47,8 @@ cb2:		ld	a,(hl)
 		pop	hl
 		jp	cb2
 dark_groups:	db	0x00,0x01,0x02,0x10,0x11,0x12,0x13,0x15,0x16,0x17,0x18,0xFF
+
+		ENDIF
 
 ; --- pal_build: какие цвета MSX видны (таблица имён + герой 6, 11 + фон 1), слияние до 8, индексы ----
 pal_build:
@@ -221,6 +224,23 @@ ra_cell:	ld	hl,(rr_nt)
 		inc	hl
 		ld	(rr_nt),hl
 		ld	(rr_t),a
+		call	draw_cell
+		ld	a,(rr_c)
+		inc	a
+		ld	(rr_c),a
+		cp	32
+		jp	nz,ra_cell
+		ld	a,(rr_r)
+		inc	a
+		ld	(rr_r),a
+		cp	24
+		jp	nz,ra_row
+		ret
+
+		IFDEF	VIEWER
+; --- draw_cell: тайл rr_t в клетку (rr_r, rr_c) ---------------------------------------------------------
+draw_cell:
+		ld	a,(rr_t)
 		call	cell_colors
 		ld	hl,cmap			; D, E -> индексы Вектора
 		ld	a,d
@@ -247,15 +267,16 @@ ra_m:		ld	a,d
 		ld	b,a
 		cp	0x80
 		jp	nz,ra_m
-		ld	a,(rr_t)		; шаблон: tiles0 + 8 * тайл
+		ld	a,(rr_t)		; шаблон: банк (tile_hi << 8) + 8 * тайл
 		ld	l,a
 		ld	h,0
 		add	hl,hl
 		add	hl,hl
 		add	hl,hl
-		ld	de,tiles0
-		add	hl,de
-		ex	de,hl
+		ld	a,(tile_hi)
+		add	a,h
+		ld	d,a
+		ld	e,l
 		ld	a,(rr_r)		; экран: L = 0DFh - 8 * ряд, H = 80h + столбец
 		add	a,a
 		add	a,a
@@ -313,17 +334,9 @@ ra_y:		ld	a,(de)
 		dec	a
 		ld	(rr_y),a
 		jp	nz,ra_y
-		ld	a,(rr_c)
-		inc	a
-		ld	(rr_c),a
-		cp	32
-		jp	nz,ra_cell
-		ld	a,(rr_r)
-		inc	a
-		ld	(rr_r),a
-		cp	24
-		jp	nz,ra_row
 		ret
+
+		ENDIF
 
 ; ra_byte: A = маска фона плоскости 8000, (rr_m+0) — маска точек -> A = байт
 ra_byte:	ld	b,a

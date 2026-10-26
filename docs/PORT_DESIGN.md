@@ -56,3 +56,17 @@
 - Внешние вызовы для платформенного слоя: OS7 — WRITE_REGISTER 13, FILL_VRAM 9, LOAD_ASCII 3, REFLECT_VERTICAL 3,
   PUT_VRAM 2, GET_VRAM 2, WR_SPR_NM_TBL 2, TURN_OFF_SOUND 4, REFLECT_HORIZONTAL, ENLARGE, INIT_SPR_ORDER,
   READ_REGISTER, CONTROLLER_SCAN, MODE_1; прослойка — звук 21C5/21CA/21CF/21D4, 21DE, меню 2209/2227.
+
+## Этап 2 — игра запускается на Векторе (26.10.2026)
+- Сборка: `python3 -I tools/mkvecdata.py && python3 -I tools/z2i.py && (cd src/vec && ../../tools/sjasmplus --nologo
+  --i8080 --sym=../../build/vec/monty.sym game.asm)` → build/vec/monty.bin (образ с 0000, до 6180h).
+- Платформа: `src/vec/os7.asm` (виртуальная VRAM, функции OS7, REFLECT/ENLARGE, шрифт OS7),
+  `adapter.asm` (клавиатура -> CONTROLLER_SCAN, меню 1/2/3, 2209, 21DE, байты SN76489), `display.asm` +
+  `cell.asm` (вывод изменённого, банки анимации, цвета, палитра комнаты), `sprites.asm` (программные спрайты),
+  `game.asm` (загрузка, прерывание со своим стеком, отложенный «NMI» A9B3).
+- Стенды: `tools/vshot.js` (снимки), `tools/vtrace.js` (первые исполнения меток), `tools/vprof.js` (профиль),
+  `tools/vcrash.js` (выход исполнения из кода). Первый запуск: титульник, вступление, стартовая комната —
+  docs/vec_first_run.png.
+- Найдено по пути: таблица процессов A8A1 (указатели на 91E5, 8F5F, 88D1, A8D6); слова-указатели на стыке
+  строк DEFW — транслятор склеивает подряд идущие данные.
+- Дальше: сверка с моделью MSX по тикам обработчика (ОЗУ 7000–73FF), скорость, звук ВИ53, ввод (джойстик «П»).

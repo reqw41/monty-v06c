@@ -4,8 +4,9 @@
 - room_blk: данные комнат картриджа 9444-A066 как есть (ROOM_TS 9444, ROOM_TAB 9477, ROOM_DATA 9541,
   TILESETS 9FD1); слова таблицы ROOM_TAB пересчитаны на адрес блока.
 - row_base (A4C5), mirror_pairs (AB0C), hud_box (AA88-AA95), inv_blank (85D7, 10 байт).
+- gen/os7font.asm — шрифт OS7 для LOAD_ASCII.
 - tiles0: шаблоны тайлов банка 0 (build/res/tiles.bin), colors_base (32), floors (9 x 7).
-- msx2vec: цвета MSX -> байт палитры Вектора BBGGGRRR; merge_pairs: пары (убираемый, замена) по близости
+- gen/pal.asm — msx2vec: цвета MSX -> байт палитры Вектора BBGGGRRR; merge_pairs: пары (убираемый, замена) по близости
   цветов, по возрастанию расстояния, конец FF.
 """
 import os
@@ -51,6 +52,7 @@ def vec(c):
     return (round(b * 3 / 255) << 6) | (round(g * 7 / 255) << 3) | round(r * 7 / 255)
 
 
+pal_start = len(out)
 db('msx2vec', bytes(vec(c) for c in PAL))
 pairs = []
 for i in range(1, 16):
@@ -60,8 +62,14 @@ for i in range(1, 16):
             pairs.append((d, i, j))
 pairs.sort()
 db('merge_pairs', bytes(x for _, i, j in pairs for x in (i, j)) + b'\xFF')
+pal_lines = out[pal_start:]
+del out[pal_start:]
 out.append('\t\tALIGN\t256')
 db('tiles0', RES('tiles.bin')[:0x800])
 os.makedirs(os.path.join(ROOT, 'src/vec/gen'), exist_ok=True)
 open(os.path.join(ROOT, 'src/vec/gen/data.asm'), 'w').write('\n'.join(out) + '\n')
+open(os.path.join(ROOT, 'src/vec/gen/pal.asm'), 'w').write('; создано tools/mkvecdata.py\n' + '\n'.join(pal_lines) + '\n')
+out = ['; создано tools/mkvecdata.py: шрифт OS7 (LOAD_ASCII): 158B..188A — символы 1D..7C, +18h — символ 0 (15A3)']
+db('os7_font', IMG[0x158B:0x158B + 0x300])
+open(os.path.join(ROOT, 'src/vec/gen/os7font.asm'), 'w').write('\n'.join(out) + '\n')
 print('src/vec/gen/data.asm')
