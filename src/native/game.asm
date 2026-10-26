@@ -22,6 +22,13 @@ rs_mode		equ	0x7FAD
 sp_end		equ	0x7FAE
 sp_vp		equ	0x7FB0
 sp_ap		equ	0x7FB2
+sy_k		equ	0x7FB4
+sy_se		equ	0x7FB5
+ub_c1		equ	0x7FB7
+cu_g		equ	0x7FB8
+cu_gj		equ	0x7FB9
+gp_a		equ	0x7FBA
+lv_nn		equ	0x7FBB
 GSTACK		equ	0x73C0			; стек игры (как у оригинала)
 ; переменные только нативной сборки — 7FA0-7FFF (за копией цветов; чистятся при загрузке)
 a4_n		equ	0x7FA0
@@ -276,6 +283,20 @@ unit_fw:	push	af			; tools/unit.js: ожидание кадра = обработ
 		ALIGN	256
 dlist:		ds	256			; список изменённых клеток (адреса в VNT)
 tc_tab:		ds	256			; адреса ячеек кэша изображений (младшие, старшие + 80h)
+; таблицы спрайтов — в одной странице (адрес — одной командой)
+sprt:
+gact:		ds	SPR_MAX			; gact, gs, ge, gd — подряд
+gs:		ds	SPR_MAX
+ge:		ds	SPR_MAX
+gd:		ds	SPR_MAX
+svr:		ds	4*SPR_MAX
+rst:		ds	6*SPR_MAX
+pps:		ds	6*SPR_MAX
+pps2:		ds	2*SPR_MAX
+ppd:		ds	11*SPR_MAX
+ubr:		ds	4*SPR_MAX		; рамки спрайтов: прежнее и новое место (ub_build)
+sprt_end:
+		ASSERT	sprt/256 == (sprt_end-1)/256
 tcache2:	ds	24*TC_N			; кэш изображений тайлов
 se_tab:		ds	8*24			; адреса входа блоков по числу строк (se_init)
 bd_tab:		ds	48			; переходы банков: какие анимированные тайлы меняются (bd_init)
@@ -284,20 +305,6 @@ lv_tile:	ds	33			; живые клетки: тайл корзины
 lv_beg:		ds	34			; начало корзины в live_list (+ всего)
 lv_pos:		ds	33			; счётчики/позиции при раскладке
 lv_idx		equ	0xF400			; тайл -> корзина (FF — не живой); бывший кэш тайлов в невидимой плоскости
-; таблицы спрайтов — в одной странице (адрес — одной командой)
-sprt:
-gact:		ds	SPR_MAX			; gact, gs, ge, gd — подряд
-gs:		ds	SPR_MAX
-ge:		ds	SPR_MAX
-gd:		ds	SPR_MAX
-wd:		ds	SPR_MAX
-svr:		ds	4*SPR_MAX
-rst:		ds	6*SPR_MAX
-pps:		ds	6*SPR_MAX
-pps2:		ds	2*SPR_MAX
-ppd:		ds	11*SPR_MAX
-sprt_end:
-		ASSERT	sprt_end - sprt <= 256
 		INCLUDE	"gen/pats.asm"
 		INCLUDE	"../vec/vars.asm"
 		INCLUDE	"gen/spat.asm"			; ORG VSPR — шаблоны спрайтов прямо в образе

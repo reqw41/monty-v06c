@@ -1,6 +1,6 @@
 ; Нативный вывод: вместо VDP — копии VNT (таблица имён), VCOL (цвета), VSAT (атрибуты спрайтов), регистры
 ; vregs; шаблоны тайлов — банк 0 в E000 (+ различия банков), шаблоны спрайтов — VSPR. Отметки для вывода
-; (display.asm): row_dirty — строки таблицы имён, vdirty — VD_NT (вся комната), VD_COL, VD_PAT, VD_REG.
+; (display.asm): row_dirty — строки таблицы имён (только при переполнении списка), vdirty — VD_NT (вся комната), VD_COL, VD_PAT, VD_REG.
 ; Клетки вне таблицы имён (0..2FF) запись пропускает, чтение даёт 0.
 
 ; vid_reg: B = регистр, C = значение. R1: экран включён — всё заново; R4 (банк шаблонов), R7 — VD_REG
@@ -140,19 +140,6 @@ nf9:		pop	hl
 		pop	af
 		ret
 
-; mark_row: HL = адрес в VNT — строка к перерисовке (регистры, кроме A, сохраняются)
-mark_row:	call	dl_add
-		push	hl
-		call	vnt_row
-		ld	hl,row_dirty
-		add	a,l
-		ld	l,a
-		ld	a,h
-		adc	a,0
-		ld	h,a
-		ld	(hl),1
-		pop	hl
-		ret
 ; vnt_row: HL = адрес в VNT -> A = строка (до 23); регистры сохраняются
 vnt_row:	push	de
 		ld	a,l
@@ -285,8 +272,9 @@ sc1:		push	hl
 		pop	af
 		ret
 
-; dl_add: HL = адрес клетки в VNT -> в список изменённых клеток (dlist, до DL_MAX; больше — dl_ovf, вывод
-; тогда по строкам). Регистры, кроме A, сохраняются
+; dl_add (mark_row): HL = адрес клетки в VNT -> в список изменённых клеток (dlist, до DL_MAX; больше — dl_ovf,
+; вывод тогда по всем строкам). Регистры, кроме A, сохраняются
+mark_row:
 dl_add:		push	de
 		ld	a,(dl_n)
 		cp	DL_MAX

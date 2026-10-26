@@ -312,7 +312,9 @@ rr1:		call	cache_flush
 ; (0..32) или FF; корзина b — элементы live_list с lv_beg[b] по lv_beg[b + 1] - 1 (адреса в VNT по 2 байта).
 LV_N		equ	33
 ; lv_init: lv_idx и lv_tile (при загрузке)
-lv_init:	ld	hl,lv_idx
+lv_init:	xor	a
+		ld	(lv_nn),a
+		ld	hl,lv_idx
 		ld	bc,256
 		ld	e,0xFF
 		call	memfill
@@ -422,54 +424,93 @@ lb7:		inc	hl
 		ld	a,h
 		cp	(VNT+768)/256
 		jp	nz,lb5
+		ld	hl,lv_beg		; непустые корзины -> lv_pos (номера), lv_nn — сколько
+		ld	de,lv_pos
+		ld	bc,0
+lbn:		ld	a,(hl)
+		inc	hl
+		cp	(hl)
+		jp	z,lbn1
+		ld	a,b
+		ld	(de),a
+		inc	de
+		inc	c
+lbn1:		inc	b
+		ld	a,b
+		cp	LV_N
+		jp	nz,lbn
+		ld	a,c
+		ld	(lv_nn),a
 		ret
 
 ; force_live_t: A = страница флагов по тайлам — живые клетки отмеченных тайлов к перерисовке (по корзинам)
 force_live_t:
-		ld	(flt_h),a
+		ld	d,a			; D — страница флагов
+		ld	a,(lv_nn)
+		or	a
+		ret	z
+		ld	b,a
+		ld	hl,lv_pos
+flt1:		ld	c,(hl)			; корзина (из непустых)
+		push	hl
+		push	bc
+		ld	b,0
 		ld	hl,lv_tile
-		ld	de,lv_beg
-		ld	b,LV_N
-flt1:		push	hl
-		ld	l,(hl)			; флаг тайла корзины
-		ld	a,(flt_h)
-		ld	h,a
-		ld	a,(hl)
-		pop	hl
+		add	hl,bc
+		ld	e,(hl)			; флаг тайла корзины
+		ld	a,(de)
 		or	a
 		jp	z,flt3
-		push	hl
-		push	de
-		push	bc
-		ld	a,(de)			; с
-		ld	c,a
-		inc	de
-		ld	a,(de)			; по
+		ld	c,LV_N
+		add	hl,bc			; lv_beg[b]: с, по
+		ld	c,(hl)
+		inc	hl
+		ld	a,(hl)
 		sub	c
-		jp	z,flt4
+		jp	z,flt3
 		ld	b,a
 		ld	a,c
 		add	a,a
 		ld	l,a
 		ld	h,live_list/256
-flt2:		ld	e,(hl)
+		push	de
+flt2:		ld	e,(hl)			; DE = клетка в VNT: NTS := не VNT, в список
 		inc	l
 		ld	d,(hl)
 		inc	l
 		push	hl
-		ex	de,hl
-		call	ft_mark1
-		pop	hl
+		ld	a,d
+		add	a,(NTS-VNT)/256
+		ld	h,a
+		ld	l,e
+		ld	a,(de)
+		cpl
+		ld	(hl),a
+		ld	a,(dl_n)
+		cp	DL_MAX
+		jp	nc,flt_o
+		inc	a
+		ld	(dl_n),a
+		dec	a
+		add	a,a
+		ld	l,a
+		ld	h,dlist/256
+		ld	(hl),e
+		inc	l
+		ld	(hl),d
+flt5:		pop	hl
 		dec	b
 		jp	nz,flt2
-flt4:		pop	bc
 		pop	de
+flt3:		pop	bc
 		pop	hl
-flt3:		inc	hl
-		inc	de
+		inc	hl
 		dec	b
 		jp	nz,flt1
 		ret
+flt_o:		ld	a,1
+		ld	(dl_ovf),a
+		jp	flt5
 
 ; bank_diff: col_flag[t] := 1 для тайлов anim_set, у которых шаблон в банке bk_new не тот, что в tile_hi
 bank_diff:					; по таблице переходов банков (bd_init): col_flag анимированных тайлов
@@ -675,37 +716,19 @@ ftn:		inc	l
 		ret
 ft_mark:	call	ft_mark1
 		jp	ftn
-; ft_mark1: HL = адрес клетки в VNT — NTS := не VNT, строка к перерисовке (регистры сохраняются)
+; ft_mark1: HL = адрес клетки в VNT — NTS := не VNT, в список (регистры, кроме A, сохраняются)
 ft_mark1:	push	de
-		push	hl
 		ld	a,(hl)
 		cpl
 		ld	e,a
+		push	hl
 		ld	a,h
 		add	a,(NTS-VNT)/256		; NTS выровнена так же, как VNT
 		ld	h,a
 		ld	(hl),e
 		pop	hl
-		push	hl
-		ld	a,l
-		rlca
-		rlca
-		rlca
-		and	7
-		ld	e,a
-		ld	a,h
-		sub	VNT/256
-		add	a,a
-		add	a,a
-		add	a,a
-		or	e
-		ld	hl,row_dirty
-		call	add_hl_a
-		ld	(hl),1
-		pop	hl
-		call	dl_add
 		pop	de
-		ret
+		jp	dl_add
 
 ; col_snapshot: col_shown := VCOL
 col_snapshot:
@@ -844,7 +867,11 @@ dl8:		pop	hl
 		ld	bc,24
 		ld	e,0
 		jp	memfill
-dl_full:	call	draw_rows
+dl_full:	ld	hl,row_dirty		; переполнение: все строки (вывод — где VNT != NTS)
+		ld	bc,24
+		ld	e,1
+		call	memfill
+		call	draw_rows
 		xor	a
 		ld	(dl_ovf),a
 		ld	(dl_n),a
