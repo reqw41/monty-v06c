@@ -240,3 +240,183 @@ sno_x:		ld	a,1
 sn_perp:	add	a,a
 		ld	hl,sn_per
 		jp	add_hl_a
+
+; --- вывод на ВИ53 (раз в кадр, из обработчика кадра) -----------------------------------------------------
+; Тон k (0..2) SN76489 -> счётчик k ВИ53 (порты 0Bh, 0Ah, 09h; управляющее слово — 08h), меандр (режим 3).
+; Делитель = период SN * 13,41 (SN: 3,58 МГц / 32 / период; ВИ53 тактируется 1,5 МГц). Громкости у ВИ53 нет:
+; канал звучит при ослаблении < VI_ATT. Шум SN — на счётчике 2, если его тон молчит: случайный делитель каждый
+; кадр (выше частота шума — меньше делители). Пишется только изменившееся (новое значение без управляющего
+; слова подхватывается с конца полупериода, щелчков нет).
+VI_ATT		equ	13
+snd_vi53:	ld	c,0
+sv0:		ld	a,c			; ослабление k
+		ld	hl,sn_att
+		call	add_hl_a
+		ld	a,(hl)
+		cp	VI_ATT
+		ld	hl,0
+		jp	nc,sv1
+		ld	a,c			; период k -> DE
+		add	a,a
+		ld	hl,sn_per
+		call	add_hl_a
+		ld	e,(hl)
+		inc	hl
+		ld	d,(hl)
+		call	vi_div
+sv1:		ld	a,c
+		cp	2			; счётчик 2 свободен — шум?
+		jp	nz,sv2
+		ld	a,h
+		or	l
+		jp	nz,sv2
+		ld	a,(sn_att+3)
+		cp	VI_ATT
+		jp	nc,sv2
+		ld	a,(vi_rnd)		; x := 5x + 1
+		ld	b,a
+		add	a,a
+		add	a,a
+		add	a,b
+		inc	a
+		ld	(vi_rnd),a
+		and	0x3F
+		add	a,0x18
+		ld	l,a
+		ld	h,0
+		ld	a,(sn_per+6)		; частота шума: биты 1-0 (3 — по тону 2: как 2)
+		and	3
+		cp	3
+		jp	nz,sv4
+		dec	a
+sv4:		add	a,4			; делитель (24..87) * 2^(4 + частота): ~0,3..4 кГц
+sv3:		or	a
+		jp	z,sv2
+		add	hl,hl
+		dec	a
+		jp	sv3
+sv2:		ld	a,c
+		call	vi_set
+		inc	c
+		ld	a,c
+		cp	3
+		jp	nz,sv0
+		ret
+; vi_div: DE = период SN -> HL = делитель ВИ53 = 13N + N/2 - N/16 - N/32 (~13,41N); 0 -> 0
+vi_div:		ld	h,d
+		ld	l,e
+		add	hl,hl
+		add	hl,de			; 3N
+		add	hl,hl
+		add	hl,hl			; 12N
+		add	hl,de			; 13N
+		call	de_srl			; N/2
+		add	hl,de
+		call	de_srl
+		call	de_srl
+		call	de_srl			; N/16
+		ld	a,l
+		sub	e
+		ld	l,a
+		ld	a,h
+		sbc	a,d
+		ld	h,a
+		call	de_srl			; N/32
+		ld	a,l
+		sub	e
+		ld	l,a
+		ld	a,h
+		sbc	a,d
+		ld	h,a
+		ret
+de_srl:		ld	a,d
+		or	a
+		rra
+		ld	d,a
+		ld	a,e
+		rra
+		ld	e,a
+		ret
+; vi_set: A = счётчик, HL = делитель (0 — молчать) — в ВИ53, если изменился. BC сохраняется
+vi_set:		push	bc
+		ld	c,a
+		add	a,a
+		ld	de,vi_dv
+		add	a,e
+		ld	e,a			; (vi_dv в одной странице)
+		ld	a,(de)
+		cp	l
+		jp	nz,vs1
+		inc	de
+		ld	a,(de)
+		dec	de
+		cp	h
+		jp	z,vs_x
+vs1:		ld	a,(de)			; был ли звук (B = 0 — молчал)
+		ld	b,a
+		inc	de
+		ld	a,(de)
+		or	b
+		ld	b,a
+		ld	(de),a			; (старший — ниже заново)
+		ld	a,h
+		ld	(de),a
+		dec	de
+		ld	a,l
+		ld	(de),a
+		ld	a,h
+		or	l
+		jp	z,vs_off
+		ld	a,c
+		or	a
+		jp	z,vs_c0
+		dec	a
+		jp	z,vs_c1
+		ld	a,b			; счётчик 2
+		or	a
+		ld	a,0xB6
+		call	z,vs_w2
+		ld	a,l
+		out	(0x09),a
+		ld	a,h
+		out	(0x09),a
+		jp	vs_x
+vs_w2:		out	(0x08),a
+		ret
+vs_c1:		ld	a,b
+		or	a
+		ld	a,0x76
+		call	z,vs_w2
+		ld	a,l
+		out	(0x0A),a
+		ld	a,h
+		out	(0x0A),a
+		jp	vs_x
+vs_c0:		ld	a,b
+		or	a
+		ld	a,0x36
+		call	z,vs_w2
+		ld	a,l
+		out	(0x0B),a
+		ld	a,h
+		out	(0x0B),a
+		jp	vs_x
+vs_off:		ld	a,c			; молчать: режим 0 — выход в 0 до счёта
+		rrca
+		rrca
+		or	0x30
+		out	(0x08),a
+vs_x:		pop	bc
+		ret
+; vi_off: все счётчики молчат (при старте)
+vi_off:		ld	a,0x30
+		out	(0x08),a
+		ld	a,0x70
+		out	(0x08),a
+		ld	a,0xB0
+		out	(0x08),a
+		ld	hl,0
+		ld	(vi_dv),hl
+		ld	(vi_dv+2),hl
+		ld	(vi_dv+4),hl
+		ret

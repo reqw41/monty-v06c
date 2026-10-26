@@ -30,6 +30,8 @@ cu_gj		equ	0x7FB9
 gp_a		equ	0x7FBA
 lv_nn		equ	0x7FBB
 sp_pm		equ	0x7FBC
+vi_dv		equ	0x7FC0			; ВИ53: заданные делители счётчиков 0..2 (0 — молчит)
+vi_rnd		equ	0x7FC6			; случайное для шума
 GSTACK		equ	0x73C0			; стек игры (как у оригинала)
 ; переменные только нативной сборки — 7FA0-7FFF (за копией цветов; чистятся при загрузке)
 a4_n		equ	0x7FA0
@@ -69,6 +71,8 @@ boot:
 		ld	bc,0x8000
 		ld	e,0
 		call	memfill
+		call	vi_off			; ВИ53 молчит, каналы SN — тоже (TURN_OFF_SOUND оригинала)
+		call	snd_off
 		call	pats_init		; шаблоны: банк 0 -> E000, различия -> dslot/dstore, спрайты -> VSPR
 		call	tc_init
 		call	se_init

@@ -154,6 +154,7 @@ fh3:		ld	a,c
 fh5:		ld	hl,0x7207
 		dec	(hl)
 		call	L_AC6D			; (атрибуты спрайтов -> VSAT — перед выводом, disp_prep)
+		call	snd_vi53		; звук — на ВИ53
 		ld	hl,0x70B1
 		ld	a,(hl)
 		and	0x7F
