@@ -2,7 +2,9 @@
 ; Функции сохраняют все регистры, кроме выходных (READ_REGISTER -> A). Синтаксис Z80, только i8080.
 ;
 ; Виртуальная VRAM (адрес VDP -> ОЗУ):
-;   0000-07FF, 0800-0FFF, 1000-17FF, 2800-2FFF — банки шаблонов тайлов 0, 1, 2, 5 -> E000, E800, F000, F800
+;   0000-07FF — банк шаблонов 0 -> E000; 0800-0FFF, 1000-17FF, 2800-2FFF — банки 1, 2, 5: только различия с
+;   банком 0 (dslot[тайл] = номер, dstore: 24 байта на тайл — банки 1, 2, 5 по 8), остальные тайлы — из банка 0
+;   (vbank_write/vbank_read; запись, совпадающая с банком 0, ничего не меняет)
 ;   1800-1AFF — таблица имён -> VNT;  1B00-1B7F — атрибуты спрайтов -> VSAT;  2000-201F — цвета -> VCOL
 ;   3800-3FFF — шаблоны спрайтов -> VSPR;  остальное — запись пропадает, чтение даёт 0
 ; Изменения для вывода: записи в банки, цвета и R4/R7 поднимают флаги в vdirty (см. display.asm).
@@ -17,8 +19,10 @@ vmap:
 		ld	a,h
 		and	0x3F
 		ld	h,a
+		cp	0x08
+		jp	c,vm_pat		; 0000-07FF — банк 0
 		cp	0x18
-		jp	c,vm_pat		; 0000-17FF
+		jp	c,vm_bk12		; 0800-17FF — банки 1, 2
 		cp	0x1B
 		jp	c,vm_nt			; 1800-1AFF
 		jp	z,vm_sat		; 1B00-1BFF
@@ -27,7 +31,7 @@ vmap:
 		cp	0x28
 		jp	c,vm_none
 		cp	0x30
-		jp	c,vm_b5			; 2800-2FFF
+		jp	c,vm_bk5		; 2800-2FFF — банк 5
 		cp	0x38
 		jp	c,vm_none
 		add	a,0x7400/256-0x38	; 3800-3FFF -> VSPR
@@ -36,9 +40,16 @@ vmap:
 vm_pat:		add	a,0xE0
 		ld	h,a
 		jp	vm_ok
-vm_b5:		add	a,0xF8-0x28
-		ld	h,a
-		jp	vm_ok
+vm_bk12:	cp	0x10			; банк 1 или 2: vm_bank := 1/2, CY (особый путь)
+		ld	a,1
+		jp	c,vm_bk
+		inc	a
+		jp	vm_bk
+vm_bk5:		ld	a,3
+vm_bk:		ld	(vm_bank),a
+		pop	af
+		scf
+		ret
 vm_nt:		add	a,VNT/256-0x18
 		ld	h,a
 		jp	vm_ok
@@ -59,8 +70,134 @@ vm_col:		ld	a,l
 vm_ok:		pop	af
 		or	a
 		ret
-vm_none:	pop	af
+vm_none:	xor	a
+		ld	(vm_bank),a
+		pop	af
 		scf
+		ret
+
+; --- банки 1, 2, 5: vb_tile — HL = адрес VDP -> L = тайл, C = строка; vbank_ptr — HL = адрес байта (различие
+; или банк 0), Z — различия нет (HL -> банк 0); vm_bank = 1..3
+vb_tile:	ld	a,l
+		and	7
+		ld	c,a
+		ld	a,l			; тайл = (адрес & 7FF) >> 3
+		rrca
+		rrca
+		rrca
+		and	0x1F
+		ld	l,a
+		ld	a,h
+		and	7
+		rrca
+		rrca
+		rrca
+		or	l
+		ld	l,a
+		ret
+vbank_ptr:	push	de
+		call	vb_tile			; L = тайл, C = строка
+		ld	h,dslot/256
+		ld	a,(hl)
+		cp	0xFF
+		jp	z,vbp0
+		ld	e,a			; dstore + 24 * номер + 8 * (банк - 1) + строка
+		ld	d,0
+		ld	h,d
+		ld	l,e
+		add	hl,hl
+		add	hl,de
+		add	hl,hl
+		add	hl,hl
+		add	hl,hl
+		ld	de,dstore
+		add	hl,de
+		ld	a,(vm_bank)
+		dec	a
+		add	a,a
+		add	a,a
+		add	a,a
+		add	a,c
+		call	add_hl_a
+		pop	de
+		or	1			; NZ
+		ret
+vbp0:		ld	h,0			; банк 0: E000 + 8 * тайл + строка
+		add	hl,hl
+		add	hl,hl
+		add	hl,hl
+		ld	a,h
+		add	a,0xE0
+		ld	h,a
+		ld	a,l
+		or	c
+		ld	l,a
+		pop	de
+		xor	a			; Z
+		ret
+
+; vbank_read: HL = адрес VDP (банк 1, 2, 5) -> A = байт
+vbank_read:	push	bc
+		push	hl
+		call	vbank_ptr
+		ld	a,(hl)
+		pop	hl
+		pop	bc
+		ret
+
+; vbank_write: HL = адрес VDP (банк 1, 2, 5), A = байт. Различие есть только у постоянного набора тайлов
+; (anim_set, заводится при загрузке); запись в другие тайлы пропускается (их данные в банках совпадают с банком 0).
+vbank_write:	push	bc
+		push	de
+		push	hl
+		ld	(vb_val),a
+		ld	(vb_v),hl
+		call	vbank_ptr
+		jp	z,vbw_x			; тайл без различия
+		ld	a,(vb_val)
+		cp	(hl)
+		jp	z,vbw_x
+		ld	(hl),a
+		ld	hl,(vb_v)		; тайл к перерисовке
+		call	vb_tile
+		ld	h,pat_flag/256
+		ld	(hl),1
+		ld	a,(vdirty)
+		or	VD_PAT
+		ld	(vdirty),a
+vbw_x:		pop	hl
+		pop	de
+		pop	bc
+		ret
+
+; d_init: постоянный набор тайлов с различием банков (по снимку VRAM оригинала: шаблоны в банках 0, 1, 2, 5
+; различаются только у них)
+d_init:		ld	hl,dslot
+		ld	bc,256
+		ld	e,0xFF
+		call	memfill
+		ld	hl,anim_set
+		ld	b,0
+di1:		ld	a,(hl)
+		cp	0xFF
+		ret	z
+		push	hl
+		ld	l,a
+		ld	h,dslot/256
+		ld	(hl),b
+		pop	hl
+		inc	hl
+		inc	b
+		jp	di1
+anim_set:	db	0x04,0x05,0x06,0x38,0xA0,0xA3,0xA4,0xA7,0xB8,0xB9,0xBA,0xD0,0xD1,0xD2,0xD3,0xD4,0xD5,0xFF
+
+; memcpyb_rev: (DE) <- (HL), B байт; HL, DE продвигаются
+memcpyb_rev:	ld	a,(hl)
+		ld	(de),a
+		inc	hl
+		inc	de
+		dec	b
+		jp	nz,memcpyb_rev
 		ret
 
 ; vmark: HL = адрес VDP — отметить цвета (VD_COL) или шаблоны (VD_PAT); байт за байтом — vmark_byte
@@ -79,6 +216,7 @@ vmk_x:		pop	af
 ; vmark_byte: HL = адрес в ОЗУ после vmap — строка таблицы имён -> row_dirty, тайл банка -> pat_flag
 vmark_byte:
 		push	af
+		ld	a,h
 		ld	a,h
 		cp	VNT/256
 		jp	c,vb_spr
@@ -159,8 +297,16 @@ vwf1:		ld	a,(de)
 vw_slow:	ld	hl,(vs_v)
 vw1:		push	hl
 		call	vmap
-		jp	c,vw2
+		jp	nc,vw1a
+		ld	a,(vm_bank)		; банк 1, 2, 5
+		or	a
+		jp	z,vw2
+		pop	hl
+		push	hl
 		ld	a,(de)
+		call	vbank_write
+		jp	vw2
+vw1a:		ld	a,(de)
 		ld	(hl),a
 		call	vmark_byte
 vw2:		pop	hl
@@ -191,9 +337,16 @@ vrf1:		ld	a,(hl)
 vr_slow:	ld	hl,(vs_v)
 vr1:		push	hl
 		call	vmap
+		jp	nc,vr1a
+		ld	a,(vm_bank)
+		or	a
 		ld	a,0
-		jp	c,vr2
-		ld	a,(hl)
+		jp	z,vr2
+		pop	hl
+		push	hl
+		call	vbank_read
+		jp	vr2
+vr1a:		ld	a,(hl)
 vr2:		ld	(de),a
 		pop	hl
 		inc	hl
@@ -368,8 +521,16 @@ fv1:		ld	a,d
 		jp	z,fv3
 		push	hl
 		call	vmap
-		jp	c,fv2
-		ld	(hl),b
+		jp	nc,fv1a
+		ld	a,(vm_bank)		; банк 1, 2, 5
+		or	a
+		jp	z,fv2
+		pop	hl
+		push	hl
+		ld	a,b
+		call	vbank_write
+		jp	fv2
+fv1a:		ld	(hl),b
 		call	vmark_byte
 fv2:		pop	hl
 		inc	hl

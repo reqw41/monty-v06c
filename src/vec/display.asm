@@ -1,6 +1,6 @@
 ; Вывод виртуальной VRAM на экран Вектора раз в кадр (из прерывания).
 ; Отметки: row_dirty[24] (записи в таблицу имён), pat_flag[256] (тайлы с новыми шаблонами), vdirty (VD_*).
-; Показанное: NTS (копия таблицы имён), col_shown (цвета), tile_hi (банк шаблонов), spr_last (атрибуты спрайтов).
+; Показанное: NTS (копия таблицы имён), col_shown (цвета), tile_hi (номер банка шаблонов 0-3), spr_last.
 ; Пока экран VDP выключен (R1 бит 6 = 0) — не рисуем; при включении — полная перерисовка с палитрой.
 
 display:
@@ -29,6 +29,8 @@ dp1:		ld	a,(vdirty)
 		cp	(hl)
 		jp	z,dp2
 		ld	(hl),a
+		ld	h,anim_flag/256		; анимированные тайлы — из кэша изображений
+		call	cache_drop_flags
 		call	force_live
 dp2:		ld	a,(vdirty)
 		and	VD_PAT
@@ -36,6 +38,8 @@ dp2:		ld	a,(vdirty)
 		ld	a,(vdirty)
 		and	0xFF-VD_PAT
 		ld	(vdirty),a
+		ld	h,pat_flag/256		; тайлы с новыми шаблонами — из кэша изображений
+		call	cache_drop_flags
 		ld	a,(pat_flag+0xE0)	; шаблоны только E0/E8 (анимация цепи и ленты) — по списку
 		ld	b,a
 		ld	a,(pat_flag+0xE8)
@@ -100,7 +104,8 @@ room_redraw:
 		call	trim_build
 		ld	a,1
 		ld	(anim_ok),a
-rr1:		call	pal_build
+rr1:		call	cache_flush
+		call	pal_build
 		call	pal_fill
 		call	modes_build
 		ld	a,3
@@ -163,16 +168,12 @@ fl1:		ld	e,(hl)
 		pop	hl
 		jp	fl1
 
-; bank_hi: A = старший байт банка шаблонов по R4 (0 -> E0, 1 -> E8, 2 -> F0, 5 -> F8)
+; bank_hi: A = номер банка шаблонов по R4 (0 -> 0, 1 -> 1, 2 -> 2, 5 -> 3)
 bank_hi:	ld	a,(vregs+4)
 		and	7
 		cp	5
-		jp	nz,bh1
+		ret	nz
 		ld	a,3
-bh1:		add	a,a
-		add	a,a
-		add	a,a
-		add	a,0xE0
 		ret
 
 ; force_all: все клетки — к перерисовке
@@ -283,6 +284,8 @@ cg2:		inc	hl
 		ld	a,c
 		or	a
 		ret	z
+		ld	h,col_flag/256		; тайлы групп с новым цветом — из кэша изображений
+		call	cache_drop_flags
 		ld	a,col_flag/256
 		call	force_tiles
 		ld	hl,col_flag
@@ -348,52 +351,18 @@ dr_draw:	ld	a,(hl)
 		pop	hl
 		jp	dr2
 
-; anim_build: anim_flag[t] := 1, если шаблоны тайла t в банках 0, 1, 2, 5 различаются
+; anim_build: anim_flag[t] := 1, если у тайла t есть различие банков (dslot)
 anim_build:
 		ld	hl,anim_flag
-		ld	bc,256
-		ld	e,0
-		call	memfill
-		ld	c,0			; тайл
-ab0:		ld	l,c			; HL = E000 + 8 * тайл
-		ld	h,0
-		add	hl,hl
-		add	hl,hl
-		add	hl,hl
-		ld	a,h
-		add	a,0xE0
-		ld	h,a
-		ld	b,8
-ab1:		ld	d,h
-		ld	e,(hl)
-		ld	a,h
-		add	a,0x08
-		ld	h,a
-		ld	a,e
-		cp	(hl)
-		jp	nz,ab_diff
-		ld	a,h
-		add	a,0x08
-		ld	h,a
-		ld	a,e
-		cp	(hl)
-		jp	nz,ab_diff
-		ld	a,h
-		add	a,0x08
-		ld	h,a
-		ld	a,e
-		cp	(hl)
-		jp	nz,ab_diff
-		ld	h,d
-		inc	hl
-		dec	b
-		jp	nz,ab1
-		jp	ab_next
-ab_diff:	ld	l,c
-		ld	h,anim_flag/256
-		ld	(hl),1
-ab_next:	inc	c
-		jp	nz,ab0
+		ld	de,dslot
+anb1:		ld	a,(de)
+		inc	a			; FF -> 0
+		jp	z,anb2
+		ld	a,1
+anb2:		ld	(hl),a
+		inc	l
+		inc	e
+		jp	nz,anb1
 		ret
 
 ; pal_fill: цвета MSX вне палитры -> индекс ближайшего из палитры (по merge_pairs)

@@ -8,6 +8,13 @@ VSPR		equ	0x7400			; шаблоны спрайтов (VDP 3800)
 VNT		equ	0x7C00			; таблица имён (VDP 1800)
 VSAT		equ	0x7F00			; атрибуты спрайтов (VDP 1B00)
 VCOL		equ	0x7F80			; цвета (VDP 2000)
+; невидимая плоскость E000-FFFF: банк шаблонов 0, различия банков 1, 2, 5, ячейки спрайтов
+dslot		equ	0xE800			; тайл -> номер различия (FF — нет)
+dstore		equ	0xE900			; различия: 24 байта на тайл (банки 1, 2, 5 по 8)
+DMAX		equ	17			; тайлов с различием банков (E900-EB97)
+tslot		equ	0xF300			; кэш изображений тайлов: тайл -> ячейка (FF — нет)
+tcache		equ	0xF400			; ячейки по 24 байта (TC_N штук, до F87F)
+SPR_SLOTS	equ	0xF900			; ячейки фона спрайтов (6 по 256, до FEFF)
 NT		equ	VNT			; для render.asm
 coltab		equ	VCOL
 
@@ -40,6 +47,8 @@ boot:
 		call	memfill
 		ld	a,0xE0
 		ld	(tile_hi),a
+		call	d_init			; различия банков — постоянный набор тайлов
+		call	cache_flush
 		ld	a,0xD0			; список спрайтов пуст
 		ld	(VSAT),a
 		jp	L_8025			; старт картриджа
@@ -209,6 +218,10 @@ np_ontime:	ds	1
 np_skip:	ds	1
 vstat:		ds	1
 fv_val:		ds	1
+vm_bank:	ds	1
+vb_val:		ds	1
+vb_v:		ds	2
+vb_t:		ds	1
 vs_v:		ds	2
 vdirty:		ds	1
 nt_age:		ds	1
@@ -252,10 +265,7 @@ sp_py:		ds	1
 sp_rows:	ds	1
 sp_col:		ds	1
 sp_k:		ds	1
-sp_save:	ds	1
-sp_sv:		ds	2
 sp_cbits:	ds	1
-sp_c:		ds	1
 st_rows:	ds	1
 st_kind:	ds	1
 sv_zc:		ds	1
@@ -282,10 +292,6 @@ sp_name:	ds	1
 sp_ci:		ds	1
 sp_pat:		ds	2
 sp_line:	ds	1
-sp_lo:		ds	1
-sb0:		ds	1
-sb1:		ds	1
-sb2:		ds	1
 gx_op:		ds	1
 gx_tab:		ds	1
 gx_dst:		ds	2
@@ -304,6 +310,9 @@ pat_flag:	ds	256
 anim_flag:	ds	256
 col_flag:	ds	256
 cmodes:		ds	256
+tc_next:	ds	1
+dc_sp:		ds	2
+dc_hl:		ds	2
 LIVE_MAX	equ	120
 		ALIGN	256
 live_list:	ds	2*LIVE_MAX+2

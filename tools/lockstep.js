@@ -24,7 +24,8 @@ const VECK = { space: [7, 0x80], left: [0, 0x10], up: [0, 0x20], right: [0, 0x40
 const LO = 0x7000, HI = 0x7380;
 
 // MSX: уровень 1 из меню прослойки, затем тики
-const vsn = [], vsv = [];
+const vsn = [], vsv = [], psn = [], psv = [];
+const PATS = process.env.PATS === '1';   // сверять и шаблоны: банки 0, 1, 2, 5 и спрайты (вид через vpat_read)
 function runMsx() {
   const m = new MSX1().loadSnap('entry');
   if (process.env.COOP !== '0') { m.coop = new Set([0xA5CA, 0x8C19]); }
@@ -42,6 +43,7 @@ function runMsx() {
         if (CHEAT) m.mem[0x7049] = 6;
         for (const [k, d] of plan[tick] || []) m.key(MSXK[k], d);
         snaps.push(Buffer.from(m.mem.subarray(LO, HI))); vsn.push(Buffer.concat([Buffer.from(m.vram.subarray(0x1800, 0x1B00)), Buffer.from(m.vram.subarray(0x2000, 0x2020))]));
+        if (PATS) psn.push(Buffer.concat([0, 0x800, 0x1000, 0x2800, 0x3800].map((b) => Buffer.from(m.vram.subarray(b, b + 0x800)))));
       }
       m.step();
     }
@@ -60,6 +62,7 @@ function runVec() {
       for (const [k, d] of plan[tick] || []) { const e = VECK[k]; if (d) m.keyboard.matrix[e[0]] |= e[1]; else m.keyboard.matrix[e[0]] &= ~e[1]; }
       const b = Buffer.alloc(HI - LO); for (let a = LO; a < HI; a++) b[a - LO] = m.rd(a); snaps.push(b);
       const v = Buffer.alloc(800); for (let a = 0; a < 768; a++) v[a] = m.rd(sym.VNT + a); for (let a = 0; a < 32; a++) v[768 + a] = m.rd(sym.VCOL + a); vsv.push(v);
+      if (PATS) psv.push(vecPats(m));
     }
   };
   let f = 0;
@@ -79,6 +82,20 @@ function vaddr(x) {
 }
 const SKIP = [[0x7210, 0x7240], [0x7340, 0x7380]];   // буфер OS7 ((8006) = 7210, REFLECT) и глубина стека (SP = 73C0)
 const skip = (a) => SKIP.some(([l, h]) => a >= l && a < h);
+// вид шаблонов Вектора: банк 0 — E000; банки 1, 2, 5 — различие (dslot/dstore), иначе банк 0; спрайты — VSPR
+function vecPats(m) {
+  const out = Buffer.alloc(5 * 0x800);
+  for (let b = 0; b < 4; b++) for (let t = 0; t < 256; t++) {
+    const k = m.rd(sym.dslot + t);
+    for (let r = 0; r < 8; r++) {
+      let v = m.rd(0xE000 + t * 8 + r);
+      if (b && k !== 0xFF) v = m.rd(sym.dstore + k * 24 + (b - 1) * 8 + r);
+      out[b * 0x800 + t * 8 + r] = v;
+    }
+  }
+  for (let a = 0; a < 0x800; a++) out[4 * 0x800 + a] = m.rd(sym.VSPR + a);
+  return out;
+}
 const A = runMsx(), B = runVec();
 console.log('тиков: MSX', A.length, 'Вектор', B.length);
 let first = -1, prevBad = false, runs = 0;
@@ -109,3 +126,11 @@ for (let k = 0; k < Math.min(vsn.length, vsv.length); k++) {
   if (d.length) { if (fv < 0) fv = k; if (k - fv < 6 || k % 50 === 0) console.log(`VRAM тик ${k}: ${d.length} байт:`, d.slice(0, 12).map((i) => (i < 768 ? 'NT' + i.toString(16) : 'COL' + (i - 768).toString(16)) + `=${vsn[k][i].toString(16)}/${vsv[k][i].toString(16)}`).join(' ')); }
 }
 if (fv < 0) console.log('VRAM (имена, цвета) совпадает по всем тикам');
+if (PATS) {
+  let fp = -1;
+  for (let k = 0; k < Math.min(psn.length, psv.length); k++) {
+    const d = []; for (let i = 0; i < psn[k].length; i++) if (psn[k][i] !== psv[k][i]) d.push(i);
+    if (d.length) { fp = k; const nm = ['b0', 'b1', 'b2', 'b5', 'spr']; console.log(`шаблоны тик ${k}: ${d.length} байт:`, d.slice(0, 10).map((i) => `${nm[i >> 11]}:${((i & 0x7FF) >> 3).toString(16)}.${i & 7}=${psn[k][i].toString(16)}/${psv[k][i].toString(16)}`).join(' ')); break; }
+  }
+  if (fp < 0) console.log('шаблоны (4 банка, спрайты) совпадают по всем тикам');
+}
