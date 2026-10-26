@@ -9,6 +9,8 @@ const HOOKS = require('../src/model/hooks');
 const N = +(process.argv[2] || 600), LV = +(process.argv[3] || 1), PLAN = process.argv[4] || '', ONLY = process.argv[5];
 const plan = { 120: [['space', true]], 128: [['space', false]] };
 for (const it of PLAN.split(/\s+/).filter(Boolean)) {
+  const st = it.match(/^(\d+):s([0-9A-F=,]+)$/i); if (st) { (plan[+st[1]] = plan[+st[1]] || []).push(['set', st[2].split(',').map((x) => x.split('=').map((y) => parseInt(y, 16)))]); continue; }
+  const tl = it.match(/^(\d+):til([0-9A-F]{2})(?:\.(\d+))?(v)?$/i); if (tl) { (plan[+tl[1]] = plan[+tl[1]] || []).push(['til', parseInt(tl[2], 16), [+(tl[3] || 0), !!tl[4]]]); continue; }
   const ob = it.match(/^(\d+):obj(\d+)([+-]\d+)?$/); if (ob) { (plan[+ob[1]] = plan[+ob[1]] || []).push(['obj', +ob[2], +(ob[3] || 0)]); continue; }
   const tp = it.match(/^(\d+):tp(\d+)\.(\d+)$/); if (tp) { (plan[+tp[1]] = plan[+tp[1]] || []).push(['tp', +tp[2], +tp[3]]); continue; }
   const mm = it.match(/^(\d+):(\w+)([+-])$/); (plan[+mm[1]] = plan[+mm[1]] || []).push([mm[2], mm[3] === '+']); }
@@ -33,7 +35,12 @@ function run(hooks) {
       if (pc === 0xa59d && !st) { st = true; if (hooks) m.hooks = hooks; }   // подмены — с начала игры (меню Muffie зависит от времени)
       if (st && pc === 0xa5d1) {
         t++; if (CHEAT) m.mem[0x7049] = 6;
-        for (const [k, d, c] of plan[t] || []) if (k === 'obj') {          // герой на объект d списка 72C0 (тайл 7058 = клетка объекта, столбец + c)
+        for (const [k, d, c] of plan[t] || []) if (k === 'til') {          // герой на n-й тайл d таблицы имён: в 7058 (v — в 705B, под ногами)
+          const cells = []; for (let i = 0xa0; i < 0x2e0; i++) if (m.vram[0x1800 + i] === d) cells.push(i);
+          if (!cells.length) continue; let off = cells[c[0] % cells.length]; if (c[1]) off -= 0x20;
+          const y = 8 * (off >> 5) - 2, x = 8 * (off & 31) - 1;
+          m.mem[0x7300] = m.mem[0x7304] = y & 0xff; m.mem[0x7301] = m.mem[0x7305] = x & 0xff;
+        } else if (k === 'obj') {          // герой на объект d списка 72C0 (тайл 7058 = клетка объекта, столбец + c)
           const lo = m.mem[0x72c0 + 2 * d], hi = m.mem[0x72c1 + 2 * d]; if (hi === 0xff || hi === 0xfe || (lo | hi) === 0) continue;
           const off = (hi << 8 | lo) & 0x3ff, y = 8 * (off >> 5) - 2, x = 8 * ((off & 31) + c) - 1;
           m.mem[0x7300] = m.mem[0x7304] = y & 0xff; m.mem[0x7301] = m.mem[0x7305] = x & 0xff;

@@ -127,7 +127,7 @@ const K = module.exports = {
       r.a = 0x91; K['908F'](m, r);
       if (!r.zf) {
         r.hl = hl; if (rd(m, 0x71a6) < 5) K["92A2"](m, r);
-        r.c = 0; r.e = 0; z(m, r, 0x8da2); return;
+        r.c = 0; r.e = 0; require('./hero')['8DA2'](m, r); return;
       }
       K['909C'](m, r); r.a = 3; S.AC1A(m, r);
       const col = rd(m, cp); wr(m, cp, 0);
@@ -165,7 +165,7 @@ const K = module.exports = {
     const bc = r.bc; r.c = r.a; K.A56C(m, r);
     if (r.cf) { r.bc = bc; return; }
     r.a = 2; S.AC1A(m, r); U.A8B7(m, r); r.bc = bc; K['90A5'](m, r);
-    r.a = 0x0b; r.de = rd16(m, 0x71b0); DR.A378(m, r); z(m, r, 0x8ea8); U.A8C3(m, r); r.bc = bc;
+    r.a = 0x0b; r.de = rd16(m, 0x71b0); DR.A378(m, r); wr(m, 0x70b1, rd(m, 0x70b1) | 0x10); U.A8C3(m, r); r.bc = bc;
   },
   // 8F5F (процесс): двери (ключ нужного цвета — открыть, 300 очков), огонь/лазеры — гибель (кроме факела?),
   // предметы под героем (тайлы 9430 — ключи/меч/амулет..., 9418 — факел, драгоценности, меч, амулет)
@@ -189,7 +189,7 @@ const K = module.exports = {
     if (r.zf) {
       if (rd(m, 0x704a)) { r.a = rd(m, 0x704a); r.zf = 0; return; }
       wr(m, 0x7000, rd(m, 0x7000) | 8); K['90A5'](m, r); wr(m, 0x7000, rd(m, 0x7000) & ~8);
-      r.hl = 0x7000; r.c = 0; r.e = 0; z(m, r, 0x8da2); return;
+      r.hl = 0x7000; r.c = 0; r.e = 0; require('./hero')['8DA2'](m, r); return;
     }
     r.bc = 0x0c; r.hl = 0x9430; cpir(m, r);
     if (r.zf) {
@@ -209,10 +209,12 @@ const K = module.exports = {
   h9156(m, r) { require('./vram')['9156'](m, r); },
   // 9369: CF := герой смотрит вправо (7078 бит 7 = 0); A и прочие флаги сохраняются
   '9369'(m, r) { r.cf = !(rd(m, 0x7078) & 0x80); },
+  // 9305: кадр героя A из таблицы HL: 7302 := (HL + 2A), 7306 := (HL + 2A + 1)
+  '9305'(m, r) { r.a = (r.a << 1) & 0xff; RM.A540(m, r); wr(m, 0x7302, r.a); r.de = 0x7306; r.hl = hl16(r.hl + 1); r.a = rd(m, r.hl); wr(m, 0x7306, r.a); },
   // 92DC: кадр спрайта героя (7302 — имя, 7306 — второй слой) по состоянию 7079
   '92DC'(m, r) {
     const st = rd(m, 0x7079); let hl, a;
-    const fin = () => { r.a = (a << 1) & 0xff; r.hl = hl; RM.A540(m, r); wr(m, 0x7302, r.a); r.de = 0x7306; r.hl = hl16(r.hl + 1); r.a = rd(m, r.hl); wr(m, 0x7306, r.a); };
+    const fin = () => { r.a = a; r.hl = hl; K['9305'](m, r); };
     const walk = (x) => { a = x; if (a) { r.a = 9; S.AC1A(m, r); } hl = 0x9380; r.a = a; K['9369'](m, r); if (r.cf) hl = 0x9378; fin(); };
     if (st === 1) return walk(rd(m, 0x70aa) >> 1);
     if (st === 2) { hl = 0x9388; K['9369'](m, r); if (!r.cf) hl = 0x938a; a = 0; return fin(); }
