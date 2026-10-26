@@ -81,6 +81,7 @@ boot:
 		call	snd_off
 		call	pats_init		; шаблоны: банк 0 -> E000, различия -> dslot/dstore, спрайты -> VSPR
 		call	se_init
+		call	rot_init
 		call	bd_init
 		call	lv_init
 		ld	a,0xD0
@@ -306,6 +307,7 @@ unit_fw:	push	af			; tools/unit.js: ожидание кадра = обработ
 		INCLUDE	"../vec/gen/pal.asm"
 		INCLUDE	"gen/cart.asm"
 		ALIGN	256
+rot_tab:	ds	7*256			; повороты байта на 1..7 (rot_init) — маски спрайтов
 dlist:		ds	256			; список изменённых клеток (адреса в VNT)
 ; таблицы спрайтов — в одной странице (адрес — одной командой)
 sprt:
@@ -319,6 +321,7 @@ pps:		ds	6*SPR_MAX
 pps2:		ds	2*SPR_MAX
 ppd:		ds	11*SPR_MAX
 ubr:		ds	4*SPR_MAX		; рамки спрайтов: прежнее и новое место (ub_build)
+mk_key:		ds	4*SPR_MAX		; маска в ячейке: шаблон, сдвиг, начало, строк (spr_masks)
 sprt_end:
 		ASSERT	sprt/256 == (sprt_end-1)/256
 se_tab:		ds	8*24			; адреса входа блоков по числу строк (se_init)

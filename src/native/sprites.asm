@@ -1383,6 +1383,25 @@ cb_m:		ds	3
 ; r = циклический сдвиг вправо на s (вход в цепочку RRCA подставлен в CALL), m = FFh >> s:
 ; столбец 0 = rB & m, 1 = (rB & ~m) | (rC & m), 2 = rC & ~m; при s = 0 — без сдвига, столбец 2 пуст.
 spr_masks:
+		ld	a,(sp_k)		; та же маска, что в прошлый раз (шаблон, сдвиг, начало, строк) — не строить
+		add	a,a
+		add	a,a
+		add	a,mk_key&0xFF		; (страница sprt)
+		ld	l,a
+		ld	h,mk_key/256
+		ld	c,0			; C — отличий
+		ld	a,(sp_name)
+		call	mk_cmp
+		ld	a,(sp_x)
+		and	7
+		call	mk_cmp
+		ld	a,(sm_off)
+		call	mk_cmp
+		ld	a,(st_rows)
+		call	mk_cmp
+		ld	a,c
+		or	a
+		ret	z
 		ld	hl,(sp_name)		; шаблон: VSPR + 8 * имя
 		ld	h,0
 		add	hl,hl
@@ -1394,22 +1413,16 @@ spr_masks:
 		call	add_hl_a
 		ld	a,(st_rows)
 		ld	(sp_line),a
-		ld	a,(sp_k)		; маски — в ячейку спрайта (+C0)
+		ld	a,(sp_k)		; маски — в ячейку спрайта (+D0)
 		add	a,SPR_SLOTS/256
 		ld	d,a
 		ld	e,SM_OFS
 		ld	a,(sp_x)
 		and	7
 		jp	z,smz			; s = 0
-		ld	b,a			; вход: rot_end - s
-		ld	a,rot_end&0xFF
-		sub	b
-		ld	(smc1+1),a
-		ld	(smc2+1),a
-		ld	a,rot_end/256
-		sbc	a,0
-		ld	(smc1+2),a
-		ld	(smc2+2),a
+		ld	b,a			; B — страница таблицы поворота на s
+		add	a,rot_tab/256-1
+		push	af
 		ld	a,0xFF			; m
 smm:		or	a
 		rra
@@ -1420,44 +1433,53 @@ smm:		or	a
 		cpl
 		ld	(smk_n1+1),a
 		ld	(smk_n2+1),a
-smk1:		ld	a,(hl)
-smc1:		call	rot_end
-		ld	c,a			; C = rB
-		ld	a,l
-		add	a,16
-		ld	l,a
-		ld	a,(hl)
-smc2:		call	rot_end
-		ld	b,a			; B = rC
-		ld	a,l
-		sub	15
-		ld	l,a
-		ld	a,c
+		pop	af
+		ld	b,a
+smk1:		ld	c,(hl)			; левая половина строки -> r0
+		ld	a,(bc)
+		ld	c,a
 smk_m0:		and	0
-		ld	(de),a			; столбец 0
+		ld	(de),a			; столбец 0 = r0 & m
 		ld	a,e
 		add	a,16
 		ld	e,a
 		ld	a,c
 smk_n1:		and	0
+		ld	(de),a			; столбец 1 (пока) = r0 & ~m
+		ld	a,l
+		add	a,16
+		ld	l,a
+		ld	c,(hl)			; правая -> r1
+		ld	a,(bc)
 		ld	c,a
-		ld	a,b
 smk_m1:		and	0
-		or	c
-		ld	(de),a			; столбец 1
+		ex	de,hl
+		or	(hl)
+		ld	(hl),a			; столбец 1 |= r1 & m
+		ex	de,hl
 		ld	a,e
 		add	a,16
 		ld	e,a
-		ld	a,b
+		ld	a,c
 smk_n2:		and	0
-		ld	(de),a			; столбец 2
+		ld	(de),a			; столбец 2 = r1 & ~m
 		ld	a,e
 		sub	31
 		ld	e,a
+		ld	a,l
+		sub	15
+		ld	l,a
 		ld	a,(sp_line)
 		dec	a
 		ld	(sp_line),a
 		jp	nz,smk1
+		ret
+; mk_cmp: A — с (HL): другое — (HL) := A, C += 1; HL += 1
+mk_cmp:		cp	(hl)
+		jp	z,mkc1
+		ld	(hl),a
+		inc	c
+mkc1:		inc	l
 		ret
 smz:
 smz1:		ld	a,(hl)
@@ -1482,11 +1504,28 @@ smz1:		ld	a,(hl)
 		jp	nz,smz1
 		ret
 
-; цепочка сдвига: вход rot_end - s выполняет s команд RRCA
-rot_beg:	REPT	7
-		rrca
-		ENDR
-rot_end:	ret
+; rot_init: rot_tab[s - 1][b] = b, повёрнутый вправо на s (s = 1..7); mk_key := FF (масок нет)
+rot_init:	ld	hl,rot_tab
+		ld	c,1
+ri0:		ld	e,0
+ri1:		ld	a,e
+		ld	b,c
+ri2:		rrca
+		dec	b
+		jp	nz,ri2
+		ld	(hl),a
+		inc	l
+		inc	e
+		jp	nz,ri1
+		inc	h
+		inc	c
+		ld	a,c
+		cp	8
+		jp	nz,ri0
+		ld	hl,mk_key
+		ld	bc,4*SPR_MAX
+		ld	e,0xFF
+		jp	memfill
 
 ; --- обрезка по шаблону: spr_trim[имя/4] = (первая строка, последняя, пустые половины: бит 0 — левая, 1 — правая);
 ; строка пуста, если пусты обе половины; всё пусто — первая = FF. Пересчёт — trim_build (при смене комнаты).
