@@ -10,7 +10,8 @@ VD_PAT		equ	0x01			; отметки для вывода (display.asm)
 VD_COL		equ	0x02
 VD_NT		equ	0x04
 VD_REG		equ	0x08
-DSKIP		equ	2			; вывод — раз в DSKIP шагов
+DMIN		equ	2			; вывод — не чаще раза в DMIN шагов
+DSKIP		equ	3			; ... и не реже раза в DSKIP (когда отстаём)
 		DEFINE	NATIVE
 SPR_MAX		equ	6
 DL_MAX		equ	127			; список изменённых клеток (dlist, по 2 байта)
@@ -241,6 +242,9 @@ frame_wait:
 		jp	nz,fw2
 		ld	hl,disp_n
 		inc	(hl)
+		ld	a,(hl)			; не чаще раза в DMIN шагов
+		cp	DMIN
+		jp	c,fw2
 		ld	a,(nmi_pend)		; кадр ещё не пришёл — время есть (иначе ждали бы): готовим вывод
 		or	a
 		jp	z,fwp
