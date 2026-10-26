@@ -275,22 +275,6 @@ lb3:		inc	hl
 		ld	(de),a
 		ret
 
-; force_live: клетки из списка — к перерисовке
-force_live:
-		ld	hl,live_list
-fl1:		ld	e,(hl)
-		inc	hl
-		ld	d,(hl)
-		inc	hl
-		ld	a,d
-		cp	0xFF
-		ret	z
-		push	hl
-		ex	de,hl			; HL = адрес в VNT
-		call	ft_mark1
-		pop	hl
-		jp	fl1
-
 ; force_live_t: A = страница флагов по тайлам — живые клетки с отмеченным тайлом к перерисовке
 force_live_t:
 		ld	(flt_h),a

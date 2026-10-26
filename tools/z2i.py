@@ -24,7 +24,7 @@ PTR_TABLES = {0x8913: 11, 0xA20A: 8, 0x9477: 100, 0xAD0B: 10}
 PTR_WORDS = {0xA8A3, 0xA8A8, 0xA8AD, 0xA8B2}   # таблица процессов A8A1: [счётчик, процедура, перезагрузка] x4 (A5D8)
 CONSTS = {0x8282}                   # адреса команд, у которых число 8000-BFFF — не адрес (8282: сигнатура AA55)
 HOOKS = {0xA5CA: 'call\tnmi_wait_a5ca', 0x8C19: 'call\tnmi_wait_8c19', 0xA5D8: 'call\tnmi_wait_a5d8'}   # ожидание кадра: здесь «NMI» (как на MSX)
-MANUAL = {0xAE46: 0xAE4F}           # адрес начала: адрес конца (не включая) — вставка руками src/vec/manual/
+MANUAL = {0xAE46: 0xAE4F, 0x9156: 0x919A, 0xAEA7: 0xAEFE}           # адрес начала: адрес конца (не включая) — вставка руками src/vec/manual/
 OS7 = {}
 for l in open(os.path.join(ROOT, 'src/monty.ctl')):
     m = re.match(r'@ \$([0-9A-F]{4}) label=(\w+)', l)
@@ -208,6 +208,7 @@ for b in body:                      # предварительно: метки �
             if p in ptr_words and p + 1 < b[2]:
                 w = IMG[p] | IMG[p + 1] << 8
                 if LO <= w <= HI: ref(w, p)
+ceqs = []
 for b in body:
     if b[0] == 'lab':
         pass
@@ -220,6 +221,8 @@ for b in body:
         for x in lines[1:]: out.append(f'\t\t{x}')
     else:
         _, a, e = b
+        out.append(f'blk_{a:04X}:')     # метки C_xxxx на каждый адрес данных — для нативных модулей (src/native)
+        for q in range(a, e): ceqs.append(f'C_{q:04X}\t\tequ\tblk_{a:04X}+0x{q - a:04X}')
         p = a; row = []
         def flush():
             if row: out.append('\t\tdb\t' + ','.join(row)); row.clear()
@@ -235,6 +238,7 @@ for b in body:
             if len(row) == 16: flush()
         flush()
 out.append('cart_end:')
+out += [''] + ceqs
 os.makedirs(os.path.join(ROOT, 'src/vec/gen'), exist_ok=True)
 open(os.path.join(ROOT, 'src/vec/gen/game.asm'), 'w').write('\n'.join(out) + '\n')
 os.makedirs(os.path.join(ROOT, 'build/vec'), exist_ok=True)

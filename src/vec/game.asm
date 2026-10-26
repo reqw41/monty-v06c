@@ -15,7 +15,7 @@ dslot		equ	0xE800			; тайл -> номер различия (FF — нет)
 dstore		equ	0xE900			; различия: 24 байта на тайл (банки 1, 2, 5 по 8)
 DMAX		equ	17			; тайлов с различием банков (E900-EB97)
 tslot		equ	0xF300			; кэш изображений тайлов: тайл -> ячейка (FF — нет)
-tcache		equ	0xF400			; ячейки по 24 байта (TC_N штук, до F87F)
+tcache		equ	0xF400			; ячейки по 24 байта (TC_N = 44, до F81F)
 NTS		equ	0xEB00			; показанная таблица имён (копия VNT, то же выравнивание)
 col_flag	equ	0xEE00			; флаги тайлов групп с новым цветом
 cmodes		equ	0xEF00			; режимы плоскостей по байту цвета
@@ -23,13 +23,15 @@ pat_flag	equ	0xF000			; тайлы с новыми шаблонами
 anim_flag	equ	0xF100			; тайлы с различием банков
 spr_trim	equ	0xF200			; обрезка шаблонов спрайтов (4 x 64)
 live_list	equ	0xFF00			; живые клетки (2 x LIVE_MAX + 2)
+ISR_STACK	equ	0xEB00			; стек прерывания (EA98-EAFF, за различиями банков)
+DISP_STACK	equ	0xF900			; стек вывода и обработчика кадра (F820-F8FF, за кэшем тайлов из 44 ячеек)
 SPR_SLOTS	equ	0xF900			; ячейки фона спрайтов (6 по 256, до FEFF)
 NT		equ	VNT			; для render.asm
 coltab		equ	VCOL
 
 		ORG	0x0000
 		di
-		ld	sp,ISR_STACK
+		ld	sp,0x0100		; загрузка — на стеке под кодом (8000-FFFF и 7000-7FFF чистятся)
 		jp	boot
 		ORG	0x0038
 		jp	isr
@@ -149,6 +151,10 @@ nmi_poll:
 		push	bc
 		push	de
 		push	hl
+		ld	hl,0			; свой стек: вывод и обработчик кадра не растят стек игры (он над 7300)
+		add	hl,sp
+		ld	(np_sp),hl
+		ld	sp,DISP_STACK
 		ld	a,(dp_done)		; пока ждём кадр — подготовить вывод (один раз за шаг, раз в DSKIP шагов)
 		or	a
 		jp	nz,np2
@@ -195,25 +201,12 @@ np2:		ld	a,(nmi_pend)
 		ld	(crit_pend),a
 		call	crit
 np3:		call	nmi_run			; затем обработчик кадра игры
-np8:		pop	hl
-		pop	de
-		pop	bc
-np9:		pop	af
-		ret
-
-; nmi_now: разрешение прерывания VDP при ждущем кадре (WRITE_REGISTER) — обработчик сразу, все регистры целы
-nmi_now:
-		push	af
-		push	bc
-		push	de
-		push	hl
-		ld	a,(in_nmi)
-		or	a
-		call	z,nmi_run
+np8:		ld	hl,(np_sp)
+		ld	sp,hl
 		pop	hl
 		pop	de
 		pop	bc
-		pop	af
+np9:		pop	af
 		ret
 
 ; палитра: pal (16) в порты при pal_load > 0 (несколько кадров — на случай промаха мимо обратного хода)
@@ -323,6 +316,8 @@ ex_any:		ds	1
 t_now:		ds	1
 crit_pend:	ds	1
 step_f:		ds	1
+np_sp:		ds	2
+bk_c:		ds	1
 disp_n:		ds	1
 dp_done:	ds	1
 bk_new:		ds	1
@@ -402,8 +397,6 @@ spr_rec:	ds	0x80			; записи спрайтов (SREC x SPR_MAX)
 spr_new:	ds	SREC*SPR_MAX		; новые атрибуты (spr_rec + 80h)
 grp:		ds	SPR_MAX
 tabs_end:
-		ds	128
-ISR_STACK:
 code_end:
 		ASSERT	code_end <= 0x7000
 

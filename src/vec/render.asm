@@ -253,6 +253,7 @@ cc2:		ld	e,a
 		ret
 
 ; --- render_all: вся таблица имён в плоскости ---------------------------------------------------------
+		IFDEF	VIEWER
 render_all:
 		xor	a
 		ld	(rr_r),a
@@ -277,6 +278,7 @@ ra_cell:	ld	hl,(rr_nt)
 		cp	24
 		jp	nz,ra_row
 		ret
+		ENDIF
 
 		IFDEF	VIEWER
 ; --- draw_cell: тайл rr_t в клетку (rr_r, rr_c) ---------------------------------------------------------

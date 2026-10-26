@@ -61,7 +61,7 @@ function runVec() {
     if (started && pc === sym['L_' + SYNC.toString(16).toUpperCase()]) {
       tick++;
       if (CHEAT) m.wr(0x7049, 6);
-      for (const [k, d] of plan[tick] || []) { if (k === 'set') { for (const [a, v] of d) m.wr(a, v); continue; } const e = VECK[k]; if (d) m.keyboard.matrix[e[0]] |= e[1]; else m.keyboard.matrix[e[0]] &= ~e[1]; }
+      for (const [k, d] of plan[tick] || []) { if (k === 'set') { for (const [a, v] of d) m.wr(a, v); continue; } const e = VECK[k]; if (d) m.keyboard.matrix[e[0]] |= e[1]; else m.keyboard.matrix[e[0]] &= ~e[1]; m.wr(sym.kbmat + e[0], m.keyboard.matrix[e[0]]); }   // kbmat — как после опроса в прерывании
       const b = Buffer.alloc(HI - LO); for (let a = LO; a < HI; a++) b[a - LO] = m.rd(a); snaps.push(b);
       const v = Buffer.alloc(800); for (let a = 0; a < 768; a++) v[a] = m.rd(sym.VNT + a); for (let a = 0; a < 32; a++) v[768 + a] = m.rd(sym.VCOL + a); vsv.push(v);
       if (PATS) psv.push(vecPats(m));
