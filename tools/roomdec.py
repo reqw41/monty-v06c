@@ -23,7 +23,9 @@
      7   A340  T(0) == FF ? p2 подряд идущих тайлов T(1..) : p2 раз подряд узор T(1..T(0))
   K & 3F 20..28 — предмет 2x2 (T(1) T(2) / T(3) T(4)), если ещё не взят; длина 2
   K & 3F 29..2F — дверь: T(1) в трёх клетках столбца, T(2) под ними (открытая — 2x4 из T(3..)); длина 2
-  K & 3F >= 30 — враг/спрайт (A405, в таблицу имён не пишет); длина 2
+  K & 3F >= 30 — враг-спрайт (A405, в таблицу имён не пишет); длина 2. Спрайт 2+n (атрибуты 7304 + 4n, n = 1..):
+     Y = A496[p1 & F] (паук ts 86: -2), X = A4A5[p1 >> 4], имя T(1), цвет T(0); список 7086 — пары
+     (n + 1 + поведение, K&40 ? 80 : 0), поведение 48 паук (ts 86), 10 (ts 88), 08 (ts 8A, череп)
   Объекты (20..3F) обрабатываются только на верхнем уровне (глубина 7194 = 0), в подописаниях пропускаются;
   у каждого свой бит «взят/открыт» в 70C0 + 2*комната (n-й объект: байт n//8, бит n%8; A514).
 Перед потоком A1DF: строки 5-23 := 0, строки 0-4 := 8 (рамка инвентаря рисуется отдельно).
@@ -57,7 +59,9 @@ class Room:
         self.count = 0                      # 71A2: общий счётчик предметов, дверей и врагов
         self.nt = [0] * 0x400            # с запасом: запись за 2FF уходит в таблицу атрибутов спрайтов
         self.nt[0:0xA0] = [8] * 0xA0
+        hud(self.nt, level, 0, b'', [])
         self.objs = []                   # (вид, позиция, K, ts)
+        self.enemies = []                # A405: (Y, X, имя спрайта, цвет, поведение для 7086, флаг 80)
         self.trace = []
 
     def put(self, pos, tiles):
@@ -139,8 +143,13 @@ class Room:
                 self.objs.append(('дверь', pos, K, ts))
                 for r in range(3): self.put(pos + 32 * r, [T(1)])
                 self.put(pos + 96, [T(2)])
-            else:
+            elif not gone:
                 self.objs.append(('враг', pos, K, ts))
+                y = B(0xA496 + (p1 & 15)); x = B(0xA4A5 + (p1 >> 4))
+                if ts == 0x86: y -= 2; beh = 0x48     # паук
+                elif ts == 0x88: beh = 0x10
+                else: beh = 0x08
+                self.enemies.append((y, x, T(1), T(0), beh, 0x80 if K & 0x40 else 0))
             p += 2
 
     def mirror(self):
@@ -149,6 +158,44 @@ class Room:
             row = self.nt[r * 32:(r + 1) * 32]
             row = [pairs.get(t, t) if t not in (0, 8) else t for t in row]
             self.nt[r * 32:(r + 1) * 32] = row[::-1]
+
+
+def hud(nt, level, lives, score, inv):
+    """Строки 0-4: рамка AA5D (рисует CLEAR_ROOM до потока) и после потока A548: счёт и уровень (AEFE),
+    инвентарь (список наборов тайлов 71B2.., конец FF) 2x2 с клетки 21h, жизни-1 шляп (тайл 6F, AABB)."""
+    def put(pos, t): nt[pos] = t
+    for i in range(10): put(1 + i, 0x09); put(0x81 + i, 0x0C)
+    for i in range(8): put(0x17 + i, 0x09); put(0x97 + i, 0x0C)
+    for r in range(3):
+        for i, t in enumerate(IMG[0xAA88:0xAA94]): put(0x20 + 32 * r + i, t)
+        for i, t in enumerate(IMG[0xAA89:0xAA93]): put(0x36 + 32 * r + i, t)
+    return nt
+
+
+def hud_after(nt, level, lives, score, inv):
+    """Часть интерфейса после потока (A548): счёт, уровень, инвентарь, жизни."""
+    z = False
+    for k, pos, base in ((0, 0x38, 0x18), (1, 0x58, 0x28)):
+        z = False
+        for i, b in enumerate(score):
+            for j, d in enumerate((b >> 4, b & 15)):
+                if d or z: nt[pos + 2 * i + j] = base + d; z = True
+                else: nt[pos + 2 * i + j] = 0          # ведущий ноль — пустой тайл (AF65 -> AF66)
+    nt[0x34] = 0x18 + level; nt[0x54] = 0x28 + level
+    for r in range(3):
+        for i in range(10): nt[0x21 + 32 * r + i] = B(0x85D7 + i)
+    pos = 0x21
+    for ts in inv:
+        if ts == 0xFF: break
+        T = lambda n: B(0x9FD1 + ts + n)
+        nt[pos], nt[pos + 1], nt[pos + 32], nt[pos + 33] = T(1), T(2), T(3), T(4); pos += 2
+    for i in range(8): nt[0x61 + i] = 0; nt[0x77 + i] = 0
+    n = lives - 1
+    if n > 0:
+        for i in range(min(n, 10)): nt[0x61 + i] = 0x6F
+        if n >= 11:
+            for i in range(min(n - 10, 8)): nt[0x77 + i] = 0x6F
+    return nt
 
 
 def decode(idx, level, taken=None):
@@ -171,6 +218,31 @@ def check():
                     print(f'L{lv} комната {i}: {len(d)} клеток, первая {a:03X} (строка {a >> 5}, столбец {a & 31}): '
                           f'декодер {rm.nt[a]:02X}, модель {nt[a]:02X}')
     print(f'совпало {total - bad} из {total} (строки 5-23)')
+    hb = 0
+    for lv in (1, 2, 3):
+        ref = json.load(open(f'build/rooms/nt_L{lv}.json'))
+        for i, v in ref.items():
+            nt = bytes.fromhex(v['nt']); h = v['hud']
+            rm = decode(int(i), v['a6'], bytes.fromhex(v['bits']))
+            mine = hud_after(rm.nt, v['a6'], h['lives'], bytes.fromhex(h['score']), bytes.fromhex(h['inv']))
+            d = [a for a in range(0xA0) if mine[a] != nt[a]]
+            if d:
+                hb += 1
+                if hb <= 6: print(f'интерфейс L{lv} {i}: {len(d)} клеток, первая {d[0]:02X}: {mine[d[0]]:02X} вместо {nt[d[0]]:02X}')
+    print(f'строки 0-4: совпало {297 - hb} из 297')
+    eb = 0
+    for lv in (1, 2, 3):
+        ref = json.load(open(f'build/rooms/nt_L{lv}.json'))
+        for i, v in ref.items():
+            rm = decode(int(i), v['a6'], bytes.fromhex(v['bits']))
+            spr, act = bytes.fromhex(v['spr']), bytes.fromhex(v['act'])
+            exp_spr = b''.join(bytes([y, x, nm, cl]) for y, x, nm, cl, _, _ in rm.enemies)
+            exp_act = b''.join(bytes([n + 2 + beh, fl]) for n, (_, _, _, _, beh, fl) in enumerate(rm.enemies))
+            if spr[8:8 + len(exp_spr)] != exp_spr or act[:len(exp_act)] != exp_act or v['cnt'] != len(rm.enemies) \
+               or act[len(exp_act):len(exp_act) + 1] not in (b'\xff', b''):
+                eb += 1
+                if eb <= 6: print(f'враги L{lv} {i}: декодер', exp_spr.hex(), exp_act.hex(), 'модель', spr[8:24].hex(), act.hex(), v['cnt'])
+    print(f'враги: совпало {297 - eb} из 297')
 
 
 if __name__ == '__main__':
