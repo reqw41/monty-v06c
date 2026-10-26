@@ -71,6 +71,7 @@ isr:
 		ld	sp,ISR_STACK
 		push	bc
 		push	de
+		call	kb_scan			; клавиатура — сразу, до 40-й строки (порт 03 — и прокрутка)
 		ld	hl,(frames)
 		inc	hl
 		ld	(frames),hl
