@@ -36,7 +36,13 @@ disp_prep:
 		cp	2
 		ret	c
 		call	room_redraw
-dp1:		ld	a,(vdirty)
+dp1:		ld	a,(lv_dirty)		; в клетки ставились живые тайлы — список живых клеток заново
+		or	a
+		jp	z,dp1a
+		xor	a
+		ld	(lv_dirty),a
+		call	live_build
+dp1a:		ld	a,(vdirty)
 		and	VD_REG			; R4 — фаза анимации
 		jp	z,dp2
 		ld	a,(vdirty)
@@ -271,6 +277,8 @@ room_redraw:
 		and	0xFF-VD_NT-VD_COL
 		ld	(vdirty),a
 		call	live_build
+		xor	a
+		ld	(lv_dirty),a
 		jp	col_snapshot
 
 ; Живые клетки (анимированные тайлы anim_set и лента/цепь E0-EF) — по корзинам тайлов: lv_idx[тайл] = корзина
@@ -412,10 +420,12 @@ lbn1:		inc	b
 
 ; force_live_t: A = страница флагов по тайлам — живые клетки отмеченных тайлов к перерисовке (по корзинам)
 force_live_t:
-		ld	d,a			; D — страница флагов
+		ld	(fl_pg),a		; страница флагов
 		ld	a,(lv_nn)
 		or	a
 		ret	z
+		call	fl_bbox			; общая рамка нарисованных спрайтов
+		ld	a,(lv_nn)
 		ld	b,a
 		ld	hl,lv_pos
 flt1:		ld	c,(hl)			; корзина (из непустых)
@@ -425,9 +435,13 @@ flt1:		ld	c,(hl)			; корзина (из непустых)
 		ld	hl,lv_tile
 		add	hl,bc
 		ld	e,(hl)			; флаг тайла корзины
+		ld	a,(fl_pg)
+		ld	d,a
 		ld	a,(de)
 		or	a
 		jp	z,flt3
+		ld	a,e
+		ld	(rr_t),a
 		ld	c,LV_N
 		add	hl,bc			; lv_beg[b]: с, по
 		ld	c,(hl)
@@ -435,17 +449,61 @@ flt1:		ld	c,(hl)			; корзина (из непустых)
 		ld	a,(hl)
 		sub	c
 		jp	z,flt3
-		ld	b,a
-		ld	l,c
+		ld	(fl_n),a
+		ld	a,c
+		ld	(fl_i),a
+		call	dc_tile			; графика и режимы — одни на всю корзину (тайл один)
+		ld	a,c
+		ld	(fl_m),a
+		ex	de,hl
+		ld	(fl_g),hl
+flt2:		ld	a,(fl_i)		; DE = клетка в VNT
+		ld	l,a
+		inc	a
+		ld	(fl_i),a
 		ld	h,live_list/256
-		push	de
-flt2:		ld	e,(hl)			; DE = клетка в VNT: к выводу (PND), в список
+		ld	e,(hl)
 		ld	h,live_hi/256
 		ld	d,(hl)
-		ld	h,live_list/256
-		inc	l
-		push	hl
+		ld	a,(de)			; в карте уже другой тайл (взят предмет и т. п.) — не наша клетка: её
+		ld	hl,rr_t			; изменение и так в очереди
+		cp	(hl)
+		jp	nz,flt5
+		ld	a,e			; строка, столбец
+		and	31
+		ld	(rr_c),a
+		ld	a,e
+		rlca
+		rlca
+		rlca
+		and	7
+		ld	b,a
 		ld	a,d
+		sub	VNT/256
+		add	a,a
+		add	a,a
+		add	a,a
+		or	b
+		ld	(rr_r),a
+		call	fl_under
+		jp	c,flt_q
+		push	de			; не под спрайтом — сразу на экран
+		call	dc_scr
+		ld	a,(fl_m)
+		ld	c,a
+		push	hl
+		ld	hl,(fl_g)
+		ex	de,hl
+		pop	hl
+		call	dc_draw
+		pop	de
+		ld	a,d			; выведена
+		add	a,(PND-VNT)/256
+		ld	h,a
+		ld	l,e
+		ld	(hl),0
+		jp	flt5
+flt_q:		ld	a,d			; под спрайтом — к выводу (PND), в список (после его стирания)
 		add	a,(PND-VNT)/256
 		ld	h,a
 		ld	l,e
@@ -465,10 +523,10 @@ flt2:		ld	e,(hl)			; DE = клетка в VNT: к выводу (PND), в спи�
 		ld	(hl),e
 		inc	l
 		ld	(hl),d
-flt5:		pop	hl
-		dec	b
+flt5:		ld	a,(fl_n)
+		dec	a
+		ld	(fl_n),a
 		jp	nz,flt2
-		pop	de
 flt3:		pop	bc
 		pop	hl
 		inc	hl
@@ -478,6 +536,106 @@ flt3:		pop	bc
 flt_o:		ld	a,1
 		ld	(dl_ovf),a
 		jp	flt5
+; fl_bbox: fl_bb = общая рамка (r0, r1, c0, c1) мест нарисованных спрайтов (нет — пусто: FF, 0, FF, 0)
+fl_bbox:	ld	de,0xFF00		; D — r0, E — r1, B — c0, C — c1
+		ld	bc,0xFF00
+		ld	hl,spr_rec
+fx0:		ld	a,(hl)
+		or	a
+		jp	z,fx5
+		push	hl
+		ld	a,l
+		add	a,5
+		ld	l,a
+		ld	a,(hl)
+		cp	d
+		jp	nc,fx1
+		ld	d,a
+fx1:		inc	l
+		ld	a,(hl)
+		cp	e
+		jp	c,fx2
+		ld	e,a
+fx2:		inc	l
+		ld	a,(hl)
+		cp	b
+		jp	nc,fx3
+		ld	b,a
+fx3:		inc	l
+		ld	a,(hl)
+		cp	c
+		jp	c,fx4
+		ld	c,a
+fx4:		pop	hl
+fx5:		ld	a,l
+		add	a,16
+		ld	l,a
+		cp	16*SPR_MAX
+		jp	nz,fx0
+		ld	hl,fl_bb
+		ld	(hl),d
+		inc	hl
+		ld	(hl),e
+		inc	hl
+		ld	(hl),b
+		inc	hl
+		ld	(hl),c
+		ret
+; fl_under: клетка (rr_r, rr_c) — под местом нарисованного спрайта? CY — да (DE сохраняется)
+fl_under:	ld	a,(rr_r)
+		ld	hl,fl_bb
+		cp	(hl)
+		jp	c,fu_n
+		inc	hl
+		ld	b,(hl)
+		cp	b
+		jp	z,fu1
+		jp	nc,fu_n
+fu1:		ld	a,(rr_c)
+		inc	hl
+		cp	(hl)
+		jp	c,fu_n
+		inc	hl
+		ld	b,(hl)
+		cp	b
+		jp	z,fu2
+		jp	nc,fu_n
+fu2:		ld	hl,spr_rec		; по спрайтам
+fu3:		ld	a,(hl)
+		or	a
+		jp	z,fu4
+		push	hl
+		ld	a,l
+		add	a,5
+		ld	l,a
+		ld	a,(rr_r)		; r0 <= r <= r1, c0 <= c <= c1
+		cp	(hl)
+		jp	c,fu5
+		inc	l
+		ld	b,(hl)
+		cp	b
+		jp	z,fu6
+		jp	nc,fu5
+fu6:		ld	a,(rr_c)
+		inc	l
+		cp	(hl)
+		jp	c,fu5
+		inc	l
+		ld	b,(hl)
+		cp	b
+		jp	z,fu7
+		jp	nc,fu5
+fu7:		pop	hl
+		scf
+		ret
+fu5:		pop	hl
+fu4:		ld	a,l
+		add	a,16
+		ld	l,a
+		cp	16*SPR_MAX
+		jp	nz,fu3
+fu_n:		or	a
+		ret
 
 ; bank_diff: col_flag[t] := 1 для тайлов anim_set, у которых шаблон в банке bk_new не тот, что в tile_hi
 bank_diff:					; по таблице переходов банков (bd_init): col_flag анимированных тайлов

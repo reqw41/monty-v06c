@@ -284,6 +284,13 @@ sc1:		push	hl
 ; вывод тогда по всем строкам). Регистры, кроме A, сохраняются
 mark_row:
 dl_add:		push	de
+		ld	e,(hl)			; в клетке живой тайл (огонь, лента...) — список живых клеток устарел
+		ld	d,lv_idx/256
+		ld	a,(de)
+		inc	a
+		jp	z,dla1
+		ld	(lv_dirty),a
+dla1:
 		ld	a,h			; уже ждёт вывода — в списке есть
 		add	a,(PND-VNT)/256
 		ld	d,a
