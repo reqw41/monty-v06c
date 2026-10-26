@@ -29,6 +29,7 @@ cu_g		equ	0x7FB8
 cu_gj		equ	0x7FB9
 gp_a		equ	0x7FBA
 lv_nn		equ	0x7FBB
+sp_pm		equ	0x7FBC
 GSTACK		equ	0x73C0			; стек игры (как у оригинала)
 ; переменные только нативной сборки — 7FA0-7FFF (за копией цветов; чистятся при загрузке)
 a4_n		equ	0x7FA0

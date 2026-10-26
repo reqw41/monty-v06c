@@ -94,7 +94,7 @@ pb2:		ld	(hl),a
 		cp	16
 		jp	nz,pb2
 pb3:		call	used_count		; пока больше 8 — слить ближайшую пару из видимых
-		cp	9
+		cp	7			; своих цветов у комнаты 6: 5 и 7 — копии цветов героя
 		jp	c,pb6
 		ld	hl,merge_pairs
 pb4:		ld	a,(hl)
@@ -105,6 +105,11 @@ pb4:		ld	a,(hl)
 		ld	e,(hl)			; замена
 		inc	hl
 		push	hl
+		ld	a,d			; цвета героя (6, 11) не сливать — у них индексы 2 и 1
+		cp	6
+		jp	z,pb5
+		cp	11
+		jp	z,pb5
 		ld	hl,used
 		ld	a,d
 		call	add_hl_a
@@ -136,14 +141,31 @@ pb7:		ld	hl,used
 		ld	a,(hl)
 		or	a
 		jp	z,pb8
-		ld	a,(spr_E)		; цвет врагов — индекс 4, остальные — по порядку мимо 4
-		cp	b
-		ld	a,4
+		ld	a,(spr_E)		; цвет врагов — индекс 4 (плоскость 8000); героя: 11 — 1 и 5, 6 — 3 и 7 (бит
+		cp	b			; плоскости 8000 цвет героя не меняет: герой пишется плоскостями A000, C000);
+		ld	a,4			; остальные — 0, 2, 6 (лишние — в 6)
 		jp	z,pb7b
-		ld	a,c
-		cp	4
-		jp	nz,pb7a
-		inc	c
+		ld	a,b
+		cp	11
+		ld	a,1
+		jp	z,pb7b
+		ld	a,b
+		cp	6
+		ld	a,3
+		jp	z,pb7b
+pb7c:		ld	a,c
+		cp	8
+		jp	c,pb7e
+		ld	a,6
+		jp	pb7b
+pb7e:		cp	1
+		jp	z,pb7d
+		cp	3
+		jp	c,pb7a
+		cp	6
+		jp	z,pb7a
+pb7d:		inc	c
+		jp	pb7c
 pb7a:		ld	a,c
 		inc	c
 pb7b:		push	bc
@@ -190,6 +212,10 @@ pb11:		ld	hl,cmap
 		ld	a,b
 		cp	16
 		jp	nz,pb9
+		ld	hl,(pal+2)		; индексы 5, 7 — копии 1, 3 (цвета героя)
+		ld	(pal+10),hl
+		ld	hl,(pal+6)
+		ld	(pal+14),hl
 		ld	a,(cmap+1)		; прозрачный 0 — цвет фона (R7 = 1)
 		ld	(cmap+0),a
 		ret

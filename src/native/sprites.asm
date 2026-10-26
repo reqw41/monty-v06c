@@ -635,6 +635,10 @@ restore1:	ld	a,b
 		ld	a,c
 		ld	(rs_n),a
 		ld	b,0x80
+		ld	a,(rs_mode)		; 3 — двумя плоскостями: с A000
+		cp	3
+		jp	nz,sr1
+		ld	b,0xA0
 sr1:		ld	hl,(rs_h)
 		ld	a,(rs_n)
 		ld	c,a
@@ -705,11 +709,20 @@ pm0:		ld	a,b
 		ld	c,a
 		ld	a,(spr_E)
 		cp	c
-		ld	c,0
-		jp	nz,pm0a
 		ld	c,2			; враг цвета палитры 4 — одной плоскостью (8000), без фона
-pm0a:		ld	a,l
-		add	a,11
+		jp	z,pm0a
+		ld	a,l			; индекс без бита 2 (герой: 1, 2) — двумя плоскостями A000, C000
+		add	a,9
+		ld	l,a
+		ld	a,(hl)
+		and	4
+		ld	c,3
+		jp	z,pm0a
+		ld	c,0
+pm0a:		pop	hl
+		push	hl
+		ld	a,l
+		add	a,15
 		ld	l,a
 		ld	(hl),c
 		pop	hl
@@ -743,9 +756,10 @@ pm1:		ld	a,b			; оба готовы и не одной плоскостью?
 		or	a
 		jp	z,pm8
 		inc	hl
-		ld	a,(hl)
-		or	a
-		jp	nz,pm8
+		ld	a,(hl)			; плоскости k: 0 (три) или 3 (две); у k+1 — те же или три
+		ld	c,a
+		cp	2
+		jp	z,pm8
 		ld	a,l
 		add	a,15
 		ld	l,a
@@ -754,8 +768,11 @@ pm1:		ld	a,b			; оба готовы и не одной плоскостью?
 		jp	z,pm8
 		inc	hl
 		ld	a,(hl)
+		cp	c
+		jp	z,pm1b
 		or	a
 		jp	nz,pm8
+pm1b:
 		ld	a,b			; X тот же, |dY| <= 7?
 		call	new_ptr
 		inc	hl
@@ -1039,6 +1056,10 @@ pu_s:		ld	(hl),a
 		ld	d,a
 		ld	e,0
 		ld	b,0x80
+		ld	a,(sp_sp)		; двумя плоскостями — с A000
+		cp	3
+		jp	nz,pu1
+		ld	b,0xA0
 pu1:		ld	hl,(rs_h)
 		ld	a,(rs_n)
 		ld	c,a
@@ -1074,6 +1095,16 @@ spr_paint:
 		ld	a,l
 		add	a,4
 		ld	l,a
+		ld	a,(hl)			; плоскости по индексу: 4 — 8000 (OR), без бита 2 — A000, C000, иначе три
+		ld	c,2
+		cp	4
+		jp	z,spp1
+		ld	c,0
+		and	4
+		jp	nz,spp1
+		ld	c,3
+spp1:		ld	a,c
+		ld	(sp_pm),a
 		ld	a,(hl)			; цвет: бит 2 индекса -> бит 7 (плоскости 80, A0, C0)
 		rlca
 		rlca
@@ -1120,7 +1151,14 @@ spr_paint:
 		ld	a,(hl)
 		ld	(cs_and+2),a
 		ld	b,0x80
-so3:		ld	a,(sp_sp)		; одной плоскостью: только 8000, OR
+		ld	a,(sp_pm)		; двумя плоскостями: с A000 (бит плоскости 8000 пропустить)
+		cp	3
+		jp	nz,so3
+		ld	b,0xA0
+		ld	a,(sp_cbits)
+		rlca
+		ld	(sp_cbits),a
+so3:		ld	a,(sp_pm)		; одной плоскостью: только 8000, OR
 		cp	2
 		ld	a,0xFF
 		jp	z,so3k
@@ -1160,7 +1198,7 @@ so6:		pop	de
 		pop	hl
 		dec	c
 		jp	nz,so4
-		ld	a,(sp_sp)
+		ld	a,(sp_pm)
 		cp	2
 		ret	z
 		ld	a,b
