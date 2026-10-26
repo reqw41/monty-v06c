@@ -1,0 +1,7 @@
+archive/
+orig/
+build/
+ref/
+tools/.venv/
+node_modules/
+.DS_Store
