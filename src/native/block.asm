@@ -117,6 +117,15 @@ de_add_a:	add	a,e
 		ld	d,a
 		ret
 ; bk_mark: HL = VNT + клетка, B = тайлов — строки клеток HL .. HL + B - 1 к перерисовке
+		IFDEF	NATIVE
+bk_mark:	push	hl			; нативная сборка: клетки — в список изменённых (и строки)
+bkn1:		call	mark_row
+		inc	hl
+		dec	b
+		jp	nz,bkn1
+		pop	hl
+		ret
+		ELSE
 bk_mark:	push	de
 		call	vnt_row
 		ld	e,a
@@ -137,3 +146,4 @@ bkm1:		ld	(hl),1
 		jp	bkm1
 bkm2:		pop	de
 		ret
+		ENDIF

@@ -141,7 +141,8 @@ nf9:		pop	hl
 		ret
 
 ; mark_row: HL = адрес в VNT — строка к перерисовке (регистры, кроме A, сохраняются)
-mark_row:	push	hl
+mark_row:	call	dl_add
+		push	hl
 		call	vnt_row
 		ld	hl,row_dirty
 		add	a,l
@@ -282,4 +283,28 @@ sc1:		push	hl
 		pop	de
 		pop	bc
 		pop	af
+		ret
+
+; dl_add: HL = адрес клетки в VNT -> в список изменённых клеток (dlist, до DL_MAX; больше — dl_ovf, вывод
+; тогда по строкам). Регистры, кроме A, сохраняются
+dl_add:		push	de
+		ld	a,(dl_n)
+		cp	DL_MAX
+		jp	nc,dla_o
+		inc	a
+		ld	(dl_n),a
+		dec	a
+		add	a,a
+		ld	e,a
+		ld	d,dlist/256
+		ld	a,l
+		ld	(de),a
+		inc	e
+		ld	a,h
+		ld	(de),a
+		pop	de
+		ret
+dla_o:		ld	a,1
+		ld	(dl_ovf),a
+		pop	de
 		ret

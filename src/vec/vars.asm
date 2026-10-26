@@ -56,13 +56,25 @@ dr_ex:		ds	1
 dr_skip:	ds	1
 ex_n:		ds	1
 ex_r:		ds	4*SPR_MAX
+		IFNDEF	NATIVE
 wd:		ds	SPR_MAX
+		ENDIF
+		IFNDEF	NATIVE
 svr:		ds	4*SPR_MAX
+		ENDIF
 pm_bot:		ds	1
+		IFNDEF	NATIVE
 rst:		ds	6*SPR_MAX
+		ENDIF
+		IFNDEF	NATIVE
 pps:		ds	6*SPR_MAX
+		ENDIF
+		IFNDEF	NATIVE
 pps2:		ds	2*SPR_MAX
+		ENDIF
+		IFNDEF	NATIVE
 ppd:		ds	11*SPR_MAX
+		ENDIF
 rs_h:		ds	2
 rs_n:		ds	1
 pu_lo:		ds	1
@@ -82,10 +94,18 @@ sp_sp:		ds	1
 cr_force:	ds	1
 gc_g:		ds	1
 gc_s:		ds	1
+		IFNDEF	NATIVE
 gact:		ds	SPR_MAX
+		ENDIF
+		IFNDEF	NATIVE
 gs:		ds	SPR_MAX
+		ENDIF
+		IFNDEF	NATIVE
 ge:		ds	SPR_MAX
+		ENDIF
+		IFNDEF	NATIVE
 gd:		ds	SPR_MAX
+		ENDIF
 pp_h:		ds	2
 pp_m:		ds	2
 cr_ptr:		ds	2

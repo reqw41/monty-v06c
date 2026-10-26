@@ -10,6 +10,13 @@ VD_COL		equ	0x02
 VD_NT		equ	0x04
 VD_REG		equ	0x08
 DSKIP		equ	2			; вывод — раз в DSKIP шагов
+		DEFINE	NATIVE
+SPR_MAX		equ	6
+DL_MAX		equ	127			; список изменённых клеток (dlist, по 2 байта)
+dl_n		equ	0x7FA8
+dl_ovf		equ	0x7FA9
+dl_cnt		equ	0x7FAA
+dl_k		equ	0x7FAB
 GSTACK		equ	0x73C0			; стек игры (как у оригинала)
 ; переменные только нативной сборки — 7FA0-7FFF (за копией цветов; чистятся при загрузке)
 a4_n		equ	0x7FA0
@@ -50,6 +57,7 @@ boot:
 		ld	e,0
 		call	memfill
 		call	pats_init		; шаблоны: банк 0 -> E000, различия -> dslot/dstore, спрайты -> VSPR
+		call	tc_init
 		call	cache_flush
 		ld	a,0xD0
 		ld	(VSAT),a
@@ -243,13 +251,31 @@ unit_fw:	push	af			; tools/unit.js: ожидание кадра = обработ
 		INCLUDE	"collide.asm"
 		INCLUDE	"hero.asm"
 		INCLUDE	"main.asm"
-		INCLUDE	"../vec/display.asm"
-		INCLUDE	"../vec/sprites.asm"
-		INCLUDE	"../vec/render.asm"
-		INCLUDE	"../vec/cell.asm"
+		INCLUDE	"display.asm"
+		INCLUDE	"sprites.asm"
+		INCLUDE	"render.asm"
+		INCLUDE	"cell.asm"
 		INCLUDE	"../vec/util.asm"
 		INCLUDE	"../vec/gen/pal.asm"
 		INCLUDE	"gen/cart.asm"
+		ALIGN	256
+dlist:		ds	256			; список изменённых клеток (адреса в VNT)
+tc_tab:		ds	256			; адреса ячеек кэша изображений (младшие, старшие + 80h)
+tcache2:	ds	24*TC_N			; кэш изображений тайлов
+; таблицы спрайтов — в одной странице (адрес — одной командой)
+sprt:
+gact:		ds	SPR_MAX			; gact, gs, ge, gd — подряд
+gs:		ds	SPR_MAX
+ge:		ds	SPR_MAX
+gd:		ds	SPR_MAX
+wd:		ds	SPR_MAX
+svr:		ds	4*SPR_MAX
+rst:		ds	6*SPR_MAX
+pps:		ds	6*SPR_MAX
+pps2:		ds	2*SPR_MAX
+ppd:		ds	11*SPR_MAX
+sprt_end:
+		ASSERT	sprt_end - sprt <= 256
 		INCLUDE	"gen/pats.asm"
 		INCLUDE	"../vec/vars.asm"
 		INCLUDE	"gen/spat.asm"			; ORG VSPR — шаблоны спрайтов прямо в образе
