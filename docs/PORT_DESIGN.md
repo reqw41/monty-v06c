@@ -44,3 +44,15 @@
   Карты уровней с экрана Вектора — build/vec/rooms/map_L<у>.png.
 - Код и данные просмотра — 7,7 КБ (0100–1F00); вывод комнаты целиком ~87 кадров (не оптимизировано).
 - Сборка: `python3 -I tools/mkvecdata.py && (cd src/vec && ../../tools/sjasmplus --nologo --i8080 --sym=../../build/vec/viewer.sym viewer.asm)`.
+
+## Этап 2 — перевод логики (начат 26.10.2026)
+- `tools/z2i.py` → `src/vec/gen/game.asm` (3373 команды картриджа 800C–BFFF, метки L_/D_, таблицы указателей
+  8913, A20A, 9477, AD0B и записи AE00), `src/vec/gen/zhelp.asm` (LDIR, CPIR, EX AF, EXX, NEG, SBC HL, сдвиги CB
+  с флагами Z80), отчёт `build/vec/z2i_report.txt` — 0 предупреждений. Ручная вставка: `src/vec/manual/AE46.asm`;
+  IY в начислении очков (AF70–AFC7) = 7017. Константы среди адресов: 8282 (AA55).
+- Разметка исправлена: встроенные параметры AE00 (9 мест) — данные; 816D/8179/9207 — не перекрытия, а сбой Ghidra.
+- Структура: 8025 старт (OS7, графика через AE00) → 8179 меню прослойки (2227, код клавиши 73F0: 82/88/83 =
+  уровень 1/2/3) → 817C → A59D игра; кадр — A9B3 (вектор 8021 вместо NMI VDP, работает на теневых регистрах).
+- Внешние вызовы для платформенного слоя: OS7 — WRITE_REGISTER 13, FILL_VRAM 9, LOAD_ASCII 3, REFLECT_VERTICAL 3,
+  PUT_VRAM 2, GET_VRAM 2, WR_SPR_NM_TBL 2, TURN_OFF_SOUND 4, REFLECT_HORIZONTAL, ENLARGE, INIT_SPR_ORDER,
+  READ_REGISTER, CONTROLLER_SCAN, MODE_1; прослойка — звук 21C5/21CA/21CF/21D4, 21DE, меню 2209/2227.
