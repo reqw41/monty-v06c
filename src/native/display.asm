@@ -272,7 +272,7 @@ room_redraw:
 		call	modes_build
 		ld	a,3
 		ld	(pal_load),a
-		call	force_all
+		call	draw_all		; комната — целиком, прямо (спрайты — стёрты: их не восстанавливать)
 		ld	a,(vdirty)
 		and	0xFF-VD_NT-VD_COL
 		ld	(vdirty),a
@@ -803,6 +803,139 @@ bank_hi:	ld	a,(vregs+4)
 		ld	a,3
 		ret
 
+; draw_all: все клетки на экран прямо по карте (графика — заново только при смене тайла подряд); спрайты —
+; «не нарисованы» (экран под ними новый), очередь клеток и PND — пусто
+draw_all:	ld	hl,spr_rec
+dal0:		ld	(hl),0
+		ld	a,l
+		add	a,16
+		ld	l,a
+		cp	16*SPR_MAX
+		jp	nz,dal0
+		xor	a
+		ld	(dl_n),a
+		ld	(dl_ovf),a
+		ld	hl,PND
+		ld	bc,768
+		ld	e,0
+		call	memfill
+		ld	a,0xFF
+		ld	(da_t),a
+		ld	de,VNT			; DE — клетка карты, HL — экран (столбец 0, верх строки 0)
+		ld	hl,0x80DF
+dal2:		ld	a,(de)
+		push	de
+		push	hl
+		ld	hl,da_t
+		cp	(hl)
+		jp	z,dal3
+		ld	(hl),a			; другой тайл — образ заново
+		ld	(rr_t),a
+		call	dc_tile
+		call	da_img
+dal3:		pop	hl
+		call	da_blit
+		pop	de
+		inc	de
+		inc	h
+		ld	a,h
+		cp	0xA0
+		jp	nz,dal2
+		ld	h,0x80			; следующая строка
+		ld	a,l
+		sub	8
+		ld	l,a
+		ld	a,d
+		cp	(VNT+768)/256
+		jp	nz,dal2
+		ld	hl,row_dirty
+		ld	bc,24
+		ld	e,0
+		jp	memfill
+; da_img: C = режимы, DE = графика -> da_buf: 3 плоскости по 8 байт (сверху вниз)
+da_img:		ld	hl,da_buf
+		ld	a,c
+		rrca
+		rrca
+		rrca
+		rrca
+		call	dai_p
+		ld	a,c
+		rrca
+		rrca
+		call	dai_p
+		ld	a,c
+dai_p:		and	3
+		ld	b,8
+		jp	z,dai0
+		dec	a
+		jp	z,daip
+		dec	a
+		jp	z,dain
+		ld	a,0xFF
+		jp	daif
+dai0:		xor	a
+daif:		ld	(hl),a
+		inc	hl
+		dec	b
+		jp	nz,daif
+		ret
+daip:		push	de
+dap1:		ld	a,(de)
+		ld	(hl),a
+		inc	hl
+		inc	de
+		dec	b
+		jp	nz,dap1
+		pop	de
+		ret
+dain:		push	de
+dan1:		ld	a,(de)
+		cpl
+		ld	(hl),a
+		inc	hl
+		inc	de
+		dec	b
+		jp	nz,dan1
+		pop	de
+		ret
+; da_blit: da_buf -> клетка экрана HL (плоскость 8000, верхняя строка); HL сохраняется. Через стек (POP)
+da_blit:	di
+		ex	de,hl
+		ld	hl,0
+		add	hl,sp
+		ld	(dc_sp),hl
+		ld	hl,da_buf
+		ld	sp,hl
+		ex	de,hl
+		REPT	3
+		REPT	4
+		pop	bc
+		ld	(hl),c
+		dec	l
+		ld	(hl),b
+		dec	l
+		ENDR
+		ld	a,l
+		add	a,8
+		ld	l,a
+		ld	a,h
+		add	a,0x20
+		ld	h,a
+		ENDR
+		ld	a,h
+		sub	0x60
+		ld	h,a
+		ex	de,hl
+		ld	hl,(dc_sp)
+		ld	sp,hl
+		ex	de,hl
+		ld	a,(in_isr)
+		or	a
+		ret	nz
+		ei
+		ret
+
 ; force_all: все клетки — к перерисовке
 force_all:
 		ld	hl,PND
@@ -1122,51 +1255,63 @@ pf9:		inc	b
 
 ; modes_build: cmodes[байт цвета MSX] = режимы плоскостей 8000/A000/C000 (по 2 бита, 8000 — старшие:
 ; 0 — 00, 1 — шаблон, 2 — инверсия, 3 — FF) для индексов cmap[точки], cmap[фон] (0 -> 1)
-modes_build:
-		ld	hl,cmodes
-mb0:		ld	a,l
-		rrca
-		rrca
-		rrca
-		rrca
-		and	0x0F
+modes_build:				; mb_d[i], mb_e[i] — вклад индекса cmap[i] (0 -> 1) как цвета точек и фона
+		ld	b,0
+mb0:		ld	a,b
+		or	a
 		jp	nz,mb1
 		inc	a
-mb1:		push	hl
-		ld	hl,cmap
+mb1:		ld	hl,cmap
 		call	add_hl_a
-		ld	d,(hl)			; D = индекс точек
-		pop	hl
-		ld	a,l
-		and	0x0F
-		jp	nz,mb2
-		inc	a
-mb2:		push	hl
-		ld	hl,cmap
-		call	add_hl_a
-		ld	e,(hl)			; E = индекс фона
-		pop	hl
-		ld	b,4			; бит индекса: 4 (8000), 2 (A000), 1 (C000)
-		ld	c,0
-mb3:		ld	a,c
-		add	a,a
-		add	a,a
-		ld	c,a
+		ld	d,(hl)			; индекс
+		ld	c,0			; точки: бит плоскости -> 1 в её паре (8000 — биты 5-4, A000 — 3-2, C000 — 1-0)
 		ld	a,d
-		and	b
+		and	4
+		jp	z,mb2
+		ld	c,0x10
+mb2:		ld	a,d
+		and	2
+		jp	z,mb3
+		ld	a,c
+		or	0x04
+		ld	c,a
+mb3:		ld	a,d
+		and	1
 		jp	z,mb4
 		inc	c
-mb4:		ld	a,e
-		and	b
-		jp	z,mb5
-		inc	c
-		inc	c
-mb5:		ld	a,b
-		rrca
-		ld	b,a
-		cp	0x80
-		jp	nz,mb3
+mb4:		ld	hl,mb_d
+		ld	a,b
+		call	add_hl_a
 		ld	(hl),c
-		inc	l
+		ld	a,c			; фон — то же, сдвинутое на 1 (2 в паре)
+		add	a,a
+		ld	hl,mb_e
+		push	af
+		ld	a,b
+		call	add_hl_a
+		pop	af
+		ld	(hl),a
+		inc	b
+		ld	a,b
+		cp	16
 		jp	nz,mb0
+		ld	hl,cmodes		; cmodes[16 h + l] = mb_d[h] | mb_e[l]
+		ld	de,mb_d
+mb5:		ld	a,(de)
+		ld	c,a
+		push	de
+		ld	de,mb_e
+		ld	b,16
+mb6:		ld	a,(de)
+		or	c
+		ld	(hl),a
+		inc	de
+		inc	l
+		dec	b
+		jp	nz,mb6
+		pop	de
+		inc	de
+		ld	a,l
+		or	a
+		jp	nz,mb5
 		ret

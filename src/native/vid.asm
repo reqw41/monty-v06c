@@ -128,12 +128,28 @@ nf1:		ld	a,b
 		jp	nc,nf2
 		ld	hl,VNT
 		add	hl,de
+		ld	a,(vdirty)		; комната будет нарисована целиком — без отметок, быстро
+		and	VD_NT
+		jp	nz,nf3
 		ld	a,(nf_val)
 		ld	(hl),a
 		call	mark_row
 nf2:		inc	de
 		dec	bc
 		jp	nf1
+nf3:		ld	a,(nf_val)		; HL -> клетка, BC клеток (не дальше конца таблицы)
+nf4:		ld	(hl),a
+		inc	hl
+		dec	bc
+		ld	e,a
+		ld	a,h
+		cp	(VNT+768)/256
+		ld	a,e
+		jp	z,nf9
+		ld	a,b
+		or	c
+		ld	a,e
+		jp	nz,nf4
 nf9:		pop	hl
 		pop	de
 		pop	bc
@@ -283,7 +299,10 @@ sc1:		push	hl
 ; dl_add (mark_row): HL = адрес клетки в VNT -> в список изменённых клеток (dlist, до DL_MAX; больше — dl_ovf,
 ; вывод тогда по всем строкам). Регистры, кроме A, сохраняются
 mark_row:
-dl_add:		push	de
+dl_add:		ld	a,(vdirty)		; комната будет нарисована целиком — клетки не отмечать
+		and	VD_NT
+		ret	nz
+		push	de
 		ld	e,(hl)			; в клетке живой тайл (огонь, лента...) — список живых клеток устарел
 		ld	d,lv_idx/256
 		ld	a,(de)

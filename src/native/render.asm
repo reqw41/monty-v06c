@@ -65,12 +65,30 @@ pal_build:
 		ld	hl,used
 		call	add_hl_a
 		ld	(hl),1
-		ld	hl,NT
-		ld	bc,768
-pb1:		push	bc
+		ld	de,NT			; группы тайлов, что есть в комнате -> col_flag[0..31] (цвета — по группе)
+		ld	h,col_flag/256
+pb1:		ld	a,(de)
+		rrca
+		rrca
+		rrca
+		and	0x1F
+		ld	l,a
+		ld	(hl),1
+		inc	de
+		ld	a,d
+		cp	(NT+768)/256
+		jp	nz,pb1
+		ld	b,0
+pb1b:		ld	l,b			; встретилась — её цвета точек и фона — видимые (col_flag — снова 0)
+		ld	h,col_flag/256
 		ld	a,(hl)
-		inc	hl
-		push	hl
+		or	a
+		jp	z,pb1c
+		ld	(hl),0
+		ld	a,b
+		add	a,a
+		add	a,a
+		add	a,a
 		call	cell_colors		; D = цвет точек, E = цвет фона (0 -> 1)
 		ld	hl,used
 		ld	a,d
@@ -80,12 +98,10 @@ pb1:		push	bc
 		ld	a,e
 		call	add_hl_a
 		ld	(hl),1
-		pop	hl
-		pop	bc
-		dec	bc
+pb1c:		inc	b
 		ld	a,b
-		or	c
-		jp	nz,pb1
+		cp	32
+		jp	nz,pb1b
 		ld	hl,repl			; repl[c] := c
 		xor	a
 pb2:		ld	(hl),a
