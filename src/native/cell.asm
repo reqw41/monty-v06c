@@ -133,6 +133,14 @@ cache_flush:
 		ld	bc,256
 		ld	e,0xFF
 		call	memfill
+		ld	hl,abank		; запасы банков пусты; изображения — банка tile_hi
+		ld	bc,4*AB_N
+		call	memfill
+		ld	hl,ab_img
+		ld	bc,AB_N
+		ld	a,(tile_hi)
+		ld	e,a
+		call	memfill
 		xor	a
 		ld	(tc_next),a
 		pop	de
@@ -140,9 +148,12 @@ cache_flush:
 		pop	hl
 		ret
 
-; cache_old_anim: H = страница флагов — анимированные тайлы (anim_set) с флагом: изображение устарело
+; cache_old_anim: H = страница флагов — у анимированных тайлов (anim_set) с флагом изображение — из запаса
+; банка tile_hi (FF — построить при выводе), прежнее — в запас своего банка (ab_img). Ячейки не освобождаются,
+; поэтому запасённые остаются верными до сброса кэша; устаревшие (бит 7) перестраиваются при выводе
 cache_old_anim:
 		ld	de,anim_set
+		ld	c,0			; номер в anim_set
 coa1:		ld	a,(de)
 		cp	0xFF
 		ret	z
@@ -151,17 +162,45 @@ coa1:		ld	a,(de)
 		or	a
 		jp	z,coa2
 		push	hl
+		push	de
 		ld	a,(de)
+		ld	e,a
+		ld	d,tslot/256		; DE -> tslot[тайл]
+		ld	a,c
+		add	a,ab_img&0xFF
 		ld	l,a
-		ld	h,tslot/256
-		ld	a,(hl)
-		cp	0xFF
-		jp	z,coa3
-		or	0x80
+		ld	h,ab_img/256
+		ld	b,(hl)			; банк нынешнего изображения
+		ld	a,(tile_hi)
 		ld	(hl),a
-coa3:		pop	hl
+		ld	a,(de)
+		cp	0xFF
+		jp	z,coa4
+		ld	a,b
+		call	ab_ptr
+		ld	a,(de)
+		ld	(hl),a			; в запас прежнего банка
+coa4:		ld	a,(tile_hi)
+		call	ab_ptr
+		ld	a,(hl)
+		ld	(de),a			; из запаса нового
+		pop	de
+		pop	hl
 coa2:		inc	de
+		inc	c
 		jp	coa1
+; ab_ptr: A = банк, C = номер -> HL = abank + AB_N * банк + номер
+ab_ptr:		ld	l,a
+		add	a,a
+		add	a,l
+		add	a,a
+		add	a,a
+		add	a,a			; 24 * банк
+		add	a,c
+		add	a,abank&0xFF
+		ld	l,a
+		ld	h,abank/256
+		ret
 ; cache_old_tile: A = тайл — изображение устарело
 cache_old_tile:	push	hl
 		ld	l,a
@@ -189,7 +228,35 @@ cdf1:		ld	a,(hl)
 		ld	(de),a
 cdf2:		inc	l
 		jp	nz,cdf1
-		ret
+		ld	de,anim_set		; запасы банков у отмеченных анимированных — тоже устарели
+		ld	c,0
+cdf3:		ld	a,(de)
+		cp	0xFF
+		ret	z
+		ld	l,a
+		ld	a,(hl)
+		or	a
+		jp	z,cdf5
+		push	hl
+		ld	b,4
+		ld	a,c
+		add	a,abank&0xFF
+		ld	l,a
+		ld	h,abank/256
+cdf4:		ld	a,(hl)
+		cp	0xFF
+		jp	z,cdf6
+		or	0x80
+		ld	(hl),a
+cdf6:		ld	a,l
+		add	a,AB_N
+		ld	l,a
+		dec	b
+		jp	nz,cdf4
+		pop	hl
+cdf5:		inc	de
+		inc	c
+		jp	cdf3
 
 ; tile_render: изображение тайла rr_t в (HL): 3 плоскости по 8 байт; режимы — cmodes[цвет группы]
 tile_render:

@@ -293,7 +293,9 @@ room_redraw:
 		call	trim_build
 		ld	a,1
 		ld	(anim_ok),a
-rr1:		call	cache_flush
+rr1:		call	bank_hi			; банк — до сброса кэша (запасы банков помечаются им)
+		ld	(tile_hi),a
+		call	cache_flush
 		call	pal_build
 		call	pal_fill
 		call	modes_build
@@ -303,8 +305,6 @@ rr1:		call	cache_flush
 		ld	a,(vdirty)
 		and	0xFF-VD_NT-VD_COL
 		ld	(vdirty),a
-		call	bank_hi
-		ld	(tile_hi),a
 		call	live_build
 		jp	col_snapshot
 
