@@ -239,7 +239,6 @@ rr1:		call	cache_flush
 		ld	(vdirty),a
 		call	bank_hi
 		ld	(tile_hi),a
-		ld	(fire_hi),a
 		call	live_build
 		jp	col_snapshot
 
@@ -316,26 +315,15 @@ flt1:		ld	e,(hl)
 flt2:		pop	hl
 		jp	flt1
 
-; bank_diff: col_flag[t] := 1 для тайлов anim_set, у которых шаблон в банке bk_new не тот, что показан
-; (tile_hi; огонь D0-D5 — fire_hi и только через раз: fire_skip)
+; bank_diff: col_flag[t] := 1 для тайлов anim_set, у которых шаблон в банке bk_new не тот, что в tile_hi
 bank_diff:
-		ld	a,(fire_skip)
-		xor	1
-		ld	(fire_skip),a
 		ld	hl,anim_set
 bd0:		ld	a,(hl)
 		cp	0xFF
 		jp	z,bd_end
 		push	hl
 		ld	c,a
-		sub	0xD0
-		cp	6
 		ld	a,(tile_hi)
-		jp	nc,bd_cmp
-		ld	a,(fire_skip)
-		or	a
-		jp	nz,bd9
-		ld	a,(fire_hi)
 bd_cmp:		call	pat_ptr			; прежний
 		push	hl
 		ld	a,(bk_new)
@@ -356,12 +344,7 @@ bd_ch:		ld	l,c
 bd9:		pop	hl
 		inc	hl
 		jp	bd0
-bd_end:		ld	a,(fire_skip)
-		or	a
-		ret	nz
-		ld	a,(bk_new)
-		ld	(fire_hi),a
-		ret
+bd_end:		ret
 
 ; pat_ptr: C = тайл, A = банк (0..3) -> HL = шаблон (8 байт) (C сохраняется)
 pat_ptr:	or	a

@@ -4,7 +4,8 @@
 ; Память: 0000 векторы; 0100 код и данные; 7000-73FF ОЗУ игры (как у Coleco); 7400-7FFF виртуальная VRAM
 ; (VSPR, VNT, VSAT, VCOL); 8000-DFFF экран (3 плоскости); E000-FFFF банки шаблонов тайлов (невидимая плоскость).
 		DEVICE	NOSLOT64K
-PACE		equ	4			; кадров на шаг игры (ровный ритм)
+PACE		equ	1			; кадров на шаг игры не меньше (1 — без ограничения)
+DSKIP		equ	2			; вывод — раз в DSKIP шагов (ровно, без пачек)
 VSPR		equ	0x7400			; шаблоны спрайтов (VDP 3800)
 VNT		equ	0x7C00			; таблица имён (VDP 1800)
 VSAT		equ	0x7F00			; атрибуты спрайтов (VDP 1B00)
@@ -148,11 +149,17 @@ nmi_poll:
 		push	bc
 		push	de
 		push	hl
-		ld	a,(dp_done)		; пока ждём кадр — подготовить вывод (один раз за шаг)
+		ld	a,(dp_done)		; пока ждём кадр — подготовить вывод (один раз за шаг, раз в DSKIP шагов)
 		or	a
 		jp	nz,np2
 		inc	a
 		ld	(dp_done),a
+		ld	hl,disp_n
+		inc	(hl)
+		ld	a,(hl)
+		cp	DSKIP
+		jp	c,np2
+		ld	(hl),0
 		call	disp_prep
 		ld	a,(crit_pend)		; кадр пришёл во время подготовки — короткая часть со следующим
 		or	a
@@ -316,10 +323,9 @@ ex_any:		ds	1
 t_now:		ds	1
 crit_pend:	ds	1
 step_f:		ds	1
+disp_n:		ds	1
 dp_done:	ds	1
 bk_new:		ds	1
-fire_hi:	ds	1
-fire_skip:	ds	1
 flt_h:		ds	1
 spr_E:		ds	1
 sp_sp:		ds	1
