@@ -5,10 +5,10 @@
 const fs = require('fs');
 const E = require('./vec_emu');
 const sym = {};
-for (const l of fs.readFileSync('build/vec/monty.sym', 'latin1').split('\n')) {
+for (const l of fs.readFileSync((process.env.VB || 'build/vec') + '/monty.sym', 'latin1').split('\n')) {
   const m = l.match(/^(\w+):\s+EQU\s+0x([0-9A-F]+)/i); if (m) sym[m[1]] = parseInt(m[2], 16);
 }
-const m = E.mk('build/vec/monty.bin'); let st = false, t = 0, t0 = 0, i0 = 0;
+const m = E.mk((process.env.VB || 'build/vec') + '/monty.bin'); let st = false, t = 0, t0 = 0, i0 = 0;
 m.onInstr = (pc) => { if (pc === sym.L_A59D) st = true; if (st && pc === sym.L_A5D1) t++; };
 const K = (r, b, d) => { if (d) m.keyboard.matrix[r] |= b; else m.keyboard.matrix[r] &= ~b; };
 for (let f = 0; f < 3000; f++) {

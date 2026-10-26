@@ -8,7 +8,7 @@ const fs = require('fs');
 const MSX1 = require('./msx1');
 const E = require('./vec_emu');
 const sym = {};
-for (const l of fs.readFileSync('build/vec/monty.sym', 'latin1').split('\n')) {
+for (const l of fs.readFileSync((process.env.VB || 'build/vec') + '/monty.sym', 'latin1').split('\n')) {
   const m = l.match(/^(\w+):\s+EQU\s+0x([0-9A-F]+)/i); if (m) sym[m[1]] = parseInt(m[2], 16);
 }
 const N = +(process.argv[2] || 400), FIRE = +(process.argv[3] || 120), PLAN = process.argv[4] || '';
@@ -54,7 +54,7 @@ function runMsx() {
   return snaps;
 }
 function runVec() {
-  const m = E.mk('build/vec/monty.bin');
+  const m = E.mk((process.env.VB || 'build/vec') + '/monty.bin');
   const snaps = []; let started = false, tick = -1;
   m.onInstr = (pc) => {
     if (pc === sym.L_A59D) started = true;

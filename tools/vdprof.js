@@ -5,14 +5,14 @@
 const fs = require('fs');
 const E = require('./vec_emu');
 const sym = {};
-for (const l of fs.readFileSync('build/vec/monty.sym', 'latin1').split('\n')) {
+for (const l of fs.readFileSync((process.env.VB || 'build/vec') + '/monty.sym', 'latin1').split('\n')) {
   const m = l.match(/^(\w+):\s+EQU\s+0x([0-9A-F]+)/i); if (m) sym[m[1]] = parseInt(m[2], 16);
 }
 const [P = 'display', A = '1000', B = '1500'] = process.argv.slice(2);
 const inv = Object.entries(sym).filter(([k, v]) => v < 0x7000 && v >= 0x100 && !/^D_/.test(k)).sort((a, b) => a[1] - b[1]);
 const near = new Array(0x7000).fill('?');
 for (let i = 0, j = 0; i < 0x7000; i++) { while (j + 1 < inv.length && inv[j + 1][1] <= i) j++; if (inv[j] && inv[j][1] <= i) near[i] = inv[j][0]; }
-const m = E.mk('build/vec/monty.bin'); const K = (r, b, d) => { if (d) m.keyboard.matrix[r] |= b; else m.keyboard.matrix[r] &= ~b; };
+const m = E.mk((process.env.VB || 'build/vec') + '/monty.bin'); const K = (r, b, d) => { if (d) m.keyboard.matrix[r] |= b; else m.keyboard.matrix[r] &= ~b; };
 let on = false, depth = -1, n = 0, calls = 0, prevK = null; const h = new Map();
 m.onInstr = (pc) => {
   if (prevK !== null) { const v = m.cpu.vcycles || 0; h.set(prevK, (h.get(prevK) || 0) + v); n += v; prevK = null; }
