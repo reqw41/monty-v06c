@@ -20,75 +20,85 @@ SREC		equ	16			; запись: нарисован, Y X имя цвет, r0 r1 c0
 ; spr_plan: новые атрибуты (spr_new) и метки перерисовки в spr_rec: спрайт отмечен, если атрибуты не те
 ; (или spr_force), если под нарисованным изменились клетки (VNT != NTS) и, до замыкания, если его прямоугольник
 ; пересекает прежний или новый прямоугольник отмеченного. A = число отмеченных.
-spr_plan:
-		ld	hl,VSAT
-		ld	de,spr_new
-		ld	b,0			; номер
-		ld	c,0			; встречен D0
-spl0:		ld	a,c
+spr_plan:					; один проход: атрибуты VSAT против нарисованных (запись +1..+4); изменённым
+		ld	hl,VSAT			; (или при spr_force) — метка, новые атрибуты, видимость, место
+		ld	(sp_vp),hl
+		xor	a
+		ld	(sp_end),a
+		ld	b,0
+spl0:		ld	a,(sp_end)
 		or	a
-		jp	nz,spl_e
+		jp	nz,spl_d0
+		ld	hl,(sp_vp)
 		ld	a,(hl)
 		cp	0xD0
-		jp	nz,spl1
-		ld	c,1
-spl_e:		xor	a			; после конца таблицы: невидим, атрибуты D0 0 0 0
-		ld	(de),a
-		inc	de
-		ld	a,0xD0
-		ld	(de),a
-		inc	de
-		xor	a
-		ld	(de),a
-		inc	de
-		ld	(de),a
-		inc	de
-		ld	(de),a
-		inc	de
-		inc	de
-		inc	de
-		inc	de
-		inc	de
-		jp	spl4
-spl1:		push	hl			; виден: Y + 1 < 192, цвет без EC и не 0
-		ld	a,(hl)
-		inc	a
-		cp	192
-		jp	nc,spl1n
+		jp	nz,spl_c
+		ld	a,1			; конец таблицы: дальше невидимы, атрибуты D0 0 0 0
+		ld	(sp_end),a
+spl_d0:		ld	hl,spl_z
+spl_c:		ld	(sp_ap),hl
+		ld	a,b
+		call	rec_ptr
 		inc	hl
+		ex	de,hl			; DE -> запись +1
+		ld	hl,(sp_ap)
+		ld	a,(spr_force)
+		or	a
+		jp	nz,spl_ch
+		REPT	4
+		ld	a,(de)
+		cp	(hl)
+		jp	nz,spl_ch
 		inc	hl
-		inc	hl
-		ld	a,(hl)
-		and	0x80
-		jp	nz,spl1n
-		ld	a,(hl)
-		and	0x0F
-		jp	z,spl1n
-		ld	a,1
-		jp	spl1v
-spl1n:		xor	a
-spl1v:		pop	hl
-		ld	(de),a
 		inc	de
-		push	hl
+		ENDR
+		ld	a,b			; без изменений: метка 0
+		call	rec_ptr
+		ld	a,l
+		add	a,13
+		ld	l,a
+		ld	(hl),0
+		jp	spl_n
+spl_ch:		ld	a,b			; изменился: метка 1
+		call	rec_ptr
+		ld	a,l
+		add	a,13
+		ld	l,a
+		ld	(hl),1
+		ld	a,b			; новые атрибуты -> spr_new +1..+4
+		call	new_ptr
+		inc	hl
+		ex	de,hl
+		ld	hl,(sp_ap)
 		REPT	4
 		ld	a,(hl)
 		ld	(de),a
 		inc	hl
 		inc	de
 		ENDR
-		pop	hl
-		push	hl			; прямоугольник клеток: строки y/8 .. (y+15)/8 (до 23), столбцы X/8 .. +1/+2
+		ld	hl,(sp_ap)		; виден: Y + 1 < 192, цвет без EC и не 0
 		ld	a,(hl)
 		inc	a
-		ld	h,a
+		cp	192
+		jp	nc,spl_inv
+		ld	c,a			; C = Y + 1
+		inc	hl
+		inc	hl
+		inc	hl
+		ld	a,(hl)
+		and	0x80
+		jp	nz,spl_inv
+		ld	a,(hl)
+		and	0x0F
+		jp	z,spl_inv
+		ld	a,c			; +5..+8 (DE): строки y/8 .. (y+15)/8 (до 23), столбцы X/8 .. +1/+2
 		rrca
 		rrca
 		rrca
 		and	0x1F
 		ld	(de),a
 		inc	de
-		ld	a,h
+		ld	a,c
 		add	a,15
 		rrca
 		rrca
@@ -99,21 +109,20 @@ spl1v:		pop	hl
 		ld	a,23
 spl2:		ld	(de),a
 		inc	de
-		pop	hl
-		push	hl
+		ld	hl,(sp_ap)
 		inc	hl
 		ld	a,(hl)
-		ld	h,a
+		ld	c,a
 		rrca
 		rrca
 		rrca
 		and	0x1F
 		ld	(de),a
 		inc	de
-		ld	l,a
-		ld	a,h
+		ld	h,a
+		ld	a,c
 		and	7
-		ld	a,l
+		ld	a,h
 		jp	z,spl3
 		inc	a
 spl3:		inc	a
@@ -121,56 +130,31 @@ spl3:		inc	a
 		jp	c,spl3a
 		ld	a,31
 spl3a:		ld	(de),a
-		inc	de
-		pop	hl
-spl4:		ld	a,e			; DE — на +9: к следующей записи (+16)
-		add	a,7
-		ld	e,a
-		ld	a,d
-		adc	a,0
-		ld	d,a
+		ld	a,b
+		call	new_ptr
+		ld	(hl),1
+		jp	spl_n
+spl_inv:	ld	a,b
+		call	new_ptr
+		ld	(hl),0
+spl_n:		ld	a,(sp_end)
+		or	a
+		jp	nz,spl_n2
+		ld	hl,(sp_vp)
 		inc	hl
 		inc	hl
 		inc	hl
 		inc	hl
-		inc	b
+		ld	(sp_vp),hl
+spl_n2:		inc	b
 		ld	a,b
 		cp	SPR_MAX
 		jp	nz,spl0
-; метки: атрибуты не те или spr_force
-		ld	b,0
-spm0:		ld	a,b
-		call	new_ptr
-		ex	de,hl
-		ld	a,b
-		call	rec_ptr
-		push	hl
-		inc	hl
-		inc	de
-		ld	a,(spr_force)
-		ld	c,a
-		REPT	4
-		ld	a,(de)
-		xor	(hl)
-		or	c
-		ld	c,a
-		inc	hl
-		inc	de
-		ENDR
-		pop	hl
-		ld	de,13
-		add	hl,de
-		ld	a,c
-		or	a
-		jp	z,spm1
-		ld	a,1
-spm1:		ld	(hl),a
-		inc	b
-		ld	a,b
-		cp	SPR_MAX
-		jp	nz,spm0
 		xor	a
 		ld	(spr_force),a
+		jp	spl_done
+spl_z:		db	0xD0,0,0,0
+spl_done:
 ; под нарисованным неотмеченным изменились клетки — отметить (только если клетки вообще менялись)
 		ld	a,(dl_n)
 		ld	b,a

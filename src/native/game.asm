@@ -19,6 +19,9 @@ dl_cnt		equ	0x7FAA
 dl_k		equ	0x7FAB
 kb_req		equ	0x7FAC
 rs_mode		equ	0x7FAD
+sp_end		equ	0x7FAE
+sp_vp		equ	0x7FB0
+sp_ap		equ	0x7FB2
 GSTACK		equ	0x73C0			; стек игры (как у оригинала)
 ; переменные только нативной сборки — 7FA0-7FFF (за копией цветов; чистятся при загрузке)
 a4_n		equ	0x7FA0
