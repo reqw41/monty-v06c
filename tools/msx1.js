@@ -27,6 +27,7 @@ class MSX1 {
     this.psg = new Uint8Array(16); this.psgSel = 0; this.joy = 0x3f;
     this.t = 0; this.total = 0; this.frames = 0; this.irqs = 0;
     this.cov = null;                 // Set исполненных адресов команд, если включено
+    this.hooks = null;               // Map адрес -> JS-процедура (src/model): вместо Z80-кода, затем RET
     this.onRead = null; this.onWrite = null; this.onOut = null; this.onPsg = null;
     const self = this;
     this.cpu = new Z80({
@@ -151,6 +152,10 @@ class MSX1 {
       }
     }
     if (this.cov) this.cov.add(this.cpu.get_pc());
+    if (this.hooks) {
+      const h = this.hooks.get(this.cpu.get_pc());
+      if (h) { const c = h(this) || 40; this.t += c; this.total += c; if (this.t >= T_FRAME) { this.t -= T_FRAME; this.frames++; this.vstat |= 0x80; this.coopPend = true; } return c; }
+    }
     const c = this.cpu.run_instruction();
     this.t += c; this.total += c;
     if (this.t >= T_FRAME) { this.t -= T_FRAME; this.frames++; this.vstat |= 0x80; this.coopPend = true; }
