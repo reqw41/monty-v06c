@@ -29,13 +29,34 @@ for i, (k, a) in enumerate(items):
     if k == 'b':
         e = items[i + 1][1] if i + 1 < len(items) else HI + 1
         data.update(range(a, e))
-out = ['; создано tools/mknative.py — не править', '; данные картриджа: C_xxxx — адрес xxxx оригинала', '']
-eqs = []
+# блоки данных: непрерывные участки (как в разметке); берутся только нужные нативному коду — по меткам C_xxxx
+# в src/native/*.asm и, по цепочке, по словам-указателям внутри взятых блоков
+blocks = []
 a = LO
 while a <= HI:
     if a not in data: a += 1; continue
     b = a
     while b <= HI and b in data: b += 1
+    blocks.append((a, b)); a = b
+def blk_of(x):
+    for (a, b) in blocks:
+        if a <= x < b: return (a, b)
+import glob
+need = set()
+for f in glob.glob(os.path.join(ROOT, 'src/native/*.asm')):
+    for m in re.finditer(r'C_([0-9A-F]{4})', open(f).read()): need.add(int(m.group(1), 16))
+take, work = set(), [blk_of(x) for x in need if blk_of(x)]
+while work:
+    bk = work.pop()
+    if bk in take: continue
+    take.add(bk)
+    for p in range(bk[0], bk[1] - 1):
+        if p in ptr:
+            w = IMG[p] | IMG[p + 1] << 8
+            if w in data and blk_of(w) not in take: work.append(blk_of(w))
+out = ['; создано tools/mknative.py — не править', '; данные картриджа (нужные нативному коду): C_xxxx — адрес xxxx оригинала', '']
+eqs = []
+for (a, b) in sorted(take):
     out.append(f'blk_{a:04X}:')
     row = []
     def flush():
@@ -51,9 +72,9 @@ while a <= HI:
         row.append(f'0x{IMG[p]:02X}'); p += 1
         if len(row) == 16: flush()
     flush()
-    a = b
+data_kept = sum(b - a for a, b in take)
 open(os.path.join(ROOT, 'src/native/gen/cart.asm'), 'w').write('\n'.join(out + [''] + eqs) + '\n')
-print('данных картриджа', len(data), 'байт')
+print('данных картриджа', data_kept, 'из', len(data), 'байт,', len(take), 'блоков')
 
 # --- шаблоны из снимка VRAM ---
 V = open(os.path.join(ROOT, 'build/native/vram.bin'), 'rb').read()
@@ -66,8 +87,9 @@ for t in range(256): P.append('\t\tdb\t' + ','.join(f'0x{x:02X}' for x in V[8 * 
 P += ['; различия банков 1, 2, 5: anim_set[i] -> pdiff + 24 i (по 8 байт на банк)', 'anim_set:\tdb\t' + ','.join(f'0x{t:02X}' for t in ANIM) + ',0xFF', 'pdiff:']
 for t in ANIM:
     for b in BANKS[1:]: P.append('\t\tdb\t' + ','.join(f'0x{x:02X}' for x in V[b + 8 * t:b + 8 * t + 8]))
-P += ['; шаблоны спрайтов (VDP 3800): имя n — spat + 8n', 'spat:']
-for i in range(0, 0x800, 16): P.append('\t\tdb\t' + ','.join(f'0x{x:02X}' for x in V[0x3800 + i:0x3810 + i]))
 P += ['; начальные цвета групп', 'col0:\t\tdb\t' + ','.join(f'0x{x:02X}' for x in V[0x2000:0x2020])]
+S = ['; создано tools/mknative.py — не править', '; шаблоны спрайтов (VDP 3800) — прямо по рабочему адресу VSPR (часть образа)', '\t\tORG\tVSPR', 'spat:']
+for i in range(0, 0x800, 16): S.append('\t\tdb\t' + ','.join(f'0x{x:02X}' for x in V[0x3800 + i:0x3810 + i]))
+open(os.path.join(ROOT, 'src/native/gen/spat.asm'), 'w').write('\n'.join(S) + '\n')
 open(os.path.join(ROOT, 'src/native/gen/pats.asm'), 'w').write('\n'.join(P) + '\n')
 print('шаблоны: банк 0, различия', len(ANIM), 'тайлов, спрайты 2 КБ')

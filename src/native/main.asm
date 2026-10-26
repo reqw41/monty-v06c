@@ -64,14 +64,3 @@ procs:		dw	0x7073, proc_91E5
 		db	1
 		dw	0xFFFF
 
-; --- заглушки (будут модули) ---
-proc_91E5:
-proc_8F5F:
-proc_88D1:
-proc_A8D6:	ret
-snd_off:	ret
-frame_handler:
-		ld	hl,0x7207
-		dec	(hl)
-		ld	a,8
-		jp	sat_copy

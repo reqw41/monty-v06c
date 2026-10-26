@@ -13,7 +13,10 @@ DSKIP		equ	2			; вывод — раз в DSKIP шагов
 GSTACK		equ	0x73C0			; стек игры (как у оригинала)
 ; переменные только нативной сборки — 7FA0-7FFF (за копией цветов; чистятся при загрузке)
 a4_n		equ	0x7FA0
-a0_sp		equ	0x7FA2
+en_hl		equ	0x7FA2
+en_sp		equ	0x7FA4
+en_c		equ	0x7FA6
+en_b		equ	0x7FA7
 
 		ORG	0x0000
 		di
@@ -34,8 +37,12 @@ boot:
 		ld	bc,tabs_end-pvars
 		ld	e,0
 		call	memfill
-		ld	hl,0x7000		; ОЗУ игры и копии VRAM
-		ld	bc,0x1000
+		ld	hl,0x7000		; ОЗУ игры
+		ld	bc,0x0400
+		ld	e,0
+		call	memfill
+		ld	hl,VNT			; копии VRAM (шаблоны спрайтов VSPR 7400-7BFF — из образа)
+		ld	bc,0x0400
 		ld	e,0
 		call	memfill
 		ld	hl,0x8000		; экран и невидимая плоскость
@@ -77,10 +84,6 @@ pi1:		ld	a,(hl)
 pi2:		ld	hl,dstore
 		ld	de,pdiff
 		ld	bc,24*DMAX
-		call	copy_de_hl
-		ld	hl,VSPR
-		ld	de,spat
-		ld	bc,0x0800
 		jp	copy_de_hl
 ; copy_de_hl: (HL) <- (DE), BC байт
 copy_de_hl:	ld	a,(de)
@@ -221,8 +224,24 @@ ks0:		ld	a,b
 L_9156:		INCLUDE	"tiles.asm"
 L_AEA7:		INCLUDE	"block.asm"
 unit_trap:	jp	unit_trap		; возврат для tools/unit.js
+unit_fw:	push	af			; tools/unit.js: ожидание кадра = обработчик кадра (регистры сохраняются)
+		push	bc
+		push	de
+		push	hl
+		call	frame_handler
+		pop	hl
+		pop	de
+		pop	bc
+		pop	af
+		ret
 		INCLUDE	"level.asm"
 		INCLUDE	"drawroom.asm"
+		INCLUDE	"screen.asm"
+		INCLUDE	"sound.asm"
+		INCLUDE	"frame.asm"
+		INCLUDE	"enemy.asm"
+		INCLUDE	"collide.asm"
+		INCLUDE	"hero.asm"
 		INCLUDE	"main.asm"
 		INCLUDE	"../vec/display.asm"
 		INCLUDE	"../vec/sprites.asm"
@@ -233,5 +252,6 @@ unit_trap:	jp	unit_trap		; возврат для tools/unit.js
 		INCLUDE	"gen/cart.asm"
 		INCLUDE	"gen/pats.asm"
 		INCLUDE	"../vec/vars.asm"
+		INCLUDE	"gen/spat.asm"			; ORG VSPR — шаблоны спрайтов прямо в образе
 
-		SAVEBIN	"../../build/native/monty.bin", 0, 0x7000
+		SAVEBIN	"../../build/native/monty.bin", 0, VSPR+0x0800

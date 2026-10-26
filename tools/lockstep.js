@@ -78,6 +78,8 @@ function runVec() {
 const labs = Object.entries(sym).filter(([k]) => /^(L|D)_[0-9A-F]{4}$/.test(k)).map(([k, v]) => [parseInt(k.slice(2), 16), v]).sort((a, b) => a[0] - b[0]);
 function vaddr(x) {
   if (x < 0x800C || x > 0xBFFF) return -1;
+  const c = sym['C_' + x.toString(16).toUpperCase().padStart(4, '0')]; if (c !== undefined) return c;   // данные картриджа (C_xxxx)
+  if (sym.L_A067 !== undefined && sym.cart_end === undefined) return -1;   // нативная сборка: только C_xxxx
   let lo = 0, hi = labs.length - 1, r = -1;
   while (lo <= hi) { const mid = (lo + hi) >> 1; if (labs[mid][0] <= x) { r = mid; lo = mid + 1; } else hi = mid - 1; }
   return r < 0 ? -1 : labs[r][1] + (x - labs[r][0]);

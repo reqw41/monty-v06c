@@ -12,7 +12,7 @@ const Machine = require('../src/opt/machine');
 const E = require('./vec_emu');
 const [FN, LABEL, NC = '40', LV = '1', PLAN = ''] = process.argv.slice(2);
 const [MOD, NAME] = FN.split('.');
-const SKIP = (process.env.SKIP || '7380-73FF').split(',').map((r) => r.split('-').map((x) => parseInt(x, 16)));
+const SKIP = (process.env.SKIP || '7340-73FF').split(',').map((r) => r.split('-').map((x) => parseInt(x, 16)));
 const cart = (w) => (w >= 0x800C && w < 0xC000 ? sym['C_' + w.toString(16).toUpperCase().padStart(4, '0')] : undefined);
 const sym = {}; for (const l of fs.readFileSync('build/native/monty.sym', 'latin1').split('\n')) { const m = l.match(/^(\w+):\s+EQU\s+0x([0-9A-F]+)/i); if (m) sym[m[1]] = parseInt(m[2], 16); }
 if (sym[LABEL] === undefined) throw new Error('нет метки ' + LABEL);
@@ -28,7 +28,7 @@ let x = 7; const rnd = (n) => { x = (x * 1103515245 + 12345) & 0x7fffffff; retur
 const rooms = []; for (let r = 0; r < 9; r++) for (let c = 8 - r; c <= 10 + r; c++) rooms.push([r, c]);
 // --- перехват процедуры модели
 const mod = require('../src/model/' + MOD); const orig = mod[NAME]; const cases = [];
-const snapState = (m, r) => ({ mem: Uint8Array.from(m.mem), vram: Uint8Array.from(m.vram), vreg: Uint8Array.from(m.vreg), r: { a: r.a, b: r.b, c: r.c, d: r.d, e: r.e, h: r.h, l: r.l, zf: r.zf, cf: r.cf } });
+const snapState = (m, r) => ({ keys: new Set(g.keys), mem: Uint8Array.from(m.mem), vram: Uint8Array.from(m.vram), vreg: Uint8Array.from(m.vreg), r: { a: r.a, b: r.b, c: r.c, d: r.d, e: r.e, h: r.h, l: r.l, zf: r.zf, cf: r.cf } });
 let calls = 0; mod[NAME] = function (m, r) { calls++; if (cases.length >= +NC) return orig(m, r); const pre = snapState(m, r); const ret = orig(m, r); cases.push({ pre, post: snapState(m, r) }); return ret; };
 const main = require('../src/model/main');
 for (let t = 0; t < 40000 && cases.length < +NC; t++) {
@@ -54,6 +54,9 @@ for (let k = 0; k < cases.length; k++) {
   for (let i = 0; i < 768; i++) v.wr(sym.VNT + i, pre.vram[0x1800 + i]);
   for (let i = 0; i < 32; i++) v.wr(sym.VCOL + i, pre.vram[0x2000 + i]);
   for (let i = 0; i < 8; i++) v.wr(sym.vregs + i, pre.vreg[i]);
+  const kb = [0, 0, 0, 0, 0, 0, 0, 0];                          // клавиши модели -> матрица Вектора (kbmat)
+  for (const [k, row, bit] of [['left', 0, 0x10], ['up', 0, 0x20], ['right', 0, 0x40], ['down', 0, 0x80], ['space', 7, 0x80]]) if (pre.keys.has(k)) kb[row] |= bit;
+  for (let i = 0; i < 8; i++) v.wr(sym.kbmat + i, kb[i]);
   const R = v.cpu.regs; const r = pre.r; [R[0], R[1], R[2], R[3], R[4], R[5], R[7]] = [r.b, r.c, r.d, r.e, r.h, r.l, r.a];
   for (const [hi, lo] of [[0, 1], [2, 3], [4, 5]]) {          // адрес картриджа в паре — метка данных C_xxxx
     const w = R[hi] << 8 | R[lo], c = sym['C_' + w.toString(16).toUpperCase().padStart(4, '0')];
@@ -61,7 +64,7 @@ for (let k = 0; k < cases.length; k++) {
   }
   v.cpu.iff = false; v.cpu.sp = 0x73C0; v.cpu.sp -= 2; v.wr(v.cpu.sp, TRAP & 0xff); v.wr(v.cpu.sp + 1, TRAP >> 8); v.cpu.pc = sym[LABEL];
   let cyc = 0, n = 0;
-  while (v.cpu.pc !== TRAP && n < 5e6) { v.cpu.instruction(); cyc += v.cpu.vcycles || 0; n++; }
+  while (v.cpu.pc !== TRAP && n < 5e6) { if (v.cpu.pc === sym.frame_wait) v.cpu.pc = sym.unit_fw; v.cpu.instruction(); cyc += v.cpu.vcycles || 0; n++; }   // ожидание кадра — сразу обработчик
   if (n >= 5e6) { console.log(`случай ${k}: нет возврата (pc ${v.cpu.pc.toString(16)})`); bad++; continue; }
   maxCyc = Math.max(maxCyc, cyc); sumCyc += cyc;
   const d = [];
