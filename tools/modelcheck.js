@@ -16,6 +16,9 @@ if (process.env.RND) {                                     // случайный
   const keys = ['left', 'right', 'up', 'down', 'space'];
   for (let t = 200; t < N; t += 6 + rnd(25)) for (const k of keys) (plan[t] = plan[t] || []).push([k, rnd(3) === 0]);
 }
+for (const it of (process.env.SET || '').split(/\s+/).filter(Boolean)) {   // SET="тик:адрес=знач,адрес=знач"
+  const [t, kv] = it.split(':'); (plan[+t] = plan[+t] || []).push(['set', kv.split(',').map((x) => x.split('=').map((y) => parseInt(y, 16)))]);
+}
 const K = { space: 0x40, left: 0x44, up: 0x45, down: 0x46, right: 0x47 };
 const CHEAT = process.env.CHEAT === '1';
 function run(hooks) {
@@ -29,7 +32,7 @@ function run(hooks) {
       if (pc === 0xa59d && !st) { st = true; if (hooks) m.hooks = hooks; }   // подмены — с начала игры (меню Muffie зависит от времени)
       if (st && pc === 0xa5d1) {
         t++; if (CHEAT) m.mem[0x7049] = 6;
-        for (const [k, d, c] of plan[t] || []) if (k === 'tp') { m.mem[0x71a7] = d; m.mem[0x71a8] = c; m.mem[0x7079] = 9; } else m.key(K[k], d);
+        for (const [k, d, c] of plan[t] || []) if (k === 'set') { for (const [a, v] of d) m.mem[a] = v; } else if (k === 'tp') { m.mem[0x71a7] = d; m.mem[0x71a8] = c; m.mem[0x7079] = 9; } else m.key(K[k], d);
         out.push(Buffer.concat([Buffer.from(m.mem.subarray(0x7000, 0x7340)), Buffer.from(m.vram.subarray(0x1800, 0x1b80)), Buffer.from(m.vram.subarray(0x2000, 0x2020)), Buffer.from(m.psg.subarray(0, 11)), Buffer.from(m.mem.subarray(0x20f7, 0x20fb))]));
       }
       m.step();
