@@ -85,12 +85,13 @@ const D = module.exports = {
   },
   // A3D5: 2 тайла из набора A в клетку (71B0)
   A3D5(m, r) { r.hl = 0x9fd2 + r.a; r.b = 0; r.c = r.a; r.bc = 0x0102; r.de = rd16(m, 0x71b0); U.AEA7(m, r); },
+  // A3F1: открытая дверь набора A в клетке (71B0): 2x1 и 2x3 под ними
+  A3F1(m, r) { D.A3D5(m, r); r.hl = hl16(r.hl + 2); r.de = hl16(r.de + 0x20); r.b = 3; U.AA96(m, r); r.a = 2; },
   // A3AB: дверь
   A3AB(m, r) {
     RM.A514(m, r);
     if (r.cf) {                                  // открыта: 2x4 из набора + 2
-      D.A4E3(m, r); r.a = (rd(m, 0x719a) + 2) & 0xff;
-      D.A3D5(m, r); r.hl = hl16(r.hl + 2); r.de = hl16(r.de + 0x20); r.b = 3; U.AA96(m, r); r.a = 2; return;
+      D.A4E3(m, r); r.a = (rd(m, 0x719a) + 2) & 0xff; D.A3F1(m, r); return;
     }
     D.A4E3(m, r); D.A3A0(m, r);
     r.hl = 0x9fd2 + rd(m, 0x719a); r.bc = 0x0301; r.de = rd16(m, 0x71b0); U.AA96(m, r);

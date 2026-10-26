@@ -15,7 +15,10 @@ function bcd(a, b) {
   if (c || x > 0x99) { d |= 0x60; c = true; }
   return [(x + d) & 0xff, c];
 }
+// CPIR: поиск A с HL, BC байт -> r.hl, r.bc, r.zf как у Z80
+function cpir(m, r) { let f = false; do { f = rd(m, r.hl) === r.a; r.hl = hl16(r.hl + 1); r.bc = (r.bc - 1) & 0xffff; } while (r.bc && !f); r.zf = f ? 1 : 0; }
 const K = module.exports = {
+  cpir,
   // 840B: (HL) .. (HL + BC) := 0
   '840B'(m, r) { for (let i = 0; i <= r.bc; i++) wr(m, r.hl + i, 0); r.de = hl16(r.hl + r.bc + 1); r.hl = hl16(r.hl + r.bc); r.bc = 0; },
   // 9067/906D/9073: очки за событие 70BD := 50 / 100 / 3000 (BCD)
@@ -149,6 +152,61 @@ const K = module.exports = {
     Object.assign(r, sv); r.hl = sv.hl;
   },
   A587(m, r) { K.AF70(m, r); DR.AEFE(m, r); },
+  // A56C: предмет C в инвентарь (CF — полон); 44h (драгоценность) — не хранится, 1000 очков; иначе очки 70BD
+  A56C(m, r) {
+    let hl = 0x71b1; do hl++; while (rd(m, hl) !== 0xff);
+    if ((hl & 0xff) === 0xb7) { r.hl = hl; r.a = 0xb7; r.zf = 1; r.cf = 1; return; }
+    r.a = r.c;
+    if (r.c === 0x44) wr16(m, 0x70bd, 0x1000); else wr(m, hl, r.c);
+    r.hl = hl; DR.A548(m, r); r.hl = rd16(m, 0x70bd); K.A587(m, r); r.hl = hl; r.cf = 0;
+  },
+  // 901B: взять предмет A (место — остаток BC поиска): в инвентарь, звук 2, стереть 2x2 (набор 0B)
+  '901B'(m, r) {
+    const bc = r.bc; r.c = r.a; K.A56C(m, r);
+    if (r.cf) { r.bc = bc; return; }
+    r.a = 2; S.AC1A(m, r); U.A8B7(m, r); r.bc = bc; K['90A5'](m, r);
+    r.a = 0x0b; r.de = rd16(m, 0x71b0); DR.A378(m, r); z(m, r, 0x8ea8); U.A8C3(m, r); r.bc = bc;
+  },
+  // 8F5F (процесс): двери (ключ нужного цвета — открыть, 300 очков), огонь/лазеры — гибель (кроме факела?),
+  // предметы под героем (тайлы 9430 — ключи/меч/амулет..., 9418 — факел, драгоценности, меч, амулет)
+  '8F5F'(m, r) {
+    if (rd(m, 0x7079) === 9) { r.zf = 1; return; }
+    wr(m, 0x7011, rd(m, 0x7011) ^ 0x80);
+    K.h9156(m, r);
+    r.a = rd(m, 0x7057);
+    if (!(rd(m, 0x7078) & 0x80)) { wr(m, 0x71b0, rd(m, 0x71b0) + 2); r.a = rd(m, 0x7059); }
+    const door = { 0x9c: [0x70, 0x5d], 0xb7: [0x69, 0x58], 0xc7: [0x77, 0x62] }[r.a];
+    if (door) {
+      r.d = door[0]; r.a = door[1]; wr(m, 0x7084, r.d); K['908F'](m, r);
+      if (r.zf) {
+        K['909C'](m, r); wr16(m, 0x71b0, rd16(m, 0x71b0) - 0x60); K['90C8'](m, r);
+        r.a = rd(m, 0x7084); DR.A3F1(m, r); const a = r.a; r.a = 8; S.AC1A(m, r); r.a = a;
+        r.hl = 0x0300; K.A587(m, r); return;
+      }
+    }
+    K.h9156(m, r); wr(m, 0x71b0, rd(m, 0x71b0) + 1);
+    r.a = rd(m, 0x7058); r.bc = 8; r.hl = 0x9428; cpir(m, r);
+    if (r.zf) {
+      if (rd(m, 0x704a)) { r.a = rd(m, 0x704a); r.zf = 0; return; }
+      wr(m, 0x7000, rd(m, 0x7000) | 8); K['90A5'](m, r); wr(m, 0x7000, rd(m, 0x7000) & ~8);
+      r.hl = 0x7000; r.c = 0; r.e = 0; z(m, r, 0x8da2); return;
+    }
+    r.bc = 0x0c; r.hl = 0x9430; cpir(m, r);
+    if (r.zf) {
+      K['9067'](m, r); r.hl = hl16(r.hl - 1); const t = rd(m, r.hl) & 0xf8;
+      r.a = t === 0x78 ? 0x58 : t === 0x68 ? 0x5d : 0x62;
+      return K['901B'](m, r);
+    }
+    r.bc = 0x10; r.hl = 0x9418; cpir(m, r);
+    if (!r.zf) return;
+    r.a = r.c;
+    if (r.c < 4) { K['906D'](m, r); wr(m, 0x704a, 0xa0); r.a = 0x8c; }
+    else if (r.c < 8) { r.a = 0x44; K['9067'](m, r); }
+    else if (r.c < 0x0c) { K['9073'](m, r); r.a = 0x53; }
+    else { r.a = 0x91; K['9067'](m, r); }
+    K['901B'](m, r);
+  },
+  h9156(m, r) { require('./vram')['9156'](m, r); },
   // 9369: CF := герой смотрит вправо (7078 бит 7 = 0); A и прочие флаги сохраняются
   '9369'(m, r) { r.cf = !(rd(m, 0x7078) & 0x80); },
   // 92DC: кадр спрайта героя (7302 — имя, 7306 — второй слой) по состоянию 7079
