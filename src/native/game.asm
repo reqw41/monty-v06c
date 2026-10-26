@@ -313,4 +313,8 @@ ab_img		equ	0xF560			; банк нынешнего изображения (tslot
 		INCLUDE	"../vec/vars.asm"
 		INCLUDE	"gen/spat.asm"			; ORG VSPR — шаблоны спрайтов прямо в образе
 
+		IFDEF STRICT
+		SAVEBIN	"../../build/native_strict/monty.bin", 0, VSPR+0x0800
+		ELSE
 		SAVEBIN	"../../build/native/monty.bin", 0, VSPR+0x0800
+		ENDIF

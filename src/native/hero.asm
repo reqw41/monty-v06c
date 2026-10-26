@@ -327,12 +327,17 @@ h929b:		ld	a,(0x7057)
 		ld	a,(0x73EE)		; вверх у цепи (88 89) — 8B20, C := FC
 		and	1
 		jp	z,h929c
+		IFDEF	STRICT
 		ld	a,(0x7058)
 		cp	0x88
 		jp	nz,h929c
 		ld	a,(0x7059)
 		cp	0x89
 		jp	nz,h929c
+		ELSE
+		call	ld_up			; с допуском 4 точки по X (у оригинала — окно 8 точек)
+		jp	nz,h929c
+		ENDIF
 		call	L_8B20
 		ld	c,0xFC
 		jp	hs_8986
@@ -345,8 +350,14 @@ h929c:		ld	a,(0x73EE)		; вниз: на конвейере (10 11) — 897C; н�
 		ld	a,(0x705C)
 		cp	0x11
 		jp	z,hs_897C
-h929d:		cp	0xC4
+h929d:
+		IFDEF	STRICT
+		cp	0xC4
 		jp	nz,h929e
+		ELSE
+		call	ld_down
+		jp	nz,h929e
+		ENDIF
 		call	L_8B27
 		ld	a,(0x705F)
 		or	0x40
@@ -750,3 +761,56 @@ go1:		ld	a,1
 		di
 		ld	sp,0x0100
 		jp	boot
+
+		IFNDEF	STRICT
+; Допуск у лестниц (отступление от оригинала; сборка с -DSTRICT — как у MSX). Тайлы у героя 7057..7059 —
+; столбцы c - 1, c, c + 1 (c = (X + 1) / 8), 705A..705C — под ними. Лестница не в c, а рядом, и герой ближе
+; 4 точек к окну — X сдвигается на 8 в окно (дальше выравнивание оригинала). Z — можно.
+; ld_up: вверх — у оригинала 7058 = 88, 7059 = 89
+ld_up:		ld	a,(0x7058)
+		cp	0x88
+		jp	nz,ldu1
+		ld	a,(0x7059)
+		cp	0x89
+		ret
+ldu1:		cp	0x89			; 7057 = 88, 7058 = 89: правее окна
+		jp	nz,ld_ul
+		ld	a,(0x7057)
+		cp	0x88
+		ret	nz
+ld_r:		ld	a,(0x7301)		; правее: (X + 1) & 7 < 4 — X -= 8
+		inc	a
+		and	7
+		cp	4
+		jp	nc,ld_no
+		ld	a,0xF8
+		jp	ld_mv
+ld_l:		ld	a,(0x7301)		; левее: (X + 1) & 7 >= 4 — X += 8
+		inc	a
+		and	7
+		cp	4
+		jp	c,ld_no
+		ld	a,8
+ld_mv:		ld	hl,0x7301
+		add	a,(hl)
+		ld	(hl),a
+		ld	(0x7305),a
+		xor	a
+		ret
+ld_no:		or	1
+		ret
+ld_ul:		ld	a,(0x7059)		; 7059 = 88: левее окна
+		cp	0x88
+		ret	nz
+		jp	ld_l
+; ld_down: вниз — у оригинала 705B = C4 (A = 705B)
+ld_down:	cp	0xC4
+		ret	z
+		ld	a,(0x705A)
+		cp	0xC4
+		jp	z,ld_r
+		ld	a,(0x705C)
+		cp	0xC4
+		ret	nz
+		jp	ld_l
+		ENDIF
