@@ -511,8 +511,6 @@ fl_pm_ready:	ld	(fl_pm),a
 		or	a
 		jp	z,fl_begin
 		ld	a,(rr_t)
-		cp	0x38
-		jp	z,fl_fire_setup
 		cp	0xD0
 		jp	c,fl_begin
 fl_fire_setup:	ld	a,(fl_c)
@@ -1361,12 +1359,8 @@ fl_compile:	ld	a,(dc_pt)
 		ld	a,(rr_t)
 		ld	c,0xFF
 		cp	0xE8
-		jp	nz,fc_fire
-		ld	c,4
-		jp	fc_rows
-fc_fire:	cp	0x38
 		jp	nz,fc_upper
-		ld	c,0xFE
+		ld	c,4
 		jp	fc_rows
 fc_upper:	cp	0xD0
 		jp	c,fc_rows

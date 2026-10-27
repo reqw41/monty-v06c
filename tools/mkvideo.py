@@ -6,12 +6,14 @@ from pathlib import Path
 R = Path(__file__).resolve().parent.parent
 v = (R/'build/native/vram.bin').read_bytes()
 v0 = (R/'build/native/vram0.bin').read_bytes()
-a = [4,5,6,0x38,0xA0,0xA3,0xA4,0xA7,0xB8,0xB9,0xBA,0xD0,0xD1,0xD2,0xD3,0xD4,0xD5]
+a = [4,5,6,0xA0,0xA3,0xA4,0xA7,0xB8,0xB9,0xBA,0xD0,0xD1,0xD2,0xD3,0xD4,0xD5]
 strips = {}
 def ptr(b):
     if b not in strips: strips[b] = 'raw_%03d' % len(strips)
     return strips[b]
-base = [ptr(v0[t*8:t*8+8]) for t in range(256)]
+# Owner's ZX rule: the fire body is solid group background; only tongues animate.
+# Keep the tile number in VNT and game RAM: collision/danger logic is unchanged.
+base = [ptr(bytes(8) if t == 0x38 else v0[t*8:t*8+8]) for t in range(256)]
 frames = [ptr((v0 if f==0 else v)[b+t*8:b+t*8+8]) for t in a for f,b in enumerate([0,0x800,0x1000,0x2800])]
 out = ['; Создано tools/mkvideo.py; неизменяемые полосы (дедупликация по 8 байт).',
        'anim_set: db '+','.join(map(str,a))+',255',

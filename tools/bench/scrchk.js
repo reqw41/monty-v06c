@@ -11,7 +11,7 @@ const ROOMS = []; for (let r = 0; r < 9; r++) for (let c = 8 - r; c <= 10 + r; c
 const SPRMAX = 6, REC = sym.spr_rec;
 let steps = 0, fc = 0, checks = 0, bad = 0, skip = 0, justCritical = false; const ex = [];
 const keys = (s) => { K(7, 0x80, (s >= 20 && s < 30) || (s > 200 && s % 37 < 4)); const ph = s < 100 ? -1 : Math.floor((s - 100) / 70) % 4; K(0, 0x40, ph === 0); K(0, 0x10, ph === 2); K(0, 0x20, ph === 1 && s % 50 < 20); K(0, 0x80, ph === 3 && s % 50 < 20); };
-const isFire = (t) => t === 0x38 || (t >= 0xD0 && t <= 0xD5);
+const isFire = (t) => t >= 0xD0 && t <= 0xD5;
 function cellBytes(t, f) {
   const pat = REF.pattern(t, f, m.rd(sym.belt_shown)), md = REF.modes(m, sym, t), o = [];
   for (let p = 0; p < 3; p++) { const mode = (md >> (4 - 2*p)) & 3;

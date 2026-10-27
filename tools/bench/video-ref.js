@@ -5,8 +5,10 @@ const root = path.resolve(__dirname, '../..');
 const v0 = fs.readFileSync(path.join(root, 'build/native/vram0.bin'));
 const v = fs.readFileSync(path.join(root, 'build/native/vram.bin'));
 const cart = fs.readFileSync(path.join(root, 'build/monty_entry.bin'));
-const animated = new Set([4,5,6,0x38,0xA0,0xA3,0xA4,0xA7,0xB8,0xB9,0xBA,0xD0,0xD1,0xD2,0xD3,0xD4,0xD5]);
+const animated = new Set([4,5,6,0xA0,0xA3,0xA4,0xA7,0xB8,0xB9,0xBA,0xD0,0xD1,0xD2,0xD3,0xD4,0xD5]);
+const fireBody = new Uint8Array(8);
 function pattern(t, frame, belt) {
+  if (t === 0x38) return fireBody; // Static solid group background, as in ZX.
   if (t === 0xE0) return cart.subarray(0x85BC + 2*belt, 0x85BC + 2*belt + 8);
   if (t === 0xE8) return cart.subarray(0x85CA + 8*(belt&1), 0x85CA + 8*(belt&1) + 8);
   const bank = animated.has(t) ? [0,0x800,0x1000,0x2800][frame] : 0;

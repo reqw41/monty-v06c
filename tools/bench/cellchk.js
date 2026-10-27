@@ -15,7 +15,7 @@ function check() {
   const th = m.rd(sym.fire_shown); checks++;
   for (let r = 0; r < 24; r++) for (let c = 0; c < 32; c++) {
     if (sp.some(([r0, r1, c0, c1]) => r >= r0 && r <= r1 && c >= c0 && c <= c1)) continue;
-    const t = m.rd(sym.VNT + r * 32 + c); if (process.env.NOFIRE && m.rd(sym.lv_idx + t) !== 0xFF && REF.animated.has(t)) continue; if (process.env.SKIPF && (t === 0x38 || t >= 0xD0 && t <= 0xD5)) continue; if (process.env.LIVEONLY && m.rd(sym.lv_idx + t) === 0xFF) continue; let pat = REF.pattern(t, th, m.rd(sym.belt_shown)); const anim = REF.animated.has(t);
+    const t = m.rd(sym.VNT + r * 32 + c); if (process.env.NOFIRE && m.rd(sym.lv_idx + t) !== 0xFF && REF.animated.has(t)) continue; if (process.env.SKIPF && (t >= 0xD0 && t <= 0xD5)) continue; if (process.env.LIVEONLY && m.rd(sym.lv_idx + t) === 0xFF) continue; let pat = REF.pattern(t, th, m.rd(sym.belt_shown)); const anim = REF.animated.has(t);
     const md = REF.modes(m, sym, t);
     if (process.env.FANY && anim) { let okf = false; for (let f = 0; f < 4 && !okf; f++) { const fp = REF.pattern(t, f, m.rd(sym.belt_shown)); let g = true;
         for (let p = 0; p < 3 && g; p++) { const mode = (md >> (4 - 2 * p)) & 3; for (let y = 0; y < 8; y++) { const pix = fp[y]; if (m.rd(0x8000 + 0x2000 * p + c * 256 + 0xDF - 8 * r - y) !== [0, pix, pix ^ 0xFF, 0xFF][mode]) { g = false; break; } } } okf = g; }

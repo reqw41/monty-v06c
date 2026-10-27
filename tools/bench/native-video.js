@@ -15,6 +15,17 @@ const room=(process.env.ROOM||'1,9').split(',').map(Number);
 const lastEnemy=process.env.ROOM==='5,7'||process.env.ROOM==='7,3'?5:4;
 let steps = 0, ready = false, bad = 0, frame0 = 0, fires = 0, belts = 0, lastPC = 0;
 function checkMasks() {
+  if (REF.animated.has(0x38) === false) {
+    if (m.rd(sym.lv_idx+0x38)!==255) throw Error('Статичный 38 попал в живые клетки');
+    const p=m.rd(sym.raw_base+0x70)|(m.rd(sym.raw_base+0x71)<<8);
+    for(let y=0;y<8;y++) if(m.rd(p+y)) throw Error('Шаблон тела огня не 00');
+    for(let i=0;m.rd(sym.anim_set+i)!==255;i++)
+      if(m.rd(sym.anim_set+i)===0x38) throw Error('38 остался в anim_set');
+    for(let i=0;i<16;i++) {
+      let p=m.rd(sym.fire_transitions+2*i)|(m.rd(sym.fire_transitions+2*i+1)<<8);
+      for(;m.rd(p)!==255;p++) if(m.rd(p)===0x38) throw Error('38 остался в переходах огня');
+    }
+  }
   if (sym.joe_load !== undefined) {
     const mutable = new Set([sym.jm_alpha,sym.jm_bits+1,sym.jm_end+1,
       sym.jb_call+1,sym.jb_call+2,sym.jr_ac+1,sym.jr_mc+1,sym.jr_oc+1]);

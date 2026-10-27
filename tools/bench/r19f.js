@@ -21,3 +21,4 @@ m.onInstr=pc=>{
 for(let f=0;!done;f++){if(f===10)m.keyboard.matrix[2]|=2;if(f===100)m.keyboard.matrix[2]&=~2;m.frame();}
 const totals={};for(const z of c.stats.values()){const q=totals[z.name]||(totals[z.name]={cycles:0,count:0,max:0});q.cycles+=z.cycles;q.count+=z.count;q.max=Math.max(q.max,z.max);}
 for(const name of names){const q=totals[name];if(q)console.log(name,'вызовов',q.count,'тактов/вызов',Math.round(q.cycles/q.count),'тактов/шаг',Math.round(q.cycles/400),...(process.env.DETAIL?['максимум',q.max]:[]));}
+if(process.env.SITES==='1') for(const q of c.stats.values()) console.log(q.name,'возврат',near(q.ra),q.ra.toString(16),'вызовов',q.count,'тактов/вызов',Math.round(q.cycles/q.count),'тактов/шаг',Math.round(q.cycles/400),'максимум',q.max);
