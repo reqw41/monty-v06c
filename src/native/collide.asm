@@ -406,7 +406,11 @@ p8f2:		call	L_9156			; огонь/лазер под героем (9428)
 		ld	c,0
 		ld	e,0
 		jp	L_8DA2
-p8f3:		ld	hl,C_9430		; ключи (9430)
+p8f3:
+		IFNDEF	STRICT
+		call	it_pick			; допуск: в средней колонке предмета нет — соседняя (71B0 +- 1)
+		ENDIF
+		ld	hl,C_9430		; ключи (9430)
 		ld	bc,0x0C
 		call	cpir
 		jp	nz,p8f4
@@ -621,3 +625,47 @@ p92w1:		ld	hl,C_9380
 		jp	nc,L_9305
 		ld	hl,C_9378
 		jp	L_9305
+
+		IFNDEF	STRICT
+; Допуск у предметов (отступление от оригинала; -DSTRICT — как у MSX): предмет 2 x 2 клетки берётся, когда
+; клетка предмета — в средней колонке у героя (7058); здесь — и в соседних (7057, 7059): клетка 71B0 — она же,
+; дальше — как у оригинала (угол предмета — по тайлу). A — тайл на входе и выходе
+it_pick:	call	it_is
+		ret	z
+		ld	a,(0x7057)
+		call	it_is
+		jp	z,itp_l
+		ld	a,(0x7059)		; предмет правее: только если Джо заходит на него хотя бы на 4 точки
+		call	it_is
+		jp	nz,itp_n
+		ld	a,(0x7301)
+		inc	a
+		and	7
+		cp	4
+		jp	nc,itp_r
+itp_n:		ld	a,(0x7058)
+		ret
+itp_l:		ld	hl,(0x71B0)
+		dec	hl
+		ld	(0x71B0),hl
+		ld	a,(0x7057)
+		ret
+itp_r:		ld	hl,(0x71B0)
+		inc	hl
+		ld	(0x71B0),hl
+		ld	a,(0x7059)
+		ret
+; it_is: Z — тайл A — клетка предмета (9430 — ключи, 9418 — прочие); A сохраняется
+it_is:		push	hl
+		push	bc
+		ld	hl,C_9430
+		ld	bc,0x0C
+		call	cpir
+		jp	z,iti_x
+		ld	hl,C_9418
+		ld	bc,0x10
+		call	cpir
+iti_x:		pop	bc
+		pop	hl
+		ret
+		ENDIF

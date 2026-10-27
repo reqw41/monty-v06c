@@ -137,7 +137,49 @@ nf1:		ld	a,b
 nf2:		inc	de
 		dec	bc
 		jp	nf1
-nf3:		ld	a,(nf_val)		; HL -> клетка, BC клеток (не дальше конца таблицы)
+nf3:		push	hl			; BC := min(BC, конец таблицы - HL)
+		ld	a,(VNT+768)&0xFF
+		sub	l
+		ld	e,a
+		ld	a,(VNT+768)/256
+		sbc	a,h
+		ld	d,a			; DE = до конца
+		ld	a,e
+		sub	c
+		ld	a,d
+		sbc	a,b
+		jp	nc,nf3b
+		ld	b,d
+		ld	c,e
+nf3b:		pop	hl
+		ld	a,c			; через стек — часть, кратная 16
+		and	0xF0
+		ld	e,a
+		ld	a,b
+		or	e
+		jp	z,nf3a
+		push	bc
+		push	hl
+		ld	c,e
+		ld	a,(nf_val)
+		ld	e,a
+		call	memfill_f
+		pop	hl
+		pop	bc
+		ld	a,c			; HL += сделанное, BC := остаток (< 16)
+		and	0xF0
+		add	a,l
+		ld	l,a
+		ld	a,h
+		adc	a,b
+		ld	h,a
+		ld	a,c
+		and	0x0F
+		ld	c,a
+		ld	b,0
+		or	a
+		jp	z,nf9
+nf3a:		ld	a,(nf_val)		; HL -> клетка, BC клеток (не дальше конца таблицы)
 nf4:		ld	(hl),a
 		inc	hl
 		dec	bc

@@ -391,6 +391,8 @@ ps_c2:		ds	1
 ps_m:		ds	1
 mb_d:		ds	16			; modes_build: вклад индекса как точек / как фона
 mb_e:		ds	16
+mf_v:		ds	1			; memfill_f
+mf_sp:		ds	2
 da_buf:		ds	24			; draw_all: образ клетки (плоскости 8000, A000, C000 по 8 байт)
 ps_heap:					; дальше до 7000 — место готовых сдвигов
 		ASSERT	ps_heap < 0x7000 - 0x400

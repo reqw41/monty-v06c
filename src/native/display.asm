@@ -101,7 +101,7 @@ dp2:		ld	a,(vdirty)
 		ld	hl,pat_flag
 		ld	bc,256
 		ld	e,0
-		call	memfill
+		call	memfill_f
 dp3:		ld	a,(vdirty)
 		and	VD_COL
 		jp	z,dp4
@@ -274,7 +274,7 @@ room_redraw:
 		ld	hl,col_flag
 		ld	bc,256
 		ld	e,0
-		call	memfill
+		call	memfill_f
 		call	bank_hi			; кадр анимации
 		ld	(tile_hi),a
 		call	pal_build
@@ -848,7 +848,7 @@ dal0:		ld	(hl),0
 		ld	hl,PND
 		ld	bc,768
 		ld	e,0
-		call	memfill
+		call	memfill_f
 		ld	a,0xFF
 		ld	(da_t),a
 		ld	de,VNT			; DE — клетка карты, HL — экран (столбец 0, верх строки 0)
@@ -971,7 +971,7 @@ force_all:
 		ld	hl,PND
 		ld	bc,768
 		ld	e,1
-		call	memfill
+		call	memfill_f
 		ld	a,1			; список — переполнен: вывод по строкам
 		ld	(dl_ovf),a
 		ld	hl,row_dirty
@@ -1057,7 +1057,7 @@ cgc2:
 		ld	hl,col_flag
 		ld	bc,256
 		ld	e,0
-		jp	memfill
+		jp	memfill_f
 
 ; draw_list: клетки из списка, ждущие вывода (PND), — на экран; при dr_ex клетки под прежними местами
 ; перерисовываемых спрайтов откладываются (остаются в списке). Список переполнен — по строкам (draw_rows)

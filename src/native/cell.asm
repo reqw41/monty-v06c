@@ -156,3 +156,55 @@ dc_draw:	ld	a,c
 		ret	nz
 		ei
 		ret
+
+; memfill_f: HL = начало, BC = число байт (кратно 16, не меньше 16), E = байт — через стек по 16 байт (~10 тактов
+; на байт против ~70 у memfill). Прерывания на время запрещены, после — разрешены (только там, где разрешены и так)
+memfill_f:	ld	a,e
+		ld	(mf_v),a
+		add	hl,bc			; HL = конец (стек пишет вниз)
+		ld	a,c			; BC := BC / 16 — блоков
+		rrca
+		rrca
+		rrca
+		rrca
+		and	0x0F
+		ld	c,a
+		ld	a,b
+		rlca
+		rlca
+		rlca
+		rlca
+		and	0xF0
+		or	c
+		ld	c,a
+		ld	a,b
+		rrca
+		rrca
+		rrca
+		rrca
+		and	0x0F
+		ld	b,a
+		di
+		ex	de,hl
+		ld	hl,0
+		add	hl,sp
+		ld	(mf_sp),hl
+		ex	de,hl
+		ld	sp,hl
+		ld	a,(mf_v)
+		ld	h,a
+		ld	l,a
+mfl:		REPT	8
+		push	hl
+		ENDR
+		dec	bc
+		ld	a,b
+		or	c
+		jp	nz,mfl
+		ld	hl,(mf_sp)
+		ld	sp,hl
+		ld	a,(in_isr)
+		or	a
+		ret	nz
+		ei
+		ret
