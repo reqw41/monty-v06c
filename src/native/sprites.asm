@@ -1163,15 +1163,11 @@ spp2:		ld	(so_mofs+1),a
 		ld	a,l
 		add	a,4
 		ld	l,a
-		ld	c,2			; плоскости: враг (sp_sp = 2) — 8000 (OR); иначе по индексу: без бита 2 — A000,
-		ld	a,(sp_sp)		; C000, иначе три
+		ld	c,2			; плоскости: враг (sp_sp = 2) — 8000 (OR); Джо — три (8000 под ним гасится)
+		ld	a,(sp_sp)
 		cp	c
 		jp	z,spp1
-		ld	a,(hl)
 		ld	c,0
-		and	4
-		jp	nz,spp1
-		ld	c,3
 spp1:		ld	a,c
 		ld	(sp_pm),a
 		ld	a,(hl)			; цвет: бит 2 индекса -> бит 7 (плоскости 80, A0, C0)
