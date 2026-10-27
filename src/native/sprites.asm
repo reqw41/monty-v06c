@@ -222,16 +222,33 @@ spd9:		ld	a,l
 spx0:		call	spn_cnt			; никто не отмечен — нечего замыкать
 		ret	z
 		call	ub_build
-spx0a:		xor	a
-		ld	(spx_ch),a
+spx0a:		ld	de,ml			; ml := отмеченные (номера)
+		ld	hl,spr_rec+13
 		ld	b,0
-spx1:		ld	a,b
-		call	rec_ptr
-		ld	a,(hl)
+sm0:		ld	a,(hl)
+		or	a
+		jp	z,sm1
+		ld	a,b
+		ld	(de),a
+		inc	e
+sm1:		ld	a,l
+		add	a,16
+		ld	l,a
+		inc	b
+		ld	a,b
+		cp	SPR_MAX
+		jp	nz,sm0
+		ld	a,e
+		sub	ml&0xFF
+		ld	(ml_n),a
+		xor	a
+		ld	(spx_ch),a
+		ld	hl,spr_rec
+spx1:		ld	a,(hl)			; нарисован и не отмечен
 		or	a
 		jp	z,spx8
 		ld	a,l
-		add	a,13
+		or	13
 		ld	l,a
 		ld	a,(hl)
 		or	a
@@ -248,40 +265,39 @@ spx1:		ld	a,b
 		inc	l
 		ld	a,(hl)
 		ld	(ub_c1),a
-		push	bc
-		ld	b,0			; j
-spx2:		ld	a,b			; отмечен? (+13)
-		add	a,a
-		add	a,a
-		add	a,a
-		add	a,a
-		add	a,13
-		ld	l,a
-		ld	h,spr_rec/256
-		ld	a,(hl)
-		or	a
-		jp	z,spx7
-		ld	a,b
+		ld	a,(ml_n)
+		ld	b,a
+		ld	hl,ml
+spx2:		ld	a,(hl)			; рамка отмеченного j пересекает?
+		push	hl
 		call	ub_hit
+		pop	hl
 		jp	c,spx_m
-spx7:		inc	b
-		ld	a,b
-		cp	SPR_MAX
+		inc	l
+		dec	b
 		jp	nz,spx2
-		pop	bc
-		jp	spx8
-spx_m:		pop	bc
 		ld	hl,(spx_a)
+		jp	spx8
+spx_m:		ld	hl,(spx_a)
 		ld	(hl),1
 		ld	a,1
 		ld	(spx_ch),a
-		ld	a,b
+		ld	a,l
+		rrca
+		rrca
+		rrca
+		rrca
+		and	7
+		push	hl
 		call	ub_one
-spx8:		inc	b
-		ld	a,b
-		cp	SPR_MAX
+		pop	hl
+spx8:		ld	a,l
+		and	0xF0
+		add	a,16
+		ld	l,a
+		cp	16*SPR_MAX
 		jp	nz,spx1
-		ld	a,(spx_ch)
+		ld	a,(spx_ch)		; отмечались — ещё круг
 		or	a
 		jp	nz,spx0a
 		jp	spn_cnt
@@ -938,15 +954,14 @@ draw1:		push	bc
 		or	a
 		jp	z,sd8
 		ld	(hl),0			; не нарисован
-		inc	hl
-		inc	de
-		ld	b,8			; атрибуты и прямоугольник
-sd3:		ld	a,(de)
+		inc	l
+		inc	e
+		REPT	8			; атрибуты и прямоугольник (одна страница)
+		ld	a,(de)
 		ld	(hl),a
-		inc	hl
-		inc	de
-		dec	b
-		jp	nz,sd3
+		inc	l
+		inc	e
+		ENDR
 		ex	de,hl			; HL = новая +9
 		ld	a,l
 		add	a,5
