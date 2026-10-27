@@ -1,4 +1,4 @@
-// Клетки экрана против исходной графики MSX по VNT, fire_shown и room_colors; клетки под
+// Клетки против графики MSX (38 — статичный фон ZX) по VNT, fire_shown и room_colors; клетки под
 // нарисованными спрайтами (spr_rec +5..+8) и ещё не выведенные (в dlist) — пропуск. node cellchk.js dir [шагов] [TP]
 const REF = require('./video-ref');
 const fs = require('fs'); process.chdir(require('path').resolve(__dirname, '../..'));

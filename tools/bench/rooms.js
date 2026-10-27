@@ -9,6 +9,9 @@ const samples = +(process.env.N || 128), warmup = +(process.env.WARM || 64);
 const free = process.env.FREE === '1', hiddenJoe = process.env.HIDE_JOE === '1';
 if (samples < 1 || warmup < 1) throw Error('N and WARM must be positive');
 const rows = [];
+function save(complete) {
+  if(process.env.OUT) fs.writeFileSync(process.env.OUT,JSON.stringify({build:B,samples,warmup,free,hiddenJoe,complete,rows},null,2)+'\n');
+}
 for (const lv of process.env.LV ? [+process.env.LV] : [1,2,3]) {
   const m = E.mk(B + '/monty.bin'), p = profiler(m,s);
   const rooms = []; for (let r=0;r<9;r++) for(let c=8-r;c<=10+r;c++) rooms.push([r,c]);
@@ -45,6 +48,7 @@ for (const lv of process.env.LV ? [+process.env.LV] : [1,2,3]) {
       const t={};for(const k of ['L','D','I','W']) t[k]=(p.totals[k]-start[k])/samples;
       const row={level:lv,row:r,col:c,steps:samples,frames:m.frames-frames,sps:50*samples/(m.frames-frames),logic:t.L,display:t.D,irq:t.I,idle:t.W,histogram:hist};rows.push(row);
       console.log(`${lv} ${r},${c} ${row.sps.toFixed(2)} logic=${Math.round(t.L)} display=${Math.round(t.D)} irq=${Math.round(t.I)} idle=${Math.round(t.W)}`);
+      save(false);
       teleport();
     }
   };
@@ -56,4 +60,4 @@ for (const lv of process.env.LV ? [+process.env.LV] : [1,2,3]) {
   }
 }
 console.log('Slowest logic:',rows.slice().sort((a,b)=>b.logic-a.logic).slice(0,15));
-if(process.env.OUT) fs.writeFileSync(process.env.OUT,JSON.stringify({build:B,samples,warmup,free,hiddenJoe,rows},null,2)+'\n');
+save(true);
