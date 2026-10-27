@@ -109,7 +109,7 @@ bclr:		REPT	64
 		ld	sp,0x0100
 		call	vi_off			; ВИ53 молчит, каналы SN — тоже (TURN_OFF_SOUND оригинала)
 		call	snd_off
-		call	rot_init
+		call	mask_keys_init
 		call	trim_build
 		call	ps_build		; готовые сдвиги кадров врагов
 		ld	a,16

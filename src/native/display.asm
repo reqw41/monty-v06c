@@ -435,6 +435,22 @@ lb5:		ld	e,(hl)
 		ld	d,live_hi/256
 		ld	a,h
 		ld	(de),a
+		push	bc
+		ld	a,l
+		and	0xE0
+		rrca
+		rrca
+		ld	b,a
+		ld	a,h
+		rrca
+		rrca
+		and	0xC0
+		or	b
+		cpl
+		add	a,0xE0
+		ld	d,live_scr_lo/256
+		ld	(de),a
+		pop	bc
 lb6:		pop	hl
 lb7:		inc	hl
 		ld	a,h
@@ -580,23 +596,14 @@ fl_cover:	and	0x7E
 		or	a
 		jp	nz,flt5
 		ld	(hl),0			; выведена
-flt9:		ld	a,e			; HL = экран: L = 0DFh - 8 * строка, 8 * строка = 40h * (D - VNT/256) + (E & E0h) / 4,
-		and	0xE0			; H = 80h + столбец
-		rrca
-		rrca
-		ld	b,a
-		ld	a,d
-		rrca
-		rrca
-		and	0xC0
-		or	b
-		cpl
-		add	a,0xE0
-		ld	l,a
+flt9:		ld	l,c
+		ld	h,live_scr_lo/256
+		ld	b,(hl)
 		ld	a,e
 		and	31
 fl_hbase:	add	a,0x80
 		ld	h,a
+		ld	l,b
 		ex	de,hl
 		ld	hl,(tile_src)
 		ex	de,hl
@@ -704,10 +711,39 @@ fl_sel_dual:	ld	hl,fl_dual_same
 		jp	z,fl_sel_done
 		ld	hl,fl_dual_inv
 		jp	fl_sel_done
-fl_sel_slow:	ld	hl,fl_slow
+fl_sel_slow:	ld	a,(fl_pm)
+		cp	0x80
+		jp	z,fl_sel_one
+		ld	b,8
+		ld	c,0xA0
+		cp	0x20
+		jp	z,fl_one_offset
+		ld	b,16
+		ld	c,0xC0
+		cp	8
+		jp	nz,fl_sel_generic
+fl_one_offset:	ld	a,c
+		ld	(fl_hbase+1),a
+		ld	hl,(tile_src)
+		ld	d,0
+		ld	e,b
+		add	hl,de
+		ld	(tile_src),hl
+fl_sel_one:	ld	hl,fl_fast1
+		jp	fl_sel_done
+fl_sel_generic:	ld	hl,fl_slow
 fl_sel_done:	ld	(fl_write+1),hl
 		pop	af
 		ret
+
+fl_fast1:
+		REPT	8
+		ld	a,(de)
+		ld	(hl),a
+		inc	de
+		dec	l
+		ENDR
+		jp	flp3
 
 fl_fast3:
 		REPT	3
@@ -1010,10 +1046,14 @@ cg_phase_ready:	ld	a,(video_dirty)
 		call	force_live_t
 		jp	cgc2
 cgc1:		call	force_tiles
-cgc2:
-		ld	hl,tile_changed
+cgc2:		ld	hl,tile_changed
 		ld	bc,256
-		ld	e,0
+		ld	a,(other_colors)
+		or	a
+		jp	nz,cgc_clear
+		ld	hl,tile_changed+0xE0
+		ld	bc,16
+cgc_clear:	ld	e,0
 		jp	memfill_f
 
  ; При общей смене цвета/кадра нужны только плоскости нового узора и нового цвета.

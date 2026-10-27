@@ -9,7 +9,7 @@ const sym = {}; for (const l of fs.readFileSync(dir + '/monty.sym', 'latin1').sp
 const m = E.mk(dir + '/monty.bin'); const K = (r, b, d) => { if (d) m.keyboard.matrix[r] |= b; else m.keyboard.matrix[r] &= ~b; };
 const ROOMS = []; for (let r = 0; r < 9; r++) for (let c = 8 - r; c <= 10 + r; c++) ROOMS.push([r, c]);
 const SPRMAX = 6, REC = sym.spr_rec;
-let steps = 0, fc = 0, checks = 0, bad = 0, skip = 0; const ex = [];
+let steps = 0, fc = 0, checks = 0, bad = 0, skip = 0, justCritical = false; const ex = [];
 const keys = (s) => { K(7, 0x80, (s >= 20 && s < 30) || (s > 200 && s % 37 < 4)); const ph = s < 100 ? -1 : Math.floor((s - 100) / 70) % 4; K(0, 0x40, ph === 0); K(0, 0x10, ph === 2); K(0, 0x20, ph === 1 && s % 50 < 20); K(0, 0x80, ph === 3 && s % 50 < 20); };
 const isFire = (t) => t === 0x38 || (t >= 0xD0 && t <= 0xD5);
 function cellBytes(t, f) {
@@ -19,7 +19,10 @@ function cellBytes(t, f) {
   return o;
 }
 function check() {
-  if (m.rd(sym.dl_n) || m.rd(sym.dl_ovf) || (m.rd(sym.video_dirty) & (sym.DIRTY_ROOM | sym.DIRTY_COLOR)) || m.rd(sym.crit_pend) || m.rd(sym.lv_dirty)) { skip++; return; }
+  // IRQ может попасть между записью карты/цвета и её уведомлением; сравниваем завершённые изменения.
+  if (sym.video_edit !== undefined && m.rd(sym.video_edit)) { skip++; return; }
+  if ((m.rd(sym.dl_n) || m.rd(sym.dl_ovf)) && Array.from({length:768}, (_,i)=>m.rd(sym.PND+i)&1).some(Boolean)) { skip++; return; }
+  if ((m.rd(sym.video_dirty) & (sym.DIRTY_ROOM | sym.DIRTY_COLOR)) || m.rd(sym.crit_pend) || m.rd(sym.lv_dirty)) { skip++; return; }
   if (!m.rd(sym.video_enabled)) { skip++; return; }
   // фон: 3 плоскости x 256 x 256 (строки экрана 0..191 сверху: адрес 0xFF - y... как у клетки: 0xDF - 8r - y)
   const scr = [new Uint8Array(8192), new Uint8Array(8192), new Uint8Array(8192)], fire = new Uint8Array(768); const th = m.rd(sym.fire_shown);
@@ -45,8 +48,11 @@ function check() {
   if (nb) bad++;
 }
 m.onInstr = (pc) => {
+  if (pc === sym.crit) justCritical = true;
+  // Меню до первого шага содержит прямой текст вне VNT; исходный стенд начинал проверку с L_A5D1.
+  if (pc === sym.isr0 && justCritical) { justCritical = false; if (steps) check(); }
   if (MODE === 'r19' && pc === sym.L_8DA2 && steps > 60) { const c = m.cpu; c.pc = m.rd(c.sp) | (m.rd(c.sp + 1) << 8); c.sp += 2; return; }
-  if (pc === sym.L_A5D1) { steps++; keys(steps); m.wr(0x7049, 6); check();
+  if (pc === sym.L_A5D1) { if (sym.video_edit !== undefined && m.rd(sym.video_edit)) throw new Error('Изменение карты/цветов не завершилось к шагу логики'); steps++; keys(steps); m.wr(0x7049, 6); check();
     if (MODE === 'r19') { m.wr(0x707C, m.rd(0x7300)); if (steps === 50) { m.wr(0x705F, m.rd(0x705F) & ~4); m.wr(0x71A7, 1); m.wr(0x71A8, 9); m.wr(0x7079, 9); } }
     if (MODE === 'tp' && steps >= 300 && steps % 60 === 0) { const [r, c] = ROOMS[(steps / 60 - 5) % ROOMS.length]; m.wr(0x71A7, r); m.wr(0x71A8, c); m.wr(0x7079, 9); } } };
 while (steps < N) { if (fc === 10) K(2, 2, 1); if (fc === 100) K(2, 2, 0); fc++; m.frame(); }

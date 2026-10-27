@@ -12,3 +12,5 @@ live_list equ 0xFF00
 ISR_STACK equ 0x7F80
 DISP_STACK equ 0xF900
 SPR_SLOTS equ 0xF900
+
+live_scr_lo equ 0xF500

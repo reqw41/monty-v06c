@@ -7,6 +7,7 @@ nmi_pend:	ds	1
 video_dirty:		ds	1
 nt_age:		ds	1
 video_enabled:	ds	1
+video_edit:	ds	1
 fire_frame:	ds	1
 belt_frame:	ds	1
 belt_shown:	ds	1

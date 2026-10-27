@@ -1613,7 +1613,7 @@ smz1:		ld	a,(hl)
 		ret
 
 ; Начальное состояние масок слоёв Джо; таблицы поворота больше не нужны.
-rot_init:	ld	hl,mk_key
+mask_keys_init:	ld	hl,mk_key
 		ld	bc,4*SPR_MAX
 		ld	e,0xFF
 		jp	memfill
@@ -2179,7 +2179,7 @@ ps_find:	ld	a,(sp_k)
 psf_n:		or	1
 		ret
 
-; ps_build: блоки готовых сдвигов (после trim_build и rot_init) — в свободные места ps_rg
+; ps_build: блоки готовых сдвигов (после trim_build и mask_keys_init) — в свободные места ps_rg
 ps_build:	ld	hl,ps_idx
 		ld	bc,64
 		ld	e,0xFF
@@ -2283,7 +2283,7 @@ pbd2:		push	bc
 		pop	hl
 		xor	a
 		ld	(ps_c2),a
-		ld	a,(ps_s)		; s != 0: по таблице поворота, m = FFh >> s: r0 & m, (r0 & ~m) | (r1 & m), r1 & ~m
+		ld	a,(ps_s)		; s != 0: цепочка поворотов, m = FFh >> s: r0 & m, (r0 & ~m) | (r1 & m), r1 & ~m
 		or	a
 		jp	z,pbd4
 		push	hl
@@ -2398,7 +2398,7 @@ ps_nrg:		push	hl
 		pop	hl
 		ret
 ; свободные места (начало, конец): невидимая плоскость — бывший кэш тайлов, затем основная память
-ps_rg:		dw	PS_MORE, 0x7000, sprite_sources_end, VNT, TILE_IMAGES+24*TILE_CAP, 0xEC00, 0xEF00, 0xF000, 0xF500, 0xF820, ps_heap, PS_TOP, 0, 0	; 0 — места нет
+ps_rg:		dw	PS_MORE, 0x7000, sprite_sources_end, VNT, TILE_IMAGES+24*TILE_CAP, 0xEC00, 0xEF00, 0xF000, 0xF600, 0xF820, ps_heap, PS_TOP, 0, 0	; 0 — места нет
 
 ; Покрытие клеток объектами постоянно хранится в PND, биты 1..6 по слоям.
 ; Меняется только при восстановлении/рисовании объекта; перекрытия сохраняют чужие биты.

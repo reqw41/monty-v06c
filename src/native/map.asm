@@ -21,7 +21,10 @@ vo_done:	pop	af
 
 ; nt_put: HL = источник, DE = клетка, C = число (B не используется) — в VNT, строки к перерисовке.
 ; HL, DE, BC сохраняются
-nt_put:		push	hl
+nt_put:	call	map_edit_begin
+		call	nt_put_inner
+		jp	map_edit_end
+nt_put_inner:		push	hl
 		push	de
 		push	bc
 		ld	a,c
@@ -81,7 +84,10 @@ nt_read3:	push	bc
 
 ; nt_fill: DE = клетка, BC = число, A = тайл. Очистка с первых 256 клеток длиной от 256 — новая комната
 ; (DIRTY_ROOM, nt_age := 0, как у слоя OS7). Регистры сохраняются
-nt_fill:	push	af
+nt_fill:	call	map_edit_begin
+		call	nt_fill_inner
+		jp	map_edit_end
+nt_fill_inner:	push	af
 		push	bc
 		push	de
 		push	hl
@@ -196,7 +202,10 @@ vnt_row:	push	de
 		ret
 
 ; room_color_write: HL = источник, E = группа, C = число — в room_colors (DIRTY_COLOR). HL, DE, BC сохраняются
-room_color_write:	push	hl
+room_color_write:	call	map_edit_begin
+		call	room_color_write_inner
+		jp	map_edit_end
+room_color_write_inner:	push	hl
 		push	de
 		push	bc
 		ld	d,room_colors/256
@@ -214,7 +223,10 @@ cp1:		ld	a,(hl)
 		ld	(video_dirty),a
 		jp	np_x
 ; room_color_fill: E = группа, C = число, A = цвет
-room_color_fill:	push	hl
+room_color_fill:	call	map_edit_begin
+		call	room_color_fill_inner
+		jp	map_edit_end
+room_color_fill_inner:	push	hl
 		push	de
 		push	bc
 		ld	h,room_colors/256
@@ -276,4 +288,17 @@ dla1:
 dla_o:		ld	a,1
 		ld	(dl_ovf),a
 dla_x:		pop	de
+		ret
+
+; Составное изменение карты/цветов: снимок экрана в середине операции ещё не соответствует VNT.
+; Регистры сохранены; поле предназначено для наблюдения завершённых изменений, не для ОЗУ игры.
+map_edit_begin:	push	af
+		ld	a,1
+		ld	(video_edit),a
+		pop	af
+		ret
+map_edit_end:	push	af
+		xor	a
+		ld	(video_edit),a
+		pop	af
 		ret
