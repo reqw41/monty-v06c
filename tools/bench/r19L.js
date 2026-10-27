@@ -15,7 +15,7 @@ m.onInstr=pc=>{
   if(pc===sym.L_A5D1){
     steps++;if(steps===201)start={...p.totals};if(steps===601)end={...p.totals};
     m.wr(0x7049,6);m.wr(0x707C,m.rd(0x7300));
-    if(steps===50){m.wr(0x705F,m.rd(0x705F)&~4);m.wr(0x71A7,1);m.wr(0x71A8,9);m.wr(0x7079,9);}
+    if(steps===50){m.wr(0x705F,m.rd(0x705F)&~4);m.wr(0x71A7,(process.env.ROOM||"1,9").split(",").map(Number)[0]);m.wr(0x71A8,(process.env.ROOM||"1,9").split(",").map(Number)[1]);m.wr(0x7079,9);}
   }
 };
 for(let f=0;!end;f++){if(f===10)m.keyboard.matrix[2]|=2;if(f===100)m.keyboard.matrix[2]&=~2;m.frame();}

@@ -11,7 +11,7 @@ m.onInstr = (pc) => { const v = m.cpu.vcycles || 0;
   last = pc;
   if (pc === sym.L_8DA2 && steps > 60) { const c = m.cpu; c.pc = m.rd(c.sp) | (m.rd(c.sp + 1) << 8); c.sp += 2; return; }
   if (pc === sym.L_A5D1) { steps++; m.wr(0x7049, 6); m.wr(0x707C, m.rd(0x7300));
-    if (steps === 50) { m.wr(0x705F, m.rd(0x705F) & ~4); m.wr(0x71A7, 1); m.wr(0x71A8, 9); m.wr(0x7079, 9); } } };
+    if (steps === 50) { m.wr(0x705F, m.rd(0x705F) & ~4); m.wr(0x71A7,(process.env.ROOM||"1,9").split(",").map(Number)[0]);m.wr(0x71A8,(process.env.ROOM||"1,9").split(",").map(Number)[1]); m.wr(0x7079, 9); } } };
 while (steps < 500) { if (fc === 10) m.keyboard.matrix[2] |= 2; if (fc === 100) m.keyboard.matrix[2] &= ~2; fc++; m.frame(); }
 const tot = Object.values(T).reduce((a, b) => a + b, 0); console.log(P, 'вызовов', n, 'тактов на вызов', Math.round(tot / n));
 console.log(Object.entries(T).sort((a, b) => b[1] - a[1]).slice(0, 25).map(([k, v]) => k + ' ' + Math.round(v / n)).join('  '));
