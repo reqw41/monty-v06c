@@ -537,9 +537,7 @@ fl_mod_done:	ld	(fl_c),a
 		cp	c
 		jp	c,flt3
 		jp	z,flt3
-fl_begin:	ld	hl,0
-		add	hl,sp
-		ld	(dc_sp),hl
+fl_begin:
 flt2:		ld	l,c
 		ld	h,live_list/256
 		ld	e,(hl)
@@ -582,10 +580,8 @@ flt9:		ld	a,e			; HL = экран: L = 0DFh - 8 * строка, 8 * строка
 		and	31
 fl_hbase:	add	a,0x80
 		ld	h,a
-		di				; (SP цикла — в dc_sp с начала корзины)
 		ex	de,hl
 		ld	hl,(tile_src)
-		ld	sp,hl
 		ex	de,hl
 fl_write:	jp	fl_slow
 fl_slow:	ld	a,(fl_pm)
@@ -594,11 +590,10 @@ flp0:		ld	a,b			; плоскость: бит 7 маски
 		add	a,a
 		ld	b,a
 		jp	nc,flp2
-		REPT	4
-		pop	de
-		ld	(hl),e
-		dec	l
-		ld	(hl),d
+		REPT	8
+		ld	a,(de)
+		ld	(hl),a
+		inc	de
 		dec	l
 		ENDR
 		ld	a,l
@@ -612,14 +607,11 @@ flp1:		ld	a,b			; (пропуск бита между плоскостями)
 		add	a,0x20
 		ld	h,a
 		jp	flp0
-flp2:		REPT	4
-		pop	de
+flp2:		REPT	8
+		inc	de
 		ENDR
 		jp	flp1
-flp3:		ld	hl,(dc_sp)
-		ld	sp,hl
-		ei
-		jp	flt5
+flp3:		jp	flt5
 flt_q:		ld	a,(hl)
 fl_qcover:	and	0x7E
 		call	cover_dirty
@@ -688,11 +680,10 @@ fl_sel_done:	ld	(fl_write+1),hl
 		ret
 
 fl_fast3:
-		REPT	4
-		pop	de
-		ld	(hl),e
-		dec	l
-		ld	(hl),d
+		REPT	8
+		ld	a,(de)
+		ld	(hl),a
+		inc	de
 		dec	l
 		ENDR
 		ld	a,l
@@ -702,11 +693,10 @@ fl_fast3:
 		add	a,0x20
 		ld	h,a
 fl_fast2:
-		REPT	4
-		pop	de
-		ld	(hl),e
-		dec	l
-		ld	(hl),d
+		REPT	8
+		ld	a,(de)
+		ld	(hl),a
+		inc	de
 		dec	l
 		ENDR
 		ld	a,l
@@ -715,11 +705,10 @@ fl_fast2:
 		ld	a,h
 		add	a,0x20
 		ld	h,a
-		REPT	4
-		pop	de
-		ld	(hl),e
-		dec	l
-		ld	(hl),d
+		REPT	8
+		ld	a,(de)
+		ld	(hl),a
+		inc	de
 		dec	l
 		ENDR
 		jp	flp3
@@ -842,21 +831,16 @@ dain:		push	de
 		ENDR
 		pop	de
 		ret
-; da_blit: da_buf -> клетка экрана HL (плоскость 8000, верхняя строка); HL сохраняется. Через стек (POP)
-da_blit:	di
-		ex	de,hl
-		ld	hl,0
-		add	hl,sp
-		ld	(dc_sp),hl
+; da_blit: готовые три плоскости -> HL, без запрета прерываний и смены SP.
+da_blit:	push	hl
 		ld	hl,(tile_src)
-		ld	sp,hl
 		ex	de,hl
+		pop	hl
 		REPT	3
-		REPT	4
-		pop	bc
-		ld	(hl),c
-		dec	l
-		ld	(hl),b
+		REPT	8
+		ld	a,(de)
+		ld	(hl),a
+		inc	de
 		dec	l
 		ENDR
 		ld	a,l
@@ -869,14 +853,6 @@ da_blit:	di
 		ld	a,h
 		sub	0x60
 		ld	h,a
-		ex	de,hl
-		ld	hl,(dc_sp)
-		ld	sp,hl
-		ex	de,hl
-		ld	a,(in_isr)
-		or	a
-		ret	nz
-		ei
 		ret
 
 ; force_tiles: A = старший байт таблицы флагов (256 байт по тайлам) — клетки с отмеченными тайлами к перерисовке

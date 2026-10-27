@@ -183,7 +183,7 @@ isr2:
 		ENDIF
 		ld	hl,nmi_pend
 		ld	a,(hl)
-		cp	2
+		cp	8
 		jp	nc,isr_event_done
 		inc	(hl)
 isr_event_done:	pop	de
