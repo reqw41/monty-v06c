@@ -1,65 +1,57 @@
-; Главный цикл (A5D1, src/model/main.js): таблица процессов A8A1 — (счётчик, процедура, перезагрузка):
-; процедура вызывается, когда счётчик = 1; FE — процесс выключен. Ожидания кадра: A5D8 — пока 705F бит 3,
-; A5CA — пока 7207 бит 7 = 0 (кадр — frame_wait: вывод и обработчик кадра frame_handler).
+; Four fixed processes: preserve the original order, counters and frame barriers.
+; A procedure may change its own counter, so reload it after CALL before decrement.
 main_loop:
 L_A5D1:		xor	a
 		ld	(0x7207),a
-		ld	hl,procs
-mn1:		ld	a,(0x705F)		; A5D8: ждать сброса 705F бит 3 (A60B в обработчике кадра)
-		and	8
-		jp	z,mn2
-		call	frame_wait
-		jp	mn1
-mn2:		ld	e,(hl)			; счётчик
-		inc	hl
-		ld	d,(hl)
-		inc	hl
-		ld	a,d
-		cp	0xFF
-		jp	z,mn9
-		ld	a,(de)
+mn_proc0:	call	mn_ready
+		ld	a,(0x7073)
 		cp	0xFE
-		jp	z,mn6			; выключен — без изменений
+		jp	z,mn_proc1
 		cp	1
-		jp	nz,mn4
-		push	hl
-		push	de
-		ld	a,(hl)			; процедура
-		inc	hl
-		ld	h,(hl)
-		ld	l,a
-		ld	de,mn3
-		push	de
-		jp	(hl)
-mn3:		pop	de
-		pop	hl
-mn4:		ld	a,(de)			; счётчик - 1; 0 — перезагрузка
-		dec	a
-		jp	nz,mn5
-		inc	hl
-		inc	hl
-		ld	a,(hl)
-		dec	hl
-		dec	hl
-mn5:		ld	(de),a
-mn6:		inc	hl
-		inc	hl
-		inc	hl
-		jp	mn1
-mn9:		ld	a,(0x7207)		; A5CA: ждать кадра (обработчик ставит 7207 бит 7)
+		call	z,proc_91E5
+		ld	hl,0x7073
+		dec	(hl)
+		jp	nz,mn_proc1
+		ld	(hl),2
+mn_proc1:	call	mn_ready
+		ld	a,(0x7012)
+		cp	0xFE
+		jp	z,mn_proc2
+		cp	1
+		call	z,proc_8F5F
+		ld	hl,0x7012
+		dec	(hl)
+		jp	nz,mn_proc2
+		ld	(hl),4
+mn_proc2:	call	mn_ready
+		ld	a,(0x7068)
+		cp	0xFE
+		jp	z,mn_proc3
+		cp	1
+		call	z,proc_88D1
+		ld	hl,0x7068
+		dec	(hl)
+		jp	nz,mn_proc3
+		ld	(hl),1
+mn_proc3:	call	mn_ready
+		ld	a,(0x7074)
+		cp	0xFE
+		jp	z,mn_proc4
+		cp	1
+		call	z,proc_A8D6
+		ld	hl,0x7074
+		dec	(hl)
+		jp	nz,mn_proc4
+		ld	(hl),1
+mn_proc4:	call	mn_ready		; the original sentinel also waits for 705F bit 3
+mn9:		ld	a,(0x7207)
 		and	0x80
 		jp	nz,main_loop
 		call	frame_wait
 		jp	mn9
 
-; процессы: счётчик, процедура, перезагрузка
-procs:		dw	0x7073, proc_91E5
-		db	2
-		dw	0x7012, proc_8F5F
-		db	4
-		dw	0x7068, proc_88D1
-		db	1
-		dw	0x7074, proc_A8D6
-		db	1
-		dw	0xFFFF
-
+mn_ready:	ld	a,(0x705F)
+		and	8
+		ret	z
+		call	frame_wait
+		jp	mn_ready

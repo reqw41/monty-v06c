@@ -27,3 +27,17 @@ function profiler(m, s) {
   }};
 }
 module.exports = {symbols, profiler};
+
+// Inclusive routine cost in its entry context. Match both return PC and SP;
+// a numerical SP comparison fails when IRQ/display switch to another stack.
+function calls(m,s,p,names) {
+  const entries=new Map();for(const n of names){if(s[n]===undefined)throw Error('Unknown symbol '+n);const a=entries.get(s[n])||[];a.push(n);entries.set(s[n],a);}
+  const active=[],stats=new Map();
+  return {stats,instruction(pc,ctx,measure){
+    for(let i=active.length-1;i>=0;i--){const q=active[i];if(pc!==q.ra||m.cpu.sp!==q.sp+2)continue;
+      active.splice(i,1);if(q.measure&&measure){const k=q.name+'@'+q.ra;const z=stats.get(k)||{name:q.name,ra:q.ra,cycles:0,count:0};z.cycles+=p.totals[q.ctx]-q.start;z.count++;stats.set(k,z);}
+    }
+    for(const name of entries.get(pc)||[]){const sp=m.cpu.sp;if(active.some(q=>q.name===name&&q.sp===sp))continue;active.push({name,ctx,sp,ra:m.rd(sp)|m.rd(sp+1)<<8,start:p.totals[ctx],measure});}
+  }};
+}
+module.exports.calls=calls;

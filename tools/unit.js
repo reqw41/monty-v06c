@@ -52,8 +52,8 @@ for (let k = 0; k < cases.length; k++) {
     const w = pre.mem[p] | pre.mem[p + 1] << 8, c = cart(w); if (c !== undefined) { v.wr(p, c & 0xff); v.wr(p + 1, c >> 8); }
   }
   for (let i = 0; i < 768; i++) v.wr(sym.VNT + i, pre.vram[0x1800 + i]);
-  for (let i = 0; i < 32; i++) v.wr(sym.VCOL + i, pre.vram[0x2000 + i]);
-  for (let i = 0; i < 8; i++) v.wr(sym.vregs + i, pre.vreg[i]);
+  for (let i = 0; i < 32; i++) v.wr((sym.room_colors ?? sym.VCOL) + i, pre.vram[0x2000 + i]);
+  if (sym.vregs !== undefined) for (let i = 0; i < 8; i++) v.wr(sym.vregs + i, pre.vreg[i]);
   const kb = [0, 0, 0, 0, 0, 0, 0, 0];                          // клавиши модели -> матрица Вектора (kbmat)
   for (const [k, row, bit] of [['left', 0, 0x10], ['up', 0, 0x20], ['right', 0, 0x40], ['down', 0, 0x80], ['space', 7, 0x80]]) if (pre.keys.has(k)) kb[row] |= bit;
   for (let i = 0; i < 8; i++) v.wr(sym.kbmat + i, kb[i]);
@@ -72,7 +72,7 @@ for (let k = 0; k < cases.length; k++) {
   const ptrOk = (a) => [a, a - 1].some((j) => { const w = post.mem[j] | post.mem[j + 1] << 8, c = cart(w); return c !== undefined && (v.rd(j) | v.rd(j + 1) << 8) === c; });
   for (let a = 0x7000; a < 0x7400; a++) if (!skip(a) && v.rd(a) !== post.mem[a] && !ptrOk(a)) d.push(`${a.toString(16)}=${post.mem[a].toString(16)}/${v.rd(a).toString(16)}`);
   for (let i = 0; i < 768; i++) if (v.rd(sym.VNT + i) !== post.vram[0x1800 + i]) d.push(`NT${i.toString(16)}=${post.vram[0x1800 + i].toString(16)}/${v.rd(sym.VNT + i).toString(16)}`);
-  for (let i = 0; i < 32; i++) if (v.rd(sym.VCOL + i) !== post.vram[0x2000 + i]) d.push(`COL${i.toString(16)}=${post.vram[0x2000 + i].toString(16)}/${v.rd(sym.VCOL + i).toString(16)}`);
+  for (let i = 0; i < 32; i++) if (v.rd((sym.room_colors ?? sym.VCOL) + i) !== post.vram[0x2000 + i]) d.push(`COL${i.toString(16)}=${post.vram[0x2000 + i].toString(16)}/${v.rd((sym.room_colors ?? sym.VCOL) + i).toString(16)}`);
   if (d.length) { bad++; if (bad <= 5) console.log(`случай ${k}: ${d.length} расхождений:`, d.slice(0, 12).join(' ')); }
 }
 console.log(bad ? `расхождений в ${bad} случаях из ${cases.length}` : 'совпадение во всех случаях', `| тактов Вектора: в среднем ${Math.round(sumCyc / Math.max(1, cases.length))}, макс. ${maxCyc}`);

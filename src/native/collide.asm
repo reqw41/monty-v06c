@@ -138,14 +138,7 @@ p9e3:		ld	(0x7075),a
 
 ; L_911E / L_9122: тайл A (911E — под ногами, 705B) — опора? CF — нет опоры; A = D2 — смертельный (913B)
 L_911E:		ld	a,(0x705B)
-L_9122:		push	hl
-		push	bc
-		ld	hl,C_93FF
-		ld	c,10
-		ld	b,0
-		call	cpir
-		pop	bc
-		pop	hl
+L_9122:		call	tile_floor
 		jp	z,p912n			; проходим по полу: CF = 0
 		cp	0xE8
 		jp	nz,p912a
@@ -163,13 +156,44 @@ p912n:		or	a			; CF = 0
 p912c:		scf
 		ret
 ; L_913B: Z — A среди 5 байт C_A00E (BC, HL сохраняются)
-L_913B:		push	hl
-		push	bc
-		ld	hl,C_A00E
-		ld	c,5
-		ld	b,0
-		call	cpir
-		pop	bc
+L_913B:		cp	0x38
+		ret	z
+		cp	0x40
+		ret	c
+		push	hl
+		ld	l,a
+		ld	h,0
+		ld	a,(hl)
+		and	0x30
+		xor	0x10			; keys (30h) are not deadly
+		ld	a,l
+		pop	hl
+		ret
+
+; Z = tile from cartridge floor list 93FF. A/BC/HL are preserved.
+tile_floor:	cp	4
+		ret	c			; frequent empty tile, NZ
+		cp	7
+		jp	c,tf_yes
+		cp	8
+		ret	z
+		cp	0x10
+		ret	z
+		cp	0x11
+		ret	z
+		cp	0x40
+		jp	nc,tf_high
+		cp	0xFF			; low non-floor, NZ
+		ret
+tf_yes:		cp	a
+		ret
+tf_high:	push	hl
+		ld	l,a
+		ld	h,0
+		ld	a,(hl)
+		and	0x71			; exclude item/key/fire/death kinds
+		cp	1
+		ld	a,l
 		pop	hl
 		ret
 
@@ -387,10 +411,18 @@ p8f2:		call	L_9156			; огонь/лазер под героем (9428)
 		ld	hl,0x71B0
 		inc	(hl)
 		ld	a,(0x7058)
-		ld	hl,C_9428
-		ld	bc,8
-		call	cpir
-		jp	nz,p8f3
+		cp	0x40
+		jp	c,p8f3
+		ld	l,a
+		ld	h,0
+		ld	b,(hl)
+		ld	a,b
+		and	0x40
+		ld	a,l
+		jp	z,p8f3
+		ld	a,b
+		and	7
+		ld	c,a			; original CPIR remainder (corner of the fire)
 		ld	a,(0x704A)
 		or	a
 		ret	nz
@@ -408,13 +440,22 @@ p8f3:
 		IFNDEF	STRICT
 		call	it_pick			; допуск: в средней колонке предмета нет — соседняя (71B0 +- 1)
 		ENDIF
-		ld	hl,C_9430		; ключи (9430)
-		ld	bc,0x0C
-		call	cpir
-		jp	nz,p8f4
-		call	L_9067
-		dec	hl			; найденный тайл: 78h.. — 58, 68h.. — 5D, иначе 62
+		cp	0x40
+		ret	c
+		ld	l,a
+		ld	h,0
 		ld	a,(hl)
+		and	0x20
+		ld	a,l
+		ret	z			; no item, A unchanged
+		ld	a,(hl)
+		and	0x0F
+		ld	c,a			; original CPIR remainder
+		ld	a,(hl)
+		and	0x10
+		jp	z,p8f4
+		call	L_9067
+		ld	a,l			; key tile (HL points into logic_class)
 		and	0xF8
 		cp	0x78
 		jp	z,p8k1
@@ -426,11 +467,7 @@ p8k1:		ld	a,0x58
 		jp	L_901B
 p8k2:		ld	a,0x5D
 		jp	L_901B
-p8f4:		ld	hl,C_9418		; прочие предметы (9418): остаток C — вид
-		ld	bc,0x10
-		call	cpir
-		ret	nz
-		ld	a,c
+p8f4:			ld	a,c
 		cp	4
 		jp	nc,p8f5
 		call	L_906D			; факел
