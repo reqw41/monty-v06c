@@ -98,6 +98,12 @@ print('шаблоны спрайтов: 2 КБ исходной графики')
 # Direct logic classification in the unused boot-vector page (0040..00FF).
 # Low tiles use explicit comparisons; bits 4/5 distinguish items and keys,
 # low nibble keeps the original CPIR remainder (the corner of a 2x2 item).
+# The low-tile comparisons and conveyor ranges in the assembly are intentional
+# specializations. Fail generation if a different cartridge changes those sets.
+assert set(t for t in IMG[0x943C:0x9444] if t < 0x40) == {8, 0x0B}
+assert set(t for t in IMG[0xA00E:0xA013] if t < 0x40) == {0x38}
+assert set(t for t in IMG[0x93FF:0x9409] if t < 0x40) == {4,5,6,8,0x10,0x11}
+assert list(IMG[0x9412:0x9419]) == [4,5,6,0xB9,0xB8,0xBA,0x9B]
 logic = [0] * 256
 for address, size, kind in [(0x9418,16,0x20),(0x9430,12,0x30),(0x9428,8,0x40)]:
     for i, tile in enumerate(IMG[address:address+size]):

@@ -467,7 +467,7 @@ p8k1:		ld	a,0x58
 		jp	L_901B
 p8k2:		ld	a,0x5D
 		jp	L_901B
-p8f4:			ld	a,c
+p8f4:		ld	a,c
 		cp	4
 		jp	nc,p8f5
 		call	L_906D			; факел
@@ -602,6 +602,8 @@ L_9305:		add	a,a
 		ret
 ; L_92DC: кадр спрайта героя по состоянию 7079
 L_92DC:		ld	a,(0x7079)
+		or	a
+		jp	z,p92w0			; standing uses walking frame zero
 		cp	1
 		jp	z,p92w
 		cp	2

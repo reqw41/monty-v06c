@@ -37,7 +37,7 @@ L_A7A1:		ld	hl,0x7086
 en_next:	ld	a,(hl)
 		cp	0xFF
 		ret	z
-		ld	(en_hl),hl
+		push	hl			; preserve record across the tile reader
 		and	7			; спрайт
 		add	a,a
 		add	a,a
@@ -45,9 +45,7 @@ en_next:	ld	a,(hl)
 		ld	h,0x73
 		ld	(en_sp),hl
 		call	L_9159			; тайлы под врагом -> 7057..705C
-		ld	hl,(en_hl)
-		ld	d,h
-		ld	e,l			; DE = current record; helpers preserve it
+		pop	de			; DE = current record; helpers preserve it
 		ld	hl,(en_sp)
 		ld	a,(hl)			; Y < 15h или >= B8h — направление наоборот
 		cp	0x15

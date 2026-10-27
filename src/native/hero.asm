@@ -5,6 +5,8 @@
 ; L_8C1F: ввод -> 73EE..73F1 (вверх 1, вправо 2, вниз 4, влево 8, огонь 40; 73F0 = 80h), 73EE |= 73F0 & C0
 L_8C1F:		ld	b,0
 		ld	a,(kbmat+0)
+		and	0xF0
+		jp	z,in4			; no directional keys, preserve C
 		rla				; бит 7 — вниз
 		jp	nc,in1
 		ld	c,a
@@ -84,24 +86,22 @@ p8c4:		ld	a,(0x705F)
 L_8F37:		ld	a,(0x7079)
 		cp	8
 		ret	nc
-		push	hl
-		push	de
-		ld	d,c
 		ld	a,(0x705B)
-		ld	hl,C_9412
-		ld	c,7
-		call	cpir
-		jp	nz,p8f7x
-		ld	a,c
 		cp	4
-		ld	a,1
-		jp	c,p8f7a
-		ld	a,0xFF
-p8f7a:		add	a,b
-		ld	b,a
-p8f7x:		ld	c,d
-		pop	de
-		pop	hl
+		ret	c
+		cp	7
+		jp	c,belt_left
+		cp	0x9B
+		jp	z,belt_right
+		cp	0xB8
+		ret	c
+		cp	0xBB
+		ret	nc
+belt_right:	inc	b
+		ld	a,b
+		ret
+belt_left:	dec	b
+		ld	a,b
 		ret
 ; L_8DD4: герой (оба слоя) += (C по Y, B по X); A := X второго слоя
 L_8DD4:		ld	hl,0x7300
@@ -289,6 +289,8 @@ p8de:		ld	hl,0x71A8		; 8DFA: влево / вправо
 
 ; --- ветка состояния (hs_xxxx — метки оригинала) ------------------------------------------------------------
 hero_state:	ld	a,(0x7079)
+		or	a
+		jp	z,hs_8929		; standing: skip indirect dispatch
 		cp	11
 		ret	nc
 		add	a,a

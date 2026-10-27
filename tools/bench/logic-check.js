@@ -5,6 +5,9 @@ const path=require('path');process.chdir(path.resolve(__dirname,'../..'));
 const E=require('../vec_emu'),{symbols}=require('./logic-profile');
 const dirs=[process.argv[2]||'build/logic-before',process.argv[3]||'build/native'];
 const machines=dirs.map(d=>({m:E.mk(d+'/monty.bin'),s:symbols(d)}));
+// Boot used to borrow the top of page zero for its stack. Classes must remain
+// read-only during boot as well as gameplay, including unused tile values F2..FF.
+{const d=dirs[1],boot=E.mk(d+'/monty.bin');boot.onWrite=a=>{if(a>=0x40&&a<0x100)throw Error('logic class write '+a.toString(16));};for(let i=0;i<200;i++)boot.frame();for(let a=0x40;a<0x100;a++)if(boot.rd(a)!==boot.img[a])throw Error('boot table corruption');}
 function call(o,label,a,b=0,c=0) {
   const {m,s}=o,R=m.cpu.regs;R.fill(0);R[7]=a;R[0]=b;R[1]=c;R[4]=0x70;R[5]=0x57;
   m.cpu.iff=false;m.cpu.sp=0x73be;m.wr(0x73be,s.unit_trap&255);m.wr(0x73bf,s.unit_trap>>8);m.cpu.pc=s[label];

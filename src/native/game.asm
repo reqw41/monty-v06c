@@ -69,7 +69,7 @@ en_b		equ	0x7FA7
 
 		ORG	0x0000
 		di
-		ld	sp,0x0100		; загрузка — на стеке под кодом
+		ld	sp,0x0038		; boot stack 0008..0037; 0040..00FF holds logic classes
 		jp	boot
 		ORG	0x0038
 		jp	isr
@@ -106,7 +106,7 @@ bclr:		REPT	64
 		ENDR
 		dec	b
 		jp	nz,bclr
-		ld	sp,0x0100
+		ld	sp,0x0038
 		call	vi_off			; ВИ53 молчит, каналы SN — тоже (TURN_OFF_SOUND оригинала)
 		call	snd_off
 		call	mask_keys_init
