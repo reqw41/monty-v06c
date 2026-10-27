@@ -86,10 +86,12 @@ group_modes:	ds	32
 enemy_turn:	ds	1
 sprite_dirty:	ds	1
 fire_ran:	ds	1
+en_reuse:	ds	1
 en_zero:	ds	1
 en_stride:	ds	1
 en_mask:	ds	1
 band_candidate:	ds	1
+band_pair_n:	ds	1
 band_valid:	ds	1
 band_ok:	ds	1
 		ALIGN	8

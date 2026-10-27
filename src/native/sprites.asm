@@ -307,6 +307,7 @@ spx0:		ld	a,(band_candidate)
 		ld	a,(band_valid)
 		or	a
 		call	z,band_build
+		call	band_check
 		ld	a,(band_ok)
 		or	a
 		jp	nz,band_marked
@@ -1741,7 +1742,8 @@ ts_e:		xor	a
 		ret
 
 ; --- crit_plan: до ожидания кадра — группы пересекающихся отмеченных спрайтов сверху вниз -> список действий
-; cr_list: пары (действие, номер): 1 — фон назад, 2 — клетки под прежним местом, 3 — спрайт; конец 0.
+; cr_list: пары (действие, номер): 1 — фон назад, 2 — клетки, 3 — спрайт,
+; 4 — независимый враг в прежней области, повторное использование фона; конец 0.
 ; Группа: фон всех назад (0..), клетки под прежними местами, спрайты (с последнего).
 crit_plan:
 		ld	a,(ml_n)
@@ -2021,6 +2023,19 @@ ck0:		ld	a,(hl)
 		cp	2
 		jp	c,ck1
 		jp	z,ck2
+		cp	4
+		jp	z,ck_repaint
+		xor	a
+		ld	(en_reuse),a
+		call	draw1
+		jp	ck9
+ck_repaint:	ld	a,1
+		ld	(en_reuse),a
+		ld	a,b
+		add	a,cover_moves&255
+		ld	l,a
+		ld	h,cover_moves/256
+		ld	(hl),0
 		call	draw1
 		jp	ck9
 ck1:		call	restore1
@@ -2180,6 +2195,10 @@ psf_n:		or	1
 		ret
 
 ; ps_build: блоки готовых сдвигов (после trim_build и mask_keys_init) — в свободные места ps_rg
+; Одноразовый построитель исполняется из ещё пустого кэша тайлов E000.
+; Его исходный код после копирования также доступен ps_alloc.
+ps_boot_source:
+		DISP	TILE_IMAGES
 ps_build:	ld	hl,ps_idx
 		ld	bc,64
 		ld	e,0xFF
@@ -2397,8 +2416,11 @@ ps_nrg:		push	hl
 		pop	de
 		pop	hl
 		ret
+		ENT
+ps_boot_source_end:
+		ASSERT ps_boot_source_end-ps_boot_source < 24*TILE_CAP
 ; свободные места (начало, конец): невидимая плоскость — бывший кэш тайлов, затем основная память
-ps_rg:		dw	PS_MORE, 0x7000, sprite_sources_end, VNT, TILE_IMAGES+24*TILE_CAP, 0xEC00, 0xEF00, 0xF000, 0xF600, 0xF820, ps_heap, PS_TOP, 0, 0	; 0 — места нет
+ps_rg:		dw	PS_MORE, 0x7000, sprite_sources_end, VNT, TILE_IMAGES+24*TILE_CAP, 0xEC00, 0xEF00, 0xF000, 0xF600, 0xF820, ps_heap, PS_TOP, ps_boot_source, ps_boot_source_end, 0, 0	; 0 — места нет
 
 ; Покрытие клеток объектами постоянно хранится в PND, биты 1..6 по слоям.
 ; Меняется только при восстановлении/рисовании объекта; перекрытия сохраняют чужие биты.
@@ -2575,6 +2597,12 @@ en_mask_ready:	ld	(en_mask),a
 		ld	a,(st_rows)
 		add	a,a
 		ld	hl,enemy_entries
+		ld	c,a
+		ld	a,(en_reuse)
+		or	a
+		jp	z,en_table_ready
+		ld	hl,enemy_repaint_entries
+en_table_ready:	ld	a,c
 		call	add_hl_a
 		ld	e,(hl)
 		inc	hl
@@ -2602,7 +2630,19 @@ en_paint_col:	ld	a,(en_zero)
 		ld	e,a
 		ld	a,(sp_mskp)
 		ld	d,a
+		ld	a,(en_reuse)
+		or	a
+		jp	z,en_mix_call
+		push	hl
+		ld	h,b
+		ld	l,c
+		pop	bc
 en_mix_call:	call	enemy_mix
+		ld	a,(en_reuse)
+		or	a
+		jp	z,en_paint_next
+		ld	b,h
+		ld	c,l
 en_paint_next:	ld	hl,sv_col
 		inc	(hl)
 		ld	a,(en_stride)
@@ -2700,6 +2740,21 @@ enemy_mix:
 		inc	c
 		inc	e
 		dec	l
+		ENDR
+		ret
+
+enemy_repaint_entries:
+		DUP	17, n
+		dw	enemy_repaint_mix+6*(16-n)
+		EDUP
+enemy_repaint_mix:
+		REPT	16
+		ld	a,(de)
+		or	(hl)
+		ld	(bc),a
+		inc	l
+		inc	e
+		dec	c
 		ENDR
 		ret
 
@@ -2812,11 +2867,13 @@ sc_no:		or	a
 		ret
 
 
-; Комната с катящимися врагами: неизменные полосы Y позволяют кэшировать независимость объектов.
+; Катящиеся враги: кэш порядка по Y и пар с общими строками.
+; Эти пары проверяются по X на каждом выводе; слои Джо остаются одной группой.
 band_room_init:	xor	a
 		ld	(band_valid),a
 		ld	(band_ok),a
 		ld	(band_candidate),a
+		ld	(band_pair_n),a
 		ld	a,(0x707A)
 		or	a
 		ret	z
@@ -2838,6 +2895,7 @@ band_build:	ld	a,1
 		ld	(band_valid),a
 		xor	a
 		ld	(band_ok),a
+		ld	(band_pair_n),a
 		ld	b,0
 bb_bounds:	ld	a,b
 		call	ub_one
@@ -2853,9 +2911,8 @@ bb_i:		ld	a,(cu_i)
 		add	a,ubr&255
 		ld	l,a
 		ld	h,ubr/256
-		ld	d,(hl)
-		inc	l
-		ld	e,(hl)
+		ld	a,(cu_i)
+		call	ub_ld
 		ld	a,(cu_i)
 		inc	a
 		ld	(cu_j),a
@@ -2877,7 +2934,18 @@ bb_pair:	ld	a,(cu_j)
 		inc	l
 		ld	a,(hl)
 		cp	d
-		ret	nc			; строки пересекаются: общий путь
+		jp	c,bb_next
+		ld	a,(band_pair_n)
+		ld	hl,band_pairs
+		call	add_hl_a
+		ld	a,(cu_i)
+		ld	(hl),a
+		inc	hl
+		ld	a,(cu_j)
+		ld	(hl),a
+		ld	hl,band_pair_n
+		inc	(hl)
+		inc	(hl)
 bb_next:	ld	hl,cu_j
 		inc	(hl)
 		ld	a,(hl)
@@ -2888,14 +2956,6 @@ bb_next:	ld	hl,cu_j
 		ld	a,(hl)
 		cp	SPR_MAX-1
 		jp	nz,bb_i
-		ld	hl,band_order
-		ld	b,SPR_MAX
-		xor	a
-bb_order:	ld	(hl),a
-		inc	l
-		inc	a
-		dec	b
-		jp	nz,bb_order
 		ld	a,SPR_MAX
 		ld	(ml_n),a
 		ld	hl,ml
@@ -2913,6 +2973,67 @@ bb_sort_input:	ld	(hl),a
 		call	memcpyb
 		ld	a,1
 		ld	(band_ok),a
+		ret
+
+; Y/видимость кэшированы; только пары с общими строками проверяются по X.
+; ub_one включает прежнее и новое место, в том числе промежуточную позу.
+band_check:	ld	a,1
+		ld	(band_ok),a
+		ld	a,(band_pair_n)
+		or	a
+		ret	z
+		ld	b,a
+		ld	hl,band_pairs
+bc_pair:	push	bc
+		push	hl
+		ld	a,(hl)
+		call	band_xrange
+		pop	hl
+		push	hl
+		push	de
+		inc	hl
+		ld	a,(hl)
+		call	band_xrange
+		pop	bc
+		ld	a,c
+		cp	d
+		jp	c,bc_separate
+		ld	a,e
+		cp	b
+		jp	nc,bc_overlap
+bc_separate:	pop	hl
+		pop	bc
+		inc	hl
+		inc	hl
+		dec	b
+		dec	b
+		jp	nz,bc_pair
+		ret
+bc_overlap:	pop	hl
+		pop	bc
+		xor	a
+		ld	(band_ok),a
+		ret
+; Cached pair members stay visible at fixed Y; union only their X cell intervals.
+band_xrange:	call	rec_ptr
+		ld	a,l
+		or	7
+		ld	l,a
+		ld	d,(hl)
+		inc	l
+		ld	e,(hl)
+		ld	a,l
+		or	0x80
+		ld	l,a
+		ld	a,(hl)
+		cp	e
+		jp	c,bx_left
+		ld	e,a
+bx_left:	dec	l
+		ld	a,(hl)
+		cp	d
+		ret	nc
+		ld	d,a
 		ret
 
 band_marked:	ld	a,(spr_rec+13)
@@ -3001,6 +3122,49 @@ band_actor:	ld	a,b
 		ld	a,(hl)
 		or	a
 		jp	z,ba_draw
+		push	hl
+		ld	a,(ex_any)
+		or	a
+		jp	nz,ba_regular
+		ld	a,l
+		or	14
+		ld	l,a
+		ld	a,(hl)
+		cp	2
+		jp	nz,ba_regular
+		ld	a,l
+		or	0x80
+		ld	l,a
+		ld	a,(hl)
+		or	a
+		jp	z,ba_regular
+		ld	a,l
+		sub	5
+		ld	l,a
+		push	de
+		ld	d,h
+		ld	a,l
+		and	0x7F
+		ld	e,a
+		ld	c,4
+ba_compare:	ld	a,(de)
+		cp	(hl)
+		jp	nz,ba_changed
+		inc	l
+		inc	e
+		dec	c
+		jp	nz,ba_compare
+		pop	de
+		pop	hl
+		ld	a,4
+		ld	(de),a
+		inc	de
+		ld	a,b
+		ld	(de),a
+		inc	de
+		ret
+ba_changed:	pop	de
+ba_regular:	pop	hl
 		ld	a,1
 		ld	(de),a
 		inc	de

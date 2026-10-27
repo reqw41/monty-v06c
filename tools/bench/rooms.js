@@ -11,7 +11,7 @@ const rows = [];
 for (const lv of process.env.LV ? [+process.env.LV] : [1,2,3]) {
   const m = E.mk(B + '/monty.bin'), p = profiler(m,s);
   const rooms = []; for (let r=0;r<9;r++) for(let c=8-r;c<=10+r;c++) rooms.push([r,c]);
-  let steps=0, ri=-1, age=0, entered=false, pose=null, start=null, frames=0;
+  let steps=0, ri=-1, age=0, entered=false, pose=null, start=null, frames=0, hist={}, lastFrame=0;
   function teleport() {
     ri++; if(ri===rooms.length) return;
     const [r,c]=rooms[ri]; m.wr(0x705F,m.rd(0x705F)&~4);
@@ -35,10 +35,11 @@ for (const lv of process.env.LV ? [+process.env.LV] : [1,2,3]) {
     // This keeps belts/falls from leaving the room and preserves their work per step.
     pose.forEach((v,i)=>m.wr(0x7300+i,v));m.wr(0x7079,0);m.wr(0x707C,pose[0]);
     age++;
-    if(age===warmup) {start={...p.totals};frames=m.frames;}
+    if(age===warmup) {start={...p.totals};frames=m.frames;hist={};lastFrame=m.frames;}
+    if(age>warmup) {const d=m.frames-lastFrame;hist[d]=(hist[d]||0)+1;lastFrame=m.frames;}
     if(age===warmup+samples) {
       const t={};for(const k of ['L','D','I','W']) t[k]=(p.totals[k]-start[k])/samples;
-      const row={level:lv,row:r,col:c,steps:samples,frames:m.frames-frames,sps:50*samples/(m.frames-frames),logic:t.L,display:t.D,irq:t.I,idle:t.W};rows.push(row);
+      const row={level:lv,row:r,col:c,steps:samples,frames:m.frames-frames,sps:50*samples/(m.frames-frames),logic:t.L,display:t.D,irq:t.I,idle:t.W,histogram:hist};rows.push(row);
       console.log(`${lv} ${r},${c} ${row.sps.toFixed(2)} logic=${Math.round(t.L)} display=${Math.round(t.D)} irq=${Math.round(t.I)} idle=${Math.round(t.W)}`);
       teleport();
     }

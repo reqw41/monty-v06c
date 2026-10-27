@@ -53,6 +53,7 @@ fl_n		equ	0x7FF4
 fl_end		equ	0x7FF5
 dc_pt		equ	0x7FF9			; только изменяющиеся плоскости живых тайлов (force_live_t;
 						; прерывание тогда клетки не рисует — подготовка идёт только без crit_pend)
+band_pairs	equ	0x66E0			; 28 bytes after spr_new, before sprt
 lv_dirty	equ	0x7FFC			; список живых клеток устарел (в клетку поставлен живой тайл)
 fl_ph		equ	0x7FBD			; огонь: очередь клеток, маска (0 — все)
 fl_skm		equ	0x7FBE
@@ -111,6 +112,10 @@ bclr:		REPT	64
 		call	snd_off
 		call	mask_keys_init
 		call	trim_build
+		ld	de,ps_boot_source
+		ld	hl,TILE_IMAGES
+		ld	bc,ps_boot_source_end-ps_boot_source
+		call	copy_de_hl
 		call	ps_build		; готовые сдвиги кадров врагов
 		ld	a,16
 		ld	(cb_st),a
