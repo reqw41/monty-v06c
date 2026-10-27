@@ -23,8 +23,6 @@ disp_prep:
 		ld	a,(vregs+1)
 		and	0x40
 		ret	z
-		xor	a			; карту мест спрайтов (fl_um) — заново
-		ld	(fl_mok),a
 		ld	a,8			; атрибуты спрайтов 7300 -> VSAT (WR_SPR_NM_TBL обработчика кадра — здесь)
 		call	sat_copy
 		xor	a
@@ -115,7 +113,11 @@ dp3:		xor	a
 		and	0xFF-VD_COL
 		ld	(vdirty),a
 		call	col_changed
-dp4:		call	spr_plan		; какие спрайты перерисовать (A — сколько)
+dp4:		ld	a,(fm_op)		; отметки «под спрайтом» (force_live_t) — снять
+		cp	2
+		ld	a,0xFD
+		call	z,fl_mark
+		call	spr_plan		; какие спрайты перерисовать (A — сколько)
 		ld	c,a
 		ld	a,(dl_n)		; изменённые клетки есть?
 		ld	b,a
@@ -435,15 +437,19 @@ lbn1:		inc	b
 		ld	(lv_nn),a
 		ret
 
-; force_live_t: A = страница флагов по тайлам — живые клетки отмеченных тайлов к перерисовке (по корзинам)
+; force_live_t: A = страница флагов по тайлам — живые клетки отмеченных тайлов к перерисовке (по корзинам).
+; До spr_plan — бит 1 в PND у клеток под нарисованными спрайтами (fl_mark): такие — в список (после стирания
+; спрайта), остальные — сразу: образ клетки (da_img) один на корзину, плоскости fl_pm (биты 7, 5, 3 — 8000, A000,
+; C000; при dc_pt — только плоскости с точками) — через стек
 force_live_t:
 		ld	(fl_pg),a		; страница флагов
 		ld	a,(lv_nn)
 		or	a
 		ret	z
-		ld	a,(fl_mok)		; карта мест нарисованных спрайтов (раз за вывод)
-		or	a
-		call	z,fl_bbox
+		ld	a,(fm_op)		; клетки под спрайтами — бит 1 в PND (раз за вывод; снимается перед spr_plan)
+		cp	2
+		ld	a,2
+		call	nz,fl_mark
 		ld	a,(lv_nn)
 		ld	b,a
 		ld	hl,lv_pos
@@ -469,87 +475,79 @@ flt1:		ld	c,(hl)			; корзина (из непустых)
 		sub	c
 		jp	z,flt3
 		ld	(fl_n),a
-		ld	a,c
-		ld	(fl_i),a
+		push	bc			; C — позиция
 		call	dc_tile			; графика и режимы — одни на всю корзину (тайл один)
+		ld	a,0x15			; плоскости (биты 4, 2, 0 — 8000, A000, C000): все; только точки — режимы 1, 2
+		ld	b,a
+		ld	a,(dc_pt)
+		or	a
+		ld	a,b
+		jp	z,flt4
 		ld	a,c
-		ld	(fl_m),a
-		ex	de,hl
-		ld	(fl_g),hl
-flt2:		ld	a,(fl_i)		; DE = клетка в VNT
-		ld	l,a
-		inc	a
-		ld	(fl_i),a
+		rrca
+		xor	c
+		and	b
+flt4:		rlca				; -> биты 7, 5, 3
+		rlca
+		rlca
+		ld	(fl_pm),a
+		push	af
+		call	da_img
+		pop	af
+		pop	bc
+		or	a			; плоскостей с точками нет — на экране ничего не меняется
+		jp	z,flt3
+		ld	a,(rr_t)		; огонь при смене кадра — по очереди (fl_skm, fl_c по кругу FIRE_K);
+		cp	0x38			; ленты и прочее — целиком (иначе зубцы разъезжаются)
+		jp	z,flt8
+		cp	0xD0
+		ld	a,0
+		jp	c,flt8a
+flt8:		ld	a,(fl_skm)
+flt8a:		ld	(fl_fire),a
+flt2:		ld	l,c			; DE = клетка в VNT
 		ld	h,live_list/256
 		ld	e,(hl)
 		ld	h,live_hi/256
 		ld	d,(hl)
-		ld	a,(fl_skm)		; смена кадра огня: только клетки своей очереди (счётчик fl_c по кругу FIRE_K);
-		or	a			; только огонь (тайлы 38, D0-D5): ленты (04-06, B8-BA) и прочее — целиком,
-		jp	z,flt6			; иначе зубцы разъезжаются
-		ld	a,(rr_t)
-		cp	0x38
-		jp	z,flt8
-		cp	0xD0
-		jp	c,flt6
-flt8:
-		ld	a,(fl_c)
-		ld	b,a
+		inc	c
+		ld	a,(fl_fire)
+		or	a
+		jp	z,flt6
+		ld	a,(fl_c)		; своя очередь — когда счётчик был 0
 		inc	a
 		cp	FIRE_K
 		jp	c,flt7
 		xor	a
 flt7:		ld	(fl_c),a
-		ld	a,b
-		or	a
+		dec	a
 		jp	nz,flt5
 flt6:		ld	a,(de)			; в карте уже другой тайл (взят предмет и т. п.) — не наша клетка: её
 		ld	hl,rr_t			; изменение и так в очереди
 		cp	(hl)
 		jp	nz,flt5
-		ld	a,e			; под местом спрайта? fl_um[клетка / 8] & fl_bit[клетка & 7]
-		and	7
-		add	a,fl_bit&0xFF
-		ld	l,a
-		ld	h,fl_bit/256
-		ld	b,(hl)
-		ld	a,e
-		rrca
-		rrca
-		rrca
-		and	0x1F
-		ld	l,a
-		ld	a,d
-		sub	VNT/256
-		rrca
-		rrca
-		rrca
-		or	l
-		add	a,fl_um&0xFF
-		ld	l,a
-		ld	h,fl_um/256
-		ld	a,(hl)
-		and	b
-		jp	nz,flt_q
-		ld	a,(dc_pt)		; только точки — если клетка не ждёт полного вывода (иначе она в списке)
-		or	a
-		jp	z,flt9
-		ld	a,d
+		ld	a,d			; PND: бит 0 — ждёт вывода, бит 1 — под спрайтом
 		add	a,(PND-VNT)/256
 		ld	h,a
 		ld	l,e
 		ld	a,(hl)
 		or	a
+		jp	z,flt9
+		and	2
+		jp	nz,flt_q
+		ld	a,(dc_pt)		; ждёт полного вывода: только точки — не здесь (она в списке)
+		or	a
 		jp	nz,flt5
-flt9:		ld	a,e			; не под спрайтом — сразу на экран: HL = экран (как dc_scr): L = 0DFh - 8 * строка,
-		and	0xE0			; 8 * строка = 40h * (D - VNT/256) + (E & E0h) / 4; H = 80h + столбец
+		ld	(hl),0			; выведена
+flt9:		ld	a,e			; HL = экран: L = 0DFh - 8 * строка, 8 * строка = 40h * (D - VNT/256) + (E & E0h) / 4,
+		and	0xE0			; H = 80h + столбец
 		rrca
 		rrca
 		ld	b,a
 		ld	a,d
-		sub	VNT/256
 		rrca
 		rrca
+		and	0xC0
 		or	b
 		cpl
 		add	a,0xE0
@@ -558,27 +556,48 @@ flt9:		ld	a,e			; не под спрайтом — сразу на экран: H
 		and	31
 		add	a,0x80
 		ld	h,a
-		push	de
 		ex	de,hl
-		ld	hl,(fl_g)
+		di
+		ld	hl,0
+		add	hl,sp
+		ld	(dc_sp),hl
+		ld	sp,da_buf
 		ex	de,hl
-		ld	a,(fl_m)
-		ld	c,a
-		call	dc_draw
+		ld	a,(fl_pm)
+		ld	b,a
+flp0:		ld	a,b			; плоскость: бит 7 маски
+		add	a,a
+		ld	b,a
+		jp	nc,flp2
+		REPT	4
 		pop	de
-		ld	a,d			; выведена
-		add	a,(PND-VNT)/256
+		ld	(hl),e
+		dec	l
+		ld	(hl),d
+		dec	l
+		ENDR
+		ld	a,l
+		add	a,8
+		ld	l,a
+flp1:		ld	a,b			; (пропуск бита между плоскостями)
+		add	a,a
+		ld	b,a
+		jp	z,flp3
+		ld	a,h
+		add	a,0x20
 		ld	h,a
-		ld	l,e
-		ld	(hl),0
+		jp	flp0
+flp2:		REPT	4
+		pop	de
+		ENDR
+		jp	flp1
+flp3:		ld	hl,(dc_sp)
+		ld	sp,hl
+		ei
 		jp	flt5
-flt_q:		ld	a,d			; под спрайтом — к выводу (PND), в список (после его стирания)
-		add	a,(PND-VNT)/256
-		ld	h,a
-		ld	l,e
-		ld	a,(hl)			; уже ждёт вывода — в списке есть
-		or	a
-		jp	nz,flt5
+flt_q:		ld	a,(hl)			; под спрайтом — к выводу (PND), в список (после его стирания)
+		rrca
+		jp	c,flt5			; уже ждёт вывода — в списке есть
 		inc	(hl)
 		ld	a,(dl_n)
 		cp	DL_MAX
@@ -592,9 +611,8 @@ flt_q:		ld	a,d			; под спрайтом — к выводу (PND), в спи�
 		ld	(hl),e
 		inc	l
 		ld	(hl),d
-flt5:		ld	a,(fl_n)
-		dec	a
-		ld	(fl_n),a
+flt5:		ld	hl,fl_n
+		dec	(hl)
 		jp	nz,flt2
 flt3:		pop	bc
 		pop	hl
@@ -605,13 +623,8 @@ flt3:		pop	bc
 flt_o:		ld	a,1
 		ld	(dl_ovf),a
 		jp	flt5
-; fl_bbox: fl_um — карта мест нарисованных спрайтов, бит на клетку: байт (клетка / 8), бит (клетка & 7)
-fl_bbox:	ld	a,1
-		ld	(fl_mok),a
-		ld	hl,fl_um
-		ld	bc,96
-		ld	e,0
-		call	memfill_f
+; fl_mark: A = 2 — PND |= 2, A = FDh — PND &= FDh у клеток мест нарисованных спрайтов (spr_rec +5..+8)
+fl_mark:	ld	(fm_op),a
 		ld	hl,spr_rec
 fx0:		ld	a,(hl)
 		or	a
@@ -627,35 +640,41 @@ fx0:		ld	a,(hl)
 		ld	b,(hl)
 		inc	l
 		ld	c,(hl)
-fx1:		push	bc			; строка D
-fx2:		ld	a,b			; HL = fl_um + 4 * r + c / 8
+fx1:		ld	a,d			; HL = PND + 32 * r + c0
 		rrca
 		rrca
 		rrca
-		and	3
 		ld	l,a
-		ld	a,d
-		add	a,a
-		add	a,a
-		or	l
-		add	a,fl_um&0xFF
+		and	0x1F
+		add	a,PND/256
+		ld	h,a
+		ld	a,l
+		and	0xE0
+		or	b
 		ld	l,a
-		ld	h,fl_um/256
-		ld	a,b
-		and	7
-		push	hl
-		ld	hl,fl_bit
-		add	a,l
-		ld	l,a
-		ld	a,(hl)
-		pop	hl
-		or	(hl)
+		push	bc
+		ld	a,c
+		sub	b
+		inc	a
+		ld	b,a			; столбцов
+		ld	a,(fm_op)
+		ld	c,a
+		cp	2
+		jp	nz,fx3
+fx2:		ld	a,(hl)
+		or	c
 		ld	(hl),a
-		ld	a,b
-		inc	b
-		cp	c
-		jp	c,fx2
-		pop	bc
+		inc	l
+		dec	b
+		jp	nz,fx2
+		jp	fx4
+fx3:		ld	a,(hl)
+		and	c
+		ld	(hl),a
+		inc	l
+		dec	b
+		jp	nz,fx3
+fx4:		pop	bc
 		ld	a,d
 		inc	d
 		cp	e
@@ -966,19 +985,6 @@ da_blit:	di
 		ret	nz
 		ei
 		ret
-
-; force_all: все клетки — к перерисовке
-force_all:
-		ld	hl,PND
-		ld	bc,768
-		ld	e,1
-		call	memfill_f
-		ld	a,1			; список — переполнен: вывод по строкам
-		ld	(dl_ovf),a
-		ld	hl,row_dirty
-		ld	bc,24
-		ld	e,1
-		jp	memfill
 
 ; force_tiles: A = старший байт таблицы флагов (256 байт по тайлам) — клетки с отмеченными тайлами к перерисовке
 force_tiles:

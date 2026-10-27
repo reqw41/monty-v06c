@@ -352,13 +352,14 @@ dl_add:		ld	a,(vdirty)		; комната будет нарисована цел�
 		jp	z,dla1
 		ld	(lv_dirty),a
 dla1:
-		ld	a,h			; уже ждёт вывода — в списке есть
+		ld	a,h			; уже ждёт вывода (PND бит 0; бит 1 — под спрайтом, force_live_t) — в списке есть
 		add	a,(PND-VNT)/256
 		ld	d,a
 		ld	e,l
 		ld	a,(de)
-		or	a
-		jp	nz,dla_x
+		rrca
+		jp	c,dla_x
+		rlca
 		inc	a
 		ld	(de),a
 		ld	a,(dl_n)

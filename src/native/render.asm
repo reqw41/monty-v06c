@@ -443,9 +443,3 @@ msk:		or	a
 		ld	a,0xFF
 		ret
 
-; clear_screen: 8000-FFFF := 0
-clear_screen:
-		ld	hl,0x8000
-		ld	bc,0x8000
-		ld	e,0
-		jp	memfill

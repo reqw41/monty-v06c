@@ -52,14 +52,13 @@ sp_mskp		equ	0x7FEE			; рисование: страница масок
 sp_cr		equ	0x7FEF			; исходный цвет спрайта
 pat_oth		equ	0x7FF0			; новая графика у тайлов не E0/E8 (pat_put)
 col_oth		equ	0x7FF1			; новый цвет у групп не 1C/1D (col_changed)
-fl_pg		equ	0x7FF2			; force_live_t: страница флагов, позиция, клеток, режимы, графика, рамка спрайтов
-fl_i		equ	0x7FF3
+fl_pg		equ	0x7FF2			; force_live_t: страница флагов, плоскости, клеток, огонь по очереди
+fl_pm		equ	0x7FF3
 fl_n		equ	0x7FF4
-fl_m		equ	0x7FF5
-fl_mok		equ	0x7FF8			; fl_um построена в этом выводе
+fl_fire		equ	0x7FF5
+fm_op		equ	0x7FF8			; fl_mark: операция (2 — поставить, FDh — снять)
 dc_pt		equ	0x7FF9			; dc_draw: только плоскости с точками (force_live_t при смене банка/шаблонов;
 						; прерывание тогда клетки не рисует — подготовка идёт только без crit_pend)
-fl_g		equ	0x7FF6
 lv_dirty	equ	0x7FFC			; список живых клеток устарел (в клетку поставлен живой тайл)
 fl_ph		equ	0x7FBD			; огонь: очередь клеток, маска (0 — все)
 fl_skm		equ	0x7FBE
@@ -349,8 +348,6 @@ unit_fw:	push	af			; tools/unit.js: ожидание кадра = обработ
 		INCLUDE	"../vec/util.asm"
 		INCLUDE	"../vec/gen/pal.asm"
 		INCLUDE	"gen/cart.asm"
-fl_bit:		db	1, 2, 4, 8, 16, 32, 64, 128	; бит клетки в fl_um (в остатке страницы перед выравниванием)
-		ASSERT	fl_bit/256 == (fl_bit+7)/256
 		ALIGN	256
 rot_tab:	ds	7*256			; повороты байта на 1..7 (rot_init) — маски спрайтов
 dlist:		ds	256			; список изменённых клеток (адреса в VNT)
@@ -375,8 +372,6 @@ ex_bb:		ds	4			; общая рамка отложенных клеток
 lv_tile:	ds	33			; живые клетки: тайл корзины
 lv_beg:		ds	34			; начало корзины в live_list (+ всего)
 lv_pos:		ds	33			; счётчики/позиции при раскладке
-fl_um		equ	VSAT+32			; force_live_t: места нарисованных спрайтов, бит на клетку (fl_bbox) — 96 байт
-						; за 8 атрибутами VSAT (дальше VSAT их только обнуляет drawroom: карта — на один вывод)
 lv_idx		equ	0xF400			; тайл -> корзина (FF — не живой); бывший кэш тайлов в невидимой плоскости
 		INCLUDE	"gen/pats.asm"
 		INCLUDE	"../vec/vars.asm"
