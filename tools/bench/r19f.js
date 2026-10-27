@@ -9,6 +9,12 @@ m.onInstr=pc=>{
   const ctx=p.instruction(pc);c.instruction(pc,ctx,steps>=201&&steps<601);
   if(pc===s.L_8DA2&&steps>60){const cpu=m.cpu;cpu.pc=m.rd(cpu.sp)|m.rd(cpu.sp+1)<<8;cpu.sp+=2;return;}
   if(pc===s.L_A5D1){steps++;if(steps===601)done=true;m.wr(0x7049,6);
+    if(process.env.INPUT==='1') {
+      const key=(r,b,on)=>{if(on)m.keyboard.matrix[r]|=b;else m.keyboard.matrix[r]&=~b;};
+      const phase=Math.floor((steps-100)/70)%4;
+      key(7,0x80,steps>200&&steps%37<4);key(0,0x40,phase===0);key(0,0x10,phase===2);
+      key(0,0x20,phase===1&&steps%50<20);key(0,0x80,phase===3&&steps%50<20);
+    }
     {m.wr(0x707C,m.rd(0x7300));if(steps===50){m.wr(0x705F,m.rd(0x705F)&~4);m.wr(0x71A7,(process.env.ROOM||"1,9").split(",").map(Number)[0]);m.wr(0x71A8,(process.env.ROOM||"1,9").split(",").map(Number)[1]);m.wr(0x7079,9);}}
   }
 };

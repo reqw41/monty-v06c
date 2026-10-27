@@ -116,6 +116,7 @@ bclr:		REPT	64
 		call	copy_de_hl
 		call	mask_keys_init
 		call	trim_build
+		call	joe_load		; код вывода — в свободные хвосты ячеек врагов
 		call	ps_build		; готовые сдвиги кадров врагов
 		ld	a,16
 		ld	(cb_st),a
@@ -199,7 +200,7 @@ isr_event_done:	pop	de
 		ei
 		ret
 
-; frame_wait: кадр -> обработчик логики -> подготовка прямого вывода.
+; frame_wait: подготовка завершённого шага -> кадр -> обработчик логики.
 ; Если crit ещё ждёт прерывания, шаг логики идёт сразу без новой подготовки.
 frame_wait:
 		push	af
@@ -210,17 +211,15 @@ frame_wait:
 		add	hl,sp
 		ld	(np_sp),hl
 		ld	sp,DISP_STACK
-fw2:		ld	a,(nmi_pend)
-		or	a
-		jp	z,fw2
-		di
-		ld	hl,nmi_pend
-		dec	(hl)
-		ei
-		call	frame_handler
 		ld	a,(crit_pend)
 		or	a
 		call	z,disp_prep
+fw2:		ld	a,(nmi_pend)
+		or	a
+		jp	z,fw2
+		ld	hl,nmi_pend
+		dec	(hl)		; one instruction: IRQ increment cannot interleave
+		call	frame_handler
 fw_return:	ld	hl,(np_sp)
 		ld	sp,hl
 		pop	hl
@@ -337,7 +336,7 @@ lv_pos:		ds	33			; счётчики/позиции при раскладке
 lv_idx		equ	0xF400			; тайл -> корзина (FF — не живой); бывший кэш тайлов в невидимой плоскости
 		INCLUDE	"gen/video.asm"
 		INCLUDE	"vars.asm"
-ps_idx:		ds	64			; готовые сдвиги: имя / 4 -> номер (sprites.asm, ps_build)
+ps_idx		equ	0x7F00			; 64 байта; выше остаются 64 байта стека IRQ
 ps_tab:		ds	2*8*PS_N
 ps_rr:		ds	PS_N
 ps_rp:		ds	2
@@ -354,8 +353,6 @@ ps_c2:		ds	1
 ps_m:		ds	1
 mb_d:		ds	16			; group_modes_build: вклад индекса как точек / как фона
 mb_e:		ds	16
-mf_v:		ds	1			; memfill_f
-mf_sp:		ds	2
 ps_heap:					; дальше до PS_TOP — место готовых сдвигов
 		ASSERT	ps_heap <= PS_TOP
 ; выровненные таблицы — на постоянных адресах под 7000 (рост кода не сдвигает их на страницу)
@@ -381,6 +378,8 @@ dlist:		ds	256			; список изменённых клеток (адреса 
 PS_MORE		equ	video_raw_end		; после исходных полос — готовые сдвиги
 		ASSERT	PS_MORE < 0x7000
 		INCLUDE	"gen/spat.asm"			; ORG VSPR — шаблоны спрайтов прямо в образе
+
+		INCLUDE "joe.asm"
 
 		INCLUDE "gen/logic.asm"
 

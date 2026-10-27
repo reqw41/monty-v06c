@@ -38,6 +38,8 @@ rs_n:		ds	1
 pu_lo:		ds	1
 ex_any:		ds	1
 crit_pend:	ds	1
+cr_units:	ds	1
+cr_read:	ds	2
 np_sp:		ds	2
 bk_c:		ds	1
 nf_val:		ds	1
@@ -87,6 +89,11 @@ group_modes:	ds	32
 enemy_turn:	ds	1
 sprite_dirty:	ds	1
 fire_ran:	ds	1
+joe_fast:	ds	1
+joe_changed:	ds	1
+joe_n:		ds	1
+joe_rows:	ds	1
+joe_groups:	ds	1
 en_reuse:	ds	1
 en_zero:	ds	1
 en_stride:	ds	1

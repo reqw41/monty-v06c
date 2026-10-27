@@ -9,11 +9,26 @@ for (const l of fs.readFileSync(path.join(dir, 'monty.sym'), 'utf8').split('\n')
   if (q) sym[q[1]] = parseInt(q[2], 16);
 }
 const m = E.mk(path.join(dir, 'monty.bin'));
+const image = fs.readFileSync(path.join(dir, 'monty.bin'));
 const protectedBytes = new Uint8Array(65536), old = {}, sourceOld = {}, movement = {};
 const room=(process.env.ROOM||'1,9').split(',').map(Number);
 const lastEnemy=process.env.ROOM==='5,7'||process.env.ROOM==='7,3'?5:4;
 let steps = 0, ready = false, bad = 0, frame0 = 0, fires = 0, belts = 0, lastPC = 0;
 function checkMasks() {
+  if (sym.joe_load !== undefined) {
+    const mutable = new Set([sym.jm_alpha,sym.jm_bits+1,sym.jm_end+1,
+      sym.jb_call+1,sym.jb_call+2,sym.jr_ac+1,sym.jr_mc+1,sym.jr_oc+1]);
+    for (let i=0;i<4;i++) {
+      const source=sym['joe_source'+i], end=sym['joe_end'+i], target=0xFB30+256*i;
+      if (end-source>160) throw Error('Код Джо пересекает маску врага');
+      for(let j=0;j<end-source;j++) if(!mutable.has(target+j)) {
+        if(m.rd(target+j)!==image[source+j]) throw Error('Повреждён код Джо '+(target+j).toString(16));
+        protectedBytes[target+j]=1;
+      }
+    }
+    // 7F00..7F3F is the shift index; IRQ has its own 64-byte stack above it.
+    protectedBytes.fill(1,sym.ps_idx,sym.ps_idx+64);
+  }
   let count = 0;
   for (let f = 0; f < 12; f++) {
     const nm = m.rd(sym.ps_names + f), R = m.rd(sym.ps_rr + f);

@@ -1,11 +1,12 @@
 #!/usr/bin/env node
-// All 99 rooms x 3 levels, fixed entrance pose, immortal stationary hero.
+// All 99 rooms x 3 levels, immortal hero; FREE=1 lets him fall and ride belts.
 'use strict';
 const fs = require('fs'), path = require('path');
 process.chdir(path.resolve(__dirname, '../..'));
 const E = require('../vec_emu'), {symbols, profiler} = require('./logic-profile');
 const B = process.env.B || 'build/native', s = symbols(B);
 const samples = +(process.env.N || 128), warmup = +(process.env.WARM || 64);
+const free = process.env.FREE === '1', hiddenJoe = process.env.HIDE_JOE === '1';
 if (samples < 1 || warmup < 1) throw Error('N and WARM must be positive');
 const rows = [];
 for (const lv of process.env.LV ? [+process.env.LV] : [1,2,3]) {
@@ -20,6 +21,8 @@ for (const lv of process.env.LV ? [+process.env.LV] : [1,2,3]) {
   }
   m.onInstr=pc=>{
     p.instruction(pc);
+    // Hide at the rendering boundary: hero logic can restore his colors each step.
+    if (hiddenJoe && pc===s.spr_plan) {m.wr(0x7303,0);m.wr(0x7307,0);}
     if (pc===s.L_8DA2 && ri>=0 && entered) { const c=m.cpu;c.pc=m.rd(c.sp)|m.rd(c.sp+1)<<8;c.sp+=2;return; }
     if(pc!==s.L_A5D1) return;
     steps++;m.wr(0x7049,6);m.wr(0x707C,m.rd(0x7300));
@@ -33,7 +36,8 @@ for (const lv of process.env.LV ? [+process.env.LV] : [1,2,3]) {
     }
     // Freeze the entrance pose between complete logic steps, not inside routines.
     // This keeps belts/falls from leaving the room and preserves their work per step.
-    pose.forEach((v,i)=>m.wr(0x7300+i,v));m.wr(0x7079,0);m.wr(0x707C,pose[0]);
+    if (!free) {pose.forEach((v,i)=>m.wr(0x7300+i,v));m.wr(0x7079,0);m.wr(0x707C,pose[0]);}
+    if (hiddenJoe) {m.wr(0x7303,0);m.wr(0x7307,0);}
     age++;
     if(age===warmup) {start={...p.totals};frames=m.frames;hist={};lastFrame=m.frames;}
     if(age>warmup) {const d=m.frames-lastFrame;hist[d]=(hist[d]||0)+1;lastFrame=m.frames;}
@@ -52,4 +56,4 @@ for (const lv of process.env.LV ? [+process.env.LV] : [1,2,3]) {
   }
 }
 console.log('Slowest logic:',rows.slice().sort((a,b)=>b.logic-a.logic).slice(0,15));
-if(process.env.OUT) fs.writeFileSync(process.env.OUT,JSON.stringify({build:B,samples,warmup,rows},null,2)+'\n');
+if(process.env.OUT) fs.writeFileSync(process.env.OUT,JSON.stringify({build:B,samples,warmup,free,hiddenJoe,rows},null,2)+'\n');

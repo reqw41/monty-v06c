@@ -706,6 +706,7 @@ spr_prep:
 		or	(hl)
 		ld	(hl),a
 		ld	(spr_rec+15),a
+		ld	(joe_changed),a
 		ld	a,(ml_n)
 		ld	b,a
 		ld	hl,ml
@@ -1121,6 +1122,9 @@ pu_s:		ld	(hl),a
 		ld	a,(hl)
 		ld	(cs_sv+2),a
 		pop	hl
+		ld	a,(joe_fast)
+		or	a
+		jp	nz,joe_blit
 		ld	a,(hl)			; столбцов
 		or	a
 		jp	z,spr_paint
@@ -1160,6 +1164,9 @@ cs_sv:		call	st_sv
 pu3:
 ; spr_paint: по ppd[sp_k] (столбцы, маски, входы) и sv_lo/sp_ci из spr_new — спрайт в экран
 spr_paint:
+		ld	a,(joe_fast)
+		or	a
+		ret	nz
 		ld	a,(sp_k)		; маски: готовые сдвиги (ps_hi[k] != 0) или ячейка спрайта
 		add	a,ps_hi&0xFF
 		ld	l,a
@@ -1443,7 +1450,7 @@ sy9:		inc	b
 		ld	a,b
 		cp	2
 		jp	nz,sy0
-		ret
+		jp	joe_prepare
 ; se_ptr: A = строк -> sy_se = se_tab + 8 * строк (BC сохраняется)
 se_ptr:		add	a,a
 		add	a,a
@@ -1936,7 +1943,9 @@ cr_end:		xor	a			; конец списка
 		ld	(hl),a
 		ret
 ; crit: после прерывания кадра — список действий cr_list
-crit:		ld	hl,cr_list
+crit:		xor	a
+		ld	(cr_units),a
+		ld	hl,(cr_read)
 ck0:		ld	a,(hl)
 		or	a
 		ret	z
@@ -1952,7 +1961,7 @@ ck0:		ld	a,(hl)
 		xor	a
 		ld	(en_reuse),a
 		call	draw1
-		jp	ck9
+		jp	ck_count
 ck_repaint:	ld	a,1
 		ld	(en_reuse),a
 		ld	a,b
@@ -1961,6 +1970,14 @@ ck_repaint:	ld	a,1
 		ld	h,cover_moves/256
 		ld	(hl),0
 		call	draw1
+ck_count:	ld	a,b
+		cp	2
+		ld	a,1
+		jp	nc,ck_units
+		inc	a
+ck_units:	ld	hl,cr_units
+		add	a,(hl)
+		ld	(hl),a
 		jp	ck9
 ck1:		call	restore1
 		jp	ck9
@@ -1974,7 +1991,18 @@ ck2:		ld	a,(ex_any)		; клетки откладывались?
 		ld	l,a
 		call	cells_rect
 ck9:		pop	hl
-		jp	ck0
+		ld	a,(cr_units)
+		cp	4
+		jp	c,ck0
+		ld	a,(hl)
+		cp	1
+		jp	z,ck_defer
+		cp	4
+		jp	nz,ck0
+ck_defer:	ld	(cr_read),hl
+		ld	a,1
+		ld	(crit_pend),a
+		ret
 
 ; grp_of: A = номер -> A = grp[номер], HL -> grp[номер]
 		ASSERT	grp/256 == (grp+SPR_MAX-1)/256
@@ -2123,6 +2151,23 @@ psf_n:		or	1
 ; Его исходный код после копирования также доступен ps_alloc.
 ps_boot_source:
 		DISP	TILE_IMAGES
+joe_load:
+		ld	de,joe_source0
+		ld	hl,0xFB30
+		ld	bc,joe_end0-joe_source0
+		call	copy_de_hl
+		ld	de,joe_source1
+		ld	hl,0xFC30
+		ld	bc,joe_end1-joe_source1
+		call	copy_de_hl
+		ld	de,joe_source2
+		ld	hl,0xFD30
+		ld	bc,joe_end2-joe_source2
+		call	copy_de_hl
+		ld	de,joe_source3
+		ld	hl,0xFE30
+		ld	bc,joe_end3-joe_source3
+		jp	copy_de_hl
 game_init:	ld	hl,0x7000
 		ld	de,ram0_pk
 		call	unpack

@@ -156,6 +156,8 @@ dp4:
 		xor	a
 		ld	(dr_ex),a
 dp_no_cells:	call	crit_plan		; группы и порядок — тоже до ожидания
+		ld	hl,cr_list
+		ld	(cr_read),hl
 		ld	a,1			; короткая часть — сразу после прерывания кадра (crit)
 		ld	(crit_pend),a
 		ret
