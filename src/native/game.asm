@@ -92,6 +92,10 @@ boot:
 		ld	bc,tabs_end-pvars
 		ld	e,0
 		call	memfill
+		ld	hl,PS_TOP		; записи и таблицы спрайтов (6600-67FF)
+		ld	bc,0x0200
+		ld	e,0
+		call	memfill
 		ld	hl,0x7000		; ОЗУ игры
 		ld	bc,0x0400
 		ld	e,0
@@ -356,7 +360,7 @@ lv_beg:		ds	34			; начало корзины в live_list (+ всего)
 lv_pos:		ds	33			; счётчики/позиции при раскладке
 lv_idx		equ	0xF400			; тайл -> корзина (FF — не живой); бывший кэш тайлов в невидимой плоскости
 		INCLUDE	"gen/pats.asm"
-		INCLUDE	"../vec/vars.asm"
+		INCLUDE	"vars.asm"
 ps_idx:		ds	64			; готовые сдвиги: имя / 4 -> номер (sprites.asm, ps_build)
 ps_tab:		ds	2*8*PS_N
 ps_rr:		ds	PS_N
@@ -380,8 +384,11 @@ da_buf:		ds	24			; draw_all: образ клетки (плоскости 8000, A
 ps_heap:					; дальше до PS_TOP — место готовых сдвигов
 		ASSERT	ps_heap < PS_TOP - 0x400
 ; выровненные таблицы — на постоянных адресах под 7000 (рост кода не сдвигает их на страницу)
-PS_TOP		equ	0x6700
+PS_TOP		equ	0x6600
 		ORG	PS_TOP
+spr_rec:	ds	0x80			; записи спрайтов (SREC x SPR_MAX)
+spr_new:	ds	SREC*SPR_MAX		; новые атрибуты (spr_rec + 80h)
+		ORG	0x6700
 ; таблицы спрайтов — в одной странице (адрес — одной командой)
 sprt:
 gact:		ds	SPR_MAX			; gact, gs, ge, gd — подряд
@@ -395,6 +402,7 @@ pps2:		ds	2*SPR_MAX
 ppd:		ds	11*SPR_MAX
 ubr:		ds	4*SPR_MAX		; рамки спрайтов: прежнее и новое место (ub_build)
 mk_key:		ds	4*SPR_MAX		; маска в ячейке: шаблон, сдвиг, начало, строк (spr_masks)
+grp:		ds	SPR_MAX			; crit_plan: группы
 sprt_end:
 		ASSERT	sprt/256 == (sprt_end-1)/256
 		ORG	0x6800

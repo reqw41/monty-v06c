@@ -155,85 +155,68 @@ spl_done:
 		ld	a,(dl_ovf)
 		or	b
 		jp	z,spx0
-		ld	b,0
-spd0:		ld	a,b
-		call	rec_ptr
-		ld	a,(hl)			; нарисован?
+		ld	hl,spr_rec
+spd0:		ld	a,(hl)			; нарисован и не отмечен?
 		or	a
 		jp	z,spd9
-		push	hl
-		ld	de,13
-		add	hl,de
+		ld	a,l
+		or	13
+		ld	l,a
 		ld	a,(hl)
-		pop	hl
 		or	a
 		jp	nz,spd9
-		push	hl
-		inc	hl			; +5: r0 r1 c0 c1
-		inc	hl
-		inc	hl
-		inc	hl
-		inc	hl
-		ld	a,(hl)
-		ld	(se_r0),a
-		inc	hl
+		ld	a,l			; +5: r0 r1 c0 c1
+		sub	8
+		ld	l,a
+		ld	b,(hl)			; B = r0
+		inc	l
 		ld	a,(hl)
 		ld	(se_r1),a
-		inc	hl
+		inc	l
+		ld	c,(hl)			; C = c0
+		inc	l
 		ld	a,(hl)
-		ld	(se_y),a		; c0
-		inc	hl
-		ld	c,(hl)			; c1
-		pop	hl
-spd1:		ld	a,(se_r0)		; строка: L = (r & 7) * 32 + c, H = база + r / 8
+		sub	c
+		inc	a
+		ld	(se_y),a		; столбцов
 		push	hl
-		ld	d,a
+spd1:		ld	a,b			; DE = PND + 32 r + c0
 		rrca
 		rrca
 		rrca
+		ld	e,a
 		and	0x1F
-		ld	e,a			; r / 8
-		ld	a,d
-		rrca
-		rrca
-		rrca
-		and	0xE0
-		ld	d,a			; (r & 7) * 32
-		ld	a,(se_y)
-spd2:		push	af
-		add	a,d
-		ld	l,a
-		ld	a,e
-		add	a,VNT/256
-		ld	h,a
-		ld	a,e			; ждёт вывода (PND)?
 		add	a,PND/256
-		ld	h,a
-		ld	a,(hl)
+		ld	d,a
+		ld	a,e
+		and	0xE0
+		or	c
+		ld	e,a
+		ld	a,(se_y)
+		ld	l,a
+spd2:		ld	a,(de)			; ждёт вывода (PND)?
 		or	a
 		jp	nz,spd_m
-		pop	af
-		inc	a
-		cp	c
-		jp	z,spd2
-		jp	c,spd2
-		pop	hl
-		ld	a,(se_r0)
-		inc	a
-		ld	(se_r0),a
-		ld	d,a
+		inc	e
+		dec	l
+		jp	nz,spd2
+		inc	b
 		ld	a,(se_r1)
-		cp	d
+		cp	b
 		jp	nc,spd1
-		jp	spd9
-spd_m:		pop	af
 		pop	hl
-		ld	de,13
-		add	hl,de
+		jp	spd8
+spd_m:		pop	hl			; отметить (+13)
+		ld	a,l
+		or	13
+		ld	l,a
 		ld	(hl),1
-spd9:		inc	b
-		ld	a,b
-		cp	SPR_MAX
+spd8:
+spd9:		ld	a,l
+		and	0xF0
+		add	a,16
+		ld	l,a
+		cp	16*SPR_MAX
 		jp	nz,spd0
 ; замыкание: неотмеченный нарисованный, чья рамка (ubr) пересекает рамку отмеченного
 spx0:		call	spn_cnt			; никто не отмечен — нечего замыкать

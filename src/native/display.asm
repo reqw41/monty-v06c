@@ -505,6 +505,9 @@ flt4:		rlca				; -> биты 7, 5, 3
 		jp	c,flt8a
 flt8:		ld	a,(fl_skm)
 flt8a:		ld	(fl_fire),a
+		ld	hl,0			; SP цикла (в нём стек не меняется) — для возврата после записи через стек
+		add	hl,sp
+		ld	(dc_sp),hl
 flt2:		ld	l,c			; DE = клетка в VNT
 		ld	h,live_list/256
 		ld	e,(hl)
@@ -556,13 +559,8 @@ flt9:		ld	a,e			; HL = экран: L = 0DFh - 8 * строка, 8 * строка
 		and	31
 		add	a,0x80
 		ld	h,a
-		ex	de,hl
-		di
-		ld	hl,0
-		add	hl,sp
-		ld	(dc_sp),hl
+		di				; (SP цикла — в dc_sp с начала корзины)
 		ld	sp,da_buf
-		ex	de,hl
 		ld	a,(fl_pm)
 		ld	b,a
 flp0:		ld	a,b			; плоскость: бит 7 маски
@@ -915,8 +913,7 @@ da_img:		ld	hl,da_buf
 		rrca
 		call	dai_p
 		ld	a,c
-dai_p:		and	3
-		ld	b,8
+dai_p:		and	3			; (циклы по 8 байт — развёрнуты)
 		jp	z,dai0
 		dec	a
 		jp	z,daip
@@ -925,28 +922,28 @@ dai_p:		and	3
 		ld	a,0xFF
 		jp	daif
 dai0:		xor	a
-daif:		ld	(hl),a
+daif:		REPT	8
+		ld	(hl),a
 		inc	hl
-		dec	b
-		jp	nz,daif
+		ENDR
 		ret
 daip:		push	de
-dap1:		ld	a,(de)
+		REPT	8
+		ld	a,(de)
 		ld	(hl),a
 		inc	hl
 		inc	de
-		dec	b
-		jp	nz,dap1
+		ENDR
 		pop	de
 		ret
 dain:		push	de
-dan1:		ld	a,(de)
+		REPT	8
+		ld	a,(de)
 		cpl
 		ld	(hl),a
 		inc	hl
 		inc	de
-		dec	b
-		jp	nz,dan1
+		ENDR
 		pop	de
 		ret
 ; da_blit: da_buf -> клетка экрана HL (плоскость 8000, верхняя строка); HL сохраняется. Через стек (POP)
