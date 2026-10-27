@@ -40,8 +40,6 @@ crit_pend:	ds	1
 np_sp:		ds	2
 bk_c:		ds	1
 nf_val:		ds	1
-disp_n:		ds	1
-dp_done:	ds	1
 fire_next:		ds	1
 spr_E:		ds	1
 sp_sp:		ds	1
@@ -84,6 +82,9 @@ tile_count:	ds	1
 tile_src:	ds	2
 tile_dst:	ds	2
 group_modes:	ds	32
+disp_phase:	ds	1
+enemy_turn:	ds	1
+sprite_dirty:	ds	1
 pvars_end:
 dc_sp:		ds	2
 tabs_end:

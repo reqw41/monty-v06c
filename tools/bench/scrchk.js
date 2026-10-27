@@ -19,7 +19,7 @@ function cellBytes(t, f) {
   return o;
 }
 function check() {
-  if (m.rd(sym.dl_n) || m.rd(sym.dl_ovf) || m.rd(sym.video_dirty) || m.rd(sym.crit_pend) || m.rd(sym.lv_dirty)) { skip++; return; }
+  if (m.rd(sym.dl_n) || m.rd(sym.dl_ovf) || (m.rd(sym.video_dirty) & (sym.DIRTY_ROOM | sym.DIRTY_COLOR)) || m.rd(sym.crit_pend) || m.rd(sym.lv_dirty)) { skip++; return; }
   if (!m.rd(sym.video_enabled)) { skip++; return; }
   // фон: 3 плоскости x 256 x 256 (строки экрана 0..191 сверху: адрес 0xFF - y... как у клетки: 0xDF - 8r - y)
   const scr = [new Uint8Array(8192), new Uint8Array(8192), new Uint8Array(8192)], fire = new Uint8Array(768); const th = m.rd(sym.fire_shown);

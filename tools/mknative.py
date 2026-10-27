@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """Данные нативной сборки: src/native/gen/cart.asm — блоки данных картриджа (разметка build/monty.skool) с меткой
-C_xxxx на каждый адрес (EQU), слова-указатели в данные -> dw C_xxxx; src/native/gen/pats.asm — шаблоны из
-снимка VRAM оригинала (tools/vsnap.js): банк 0, различия банков 1, 2, 5 для набора анимированных тайлов,
-шаблоны спрайтов, начальные цвета.
+C_xxxx на каждый адрес (EQU), слова-указатели в данные -> dw C_xxxx; src/native/gen/video.asm — исходные полосы тайлов и цвета;
+src/native/gen/spat.asm — общие исходные кадры объектов и таблица указателей.
   node tools/vsnap.js && python3 -I tools/mknative.py"""
 import re, os
 ROOT = os.path.join(os.path.dirname(__file__), '..')
@@ -78,9 +77,20 @@ print('данных картриджа', data_kept, 'из', len(data), 'байт
 
 # --- шаблоны из снимка VRAM ---
 V = open(os.path.join(ROOT, 'build/native/vram.bin'), 'rb').read()
-S = ['; создано tools/mknative.py — не править', '; шаблоны спрайтов (VDP 3800) — прямо по рабочему адресу VSPR (часть образа)', '\t\tORG\tVSPR', 'spat:']
-for i in range(0, 0x800, 16): S.append('\t\tdb\t' + ','.join(f'0x{x:02X}' for x in V[0x3800 + i:0x3810 + i]))
-open(os.path.join(ROOT, 'src/native/gen/spat.asm'), 'w').write('\n'.join(S) + '\n')
+S = ['; Создано tools/mknative.py: исходные кадры объектов, совпадающие кадры разделяются.',
+     '\t\tORG\tVSPR', 'sprite_sources:']
+frames = {}
+refs = []
+for i in range(64):
+    frame = bytes(V[0x3800+32*i:0x3820+32*i])
+    if frame not in frames: frames[frame] = 'shape_%02d' % len(frames)
+    refs.append(frames[frame])
+for i in range(0,64,8): S.append(' dw '+','.join(refs[i:i+8]))
+for frame, label in frames.items():
+    S.append(label+':')
+    for i in range(0,32,16): S.append(' db '+','.join(map(str,frame[i:i+16])))
+S.append('sprite_sources_end:')
+open(os.path.join(ROOT, 'src/native/gen/spat.asm'), 'w').write('\n'.join(S)+'\n')
 import runpy
 runpy.run_path(os.path.join(ROOT, 'tools/mkvideo.py'), run_name='__main__')
 print('шаблоны спрайтов: 2 КБ исходной графики')

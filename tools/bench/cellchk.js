@@ -10,7 +10,7 @@ const ROOMS = []; for (let r = 0; r < 9; r++) for (let c = 8 - r; c <= 10 + r; c
 let steps = 0, fc = 0, checks = 0, bad = 0; const ex = [];
 const keys = (s) => { K(7, 0x80, (s >= 20 && s < 30) || (s > 200 && s % 37 < 4)); const ph = s < 100 ? -1 : Math.floor((s - 100) / 70) % 3; K(0, 0x40, ph === 0); K(0, 0x10, ph === 1); };
 function check() {
-  if (m.rd(sym.dl_n) || m.rd(sym.dl_ovf) || m.rd(sym.video_dirty)) return;
+  if (m.rd(sym.dl_n) || m.rd(sym.dl_ovf) || (m.rd(sym.video_dirty) & (sym.DIRTY_ROOM | sym.DIRTY_COLOR))) return;
   const sp = []; for (let k = 0; k < 6; k++) { const a = sym.spr_rec + 16 * k; if (m.rd(a)) sp.push([m.rd(a + 5), m.rd(a + 6), m.rd(a + 7), m.rd(a + 8)]); }
   const th = m.rd(sym.fire_shown); checks++;
   for (let r = 0; r < 24; r++) for (let c = 0; c < 32; c++) {

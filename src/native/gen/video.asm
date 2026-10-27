@@ -52,6 +52,16 @@ raw_anim:
  dw raw_125,raw_126,raw_127,raw_124
  dw raw_126,raw_127,raw_124,raw_125
  dw raw_127,raw_124,raw_125,raw_126
+fire_transitions:
+ dw fire_delta_0,fire_delta_1,fire_delta_2,fire_delta_3
+ dw fire_delta_1,fire_delta_0,fire_delta_2,fire_delta_4
+ dw fire_delta_2,fire_delta_2,fire_delta_0,fire_delta_1
+ dw fire_delta_3,fire_delta_4,fire_delta_1,fire_delta_0
+fire_delta_0: db 255
+fire_delta_1: db 4,5,6,56,184,185,186,208,209,210,211,212,213,255
+fire_delta_2: db 4,5,6,56,160,163,164,167,184,185,186,208,209,210,211,212,213,255
+fire_delta_3: db 4,5,6,160,163,164,167,184,185,186,208,209,210,211,212,213,255
+fire_delta_4: db 4,5,6,56,160,163,164,167,184,185,186,210,211,212,213,255
 raw_000: db 0,0,0,0,0,0,0,0
 raw_001: db 48,48,63,63,63,63,12,12
 raw_002: db 48,48,255,255,255,255,12,12

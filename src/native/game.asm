@@ -10,8 +10,6 @@ DIRTY_BELT		equ	0x01			; отметки для вывода (display.asm)
 DIRTY_COLOR		equ	0x02
 DIRTY_ROOM		equ	0x04
 DIRTY_FIRE		equ	0x08
-DMIN		equ	2			; вывод — не чаще раза в DMIN шагов
-DSKIP		equ	3			; ... и не реже раза в DSKIP (когда отстаём)
 		DEFINE	NATIVE
 SPR_MAX		equ	6
 DL_MAX		equ	127			; список изменённых клеток (dlist, по 2 байта)
@@ -19,6 +17,7 @@ dl_n		equ	0x7FA8
 dl_ovf		equ	0x7FA9
 dl_cnt		equ	0x7FAA
 dl_k		equ	0x7FAB
+cover_moves	equ	0x7FAE
 kb_req		equ	0x7FAC
 rs_mode		equ	0x7FAD
 sy_k		equ	0x7FB4
@@ -51,8 +50,7 @@ other_colors		equ	0x7FF1			; новый цвет у групп не 1C/1D (room_
 fl_pg		equ	0x7FF2			; force_live_t: страница флагов, плоскости, клеток, огонь по очереди
 fl_pm		equ	0x7FF3
 fl_n		equ	0x7FF4
-fl_fire		equ	0x7FF5
-fm_op		equ	0x7FF8			; fl_mark: операция (2 — поставить, FDh — снять)
+fl_end		equ	0x7FF5
 dc_pt		equ	0x7FF9			; только изменяющиеся плоскости живых тайлов (force_live_t;
 						; прерывание тогда клетки не рисует — подготовка идёт только без crit_pend)
 lv_dirty	equ	0x7FFC			; список живых клеток устарел (в клетку поставлен живой тайл)
@@ -183,9 +181,12 @@ is_s2:		ld	(snd_acc),a
 		call	snd_vi53
 isr2:
 		ENDIF
-		ld	a,1
-		ld	(nmi_pend),a
-		pop	de
+		ld	hl,nmi_pend
+		ld	a,(hl)
+		cp	2
+		jp	nc,isr_event_done
+		inc	(hl)
+isr_event_done:	pop	de
 		pop	bc
 		ld	hl,(isr_sp)
 		ld	sp,hl
@@ -194,8 +195,8 @@ isr2:
 		ei
 		ret
 
-; --- frame_wait: ожидание кадра в главном цикле: пока ждём — подготовка вывода (раз в DSKIP шагов); пришёл
-; кадр — спрайты (короткая часть), затем обработчик кадра игры (frame_handler). Свой стек (DISP_STACK).
+; frame_wait: кадр -> обработчик логики -> подготовка прямого вывода.
+; Если crit ещё ждёт прерывания, шаг логики идёт сразу без новой подготовки.
 frame_wait:
 		push	af
 		push	bc
@@ -205,37 +206,18 @@ frame_wait:
 		add	hl,sp
 		ld	(np_sp),hl
 		ld	sp,DISP_STACK
-		ld	a,(dp_done)
-		or	a
-		jp	nz,fw2
-		inc	a
-		ld	(dp_done),a
-		ld	a,(crit_pend)		; прошлый вывод ещё не дорисован прерыванием — новую подготовку не начинать
-		or	a
-		jp	nz,fw2
-		ld	hl,disp_n
-		inc	(hl)
-		ld	a,(hl)			; не чаще раза в DMIN шагов
-		cp	DMIN
-		jp	c,fw2
-		ld	a,(nmi_pend)		; кадр ещё не пришёл — время есть (иначе ждали бы): готовим вывод
-		or	a
-		jp	z,fwp
-		ld	a,(hl)			; уже пришёл (отстаём) — вывод не реже раза в DSKIP шагов
-		cp	DSKIP
-		jp	c,fw2
-fwp:		ld	(hl),0
-		call	disp_prep		; crit_pend = 1 — спрайты нарисует следующее прерывание (isr), не ждём
-fw2:		ld	a,(nmi_pend)		; кадра ждать
+fw2:		ld	a,(nmi_pend)
 		or	a
 		jp	z,fw2
 		di
-		xor	a
-		ld	(nmi_pend),a
+		ld	hl,nmi_pend
+		dec	(hl)
 		ei
-		ld	(dp_done),a
 		call	frame_handler
-		ld	hl,(np_sp)
+		ld	a,(crit_pend)
+		or	a
+		call	z,disp_prep
+fw_return:	ld	hl,(np_sp)
 		ld	sp,hl
 		pop	hl
 		pop	de

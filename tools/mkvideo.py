@@ -19,6 +19,16 @@ out = ['; Создано tools/mkvideo.py; неизменяемые полосы
 for i in range(0,256,8): out += [' dw '+','.join(base[i:i+8])]
 out += ['raw_anim:']
 for i in range(0,len(frames),4): out += [' dw '+','.join(frames[i:i+4])]
+changes = {}
+transitions = []
+for old in range(4):
+    for new in range(4):
+        changed = tuple(t for i,t in enumerate(a) if frames[4*i+old] != frames[4*i+new])
+        if changed not in changes: changes[changed] = 'fire_delta_%d' % len(changes)
+        transitions.append(changes[changed])
+out += ['fire_transitions:']
+for i in range(0,16,4): out += [' dw '+','.join(transitions[i:i+4])]
+for changed,label in changes.items(): out += [label+': db '+','.join(map(str,changed+(255,)))]
 for b,label in strips.items(): out += [label+': db '+','.join(map(str,b))]
 (R/'src/native/gen/video.asm').write_text('\n'.join(out)+'\n')
 print('Исходных полос:',len(strips),'байт графики:',8*len(strips))

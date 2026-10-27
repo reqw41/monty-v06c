@@ -2,20 +2,6 @@
 ; video_dirty: комната, её цвета, кадры огня/лент; PND/dlist: изменённые клетки.
 ; spr_rec/spr_new и таблицы полос — постоянные дескрипторы слоёв объектов.
 
-; display: подготовка и, если есть спрайты к перерисовке, — ожидание кадра и короткая часть (меню)
-display:
-		call	disp_prep
-		ld	a,(crit_pend)
-		or	a
-		ret	z
-		ld	hl,frames
-		ld	a,(hl)
-dp6:		cp	(hl)
-		jp	z,dp6
-		xor	a
-		ld	(crit_pend),a
-		jp	crit
-
 ; disp_prep: всё, кроме короткой части: клетки (кроме тех, что под перерисовываемыми спрайтами), план
 ; спрайтов; crit_pend := 1, если после прерывания нужна короткая часть (crit)
 disp_prep:
@@ -39,8 +25,20 @@ dp1:		ld	a,(lv_dirty)		; в клетки ставились живые тайл�
 		xor	a
 		ld	(lv_dirty),a
 		call	live_build
-dp1a:		ld	a,1			; до dp3 (кадры огня и лент) у живых клеток меняются только точки
+dp1a:		ld	a,(disp_phase)
+		xor	1
+		ld	(disp_phase),a
+		ld	hl,enemy_turn
+		inc	(hl)
+		ld	a,(hl)
+		cp	3
+		jp	c,dp_phase
+		ld	(hl),0
+dp_phase:	ld	a,1			; до dp3 (кадры огня и лент) у живых клеток меняются только точки
 		ld	(dc_pt),a
+		ld	a,(disp_phase)
+		or	a
+		jp	nz,dp2
 		ld	a,(video_dirty)
 		and	DIRTY_FIRE			; R4 — фаза анимации
 		jp	z,dp2
@@ -79,7 +77,10 @@ bdz:		ld	a,(hl)
 		pop	hl
 		inc	hl
 		jp	bdz
-dp2:		ld	a,(video_dirty)
+dp2:		ld	a,(disp_phase)
+		or	a
+		jp	z,dp3
+		ld	a,(video_dirty)
 		and	DIRTY_BELT
 		jp	z,dp3
 		ld	a,(video_dirty)
@@ -107,10 +108,7 @@ dp3:		xor	a
 		and	0xFF-DIRTY_COLOR
 		ld	(video_dirty),a
 		call	room_color_changes
-dp4:		ld	a,(fm_op)		; отметки «под спрайтом» (force_live_t) — снять
-		cp	2
-		ld	a,0xFD
-		call	z,fl_mark
+dp4:
 		call	spr_plan		; какие спрайты перерисовать (A — сколько)
 		ld	c,a
 		ld	a,(dl_n)		; изменённые клетки есть?
@@ -123,6 +121,13 @@ dp4:		ld	a,(fm_op)		; отметки «под спрайтом» (force_live_t) 
 		or	a
 		jp	z,draw_list		; спрайты не трогаем — только клетки
 		call	spr_prep		; маски и места новых — заранее
+		xor	a
+		ld	(ex_any),a
+		ld	a,(dl_n)
+		ld	b,a
+		ld	a,(dl_ovf)
+		or	b
+		jp	z,dp_no_cells
 		call	ex_build		; клетки под прежними местами отмеченных — отложить
 		xor	a
 		ld	(ex_any),a
@@ -131,7 +136,7 @@ dp4:		ld	a,(fm_op)		; отметки «под спрайтом» (force_live_t) 
 		call	draw_list
 		xor	a
 		ld	(dr_ex),a
-		call	crit_plan		; группы и порядок — тоже до ожидания
+dp_no_cells:	call	crit_plan		; группы и порядок — тоже до ожидания
 		ld	a,1			; короткая часть — сразу после прерывания кадра (crit)
 		ld	(crit_pend),a
 		ret
@@ -443,10 +448,6 @@ force_live_t:
 		ld	a,(lv_nn)
 		or	a
 		ret	z
-		ld	a,(fm_op)		; клетки под спрайтами — бит 1 в PND (раз за вывод; снимается перед spr_plan)
-		cp	2
-		ld	a,2
-		call	nz,fl_mark
 		ld	a,(lv_nn)
 		ld	b,a
 		ld	hl,lv_pos
@@ -497,37 +498,53 @@ flt4:		rlca
 		rlca
 		rlca
 		ld	(fl_pm),a
+		call	fl_select
 		pop	bc
 		or	a
 		jp	z,flt3
-		ld	a,(rr_t)		; огонь при смене кадра — по очереди (fl_skm, fl_c по кругу FIRE_K);
-		cp	0x38			; ленты и прочее — целиком (иначе зубцы разъезжаются)
-		jp	z,flt8
+		ld	a,c
+		ld	hl,fl_n
+		add	a,(hl)
+		ld	(fl_end),a
+		ld	a,1
+		ld	(fl_stride+1),a
+		ld	a,(fl_skm)
+		or	a
+		jp	z,fl_begin
+		ld	a,(rr_t)
+		cp	0x38
+		jp	z,fl_fire_setup
 		cp	0xD0
-		ld	a,0
-		jp	c,flt8a
-flt8:		ld	a,(fl_skm)
-flt8a:		ld	(fl_fire),a
-		ld	hl,0			; SP цикла (в нём стек не меняется) — для возврата после записи через стек
+		jp	c,fl_begin
+fl_fire_setup:	ld	a,(fl_c)
+		ld	b,a
+		xor	a
+		sub	b
+		jp	nc,fl_first
+		add	a,FIRE_K
+fl_first:	add	a,c
+		ld	c,a
+		ld	a,(fl_n)
+		add	a,b
+fl_mod:		cp	FIRE_K
+		jp	c,fl_mod_done
+		sub	FIRE_K
+		jp	fl_mod
+fl_mod_done:	ld	(fl_c),a
+		ld	a,FIRE_K
+		ld	(fl_stride+1),a
+		ld	a,(fl_end)
+		cp	c
+		jp	c,flt3
+		jp	z,flt3
+fl_begin:	ld	hl,0
 		add	hl,sp
 		ld	(dc_sp),hl
-flt2:		ld	l,c			; DE = клетка в VNT
+flt2:		ld	l,c
 		ld	h,live_list/256
 		ld	e,(hl)
 		ld	h,live_hi/256
 		ld	d,(hl)
-		inc	c
-		ld	a,(fl_fire)
-		or	a
-		jp	z,flt6
-		ld	a,(fl_c)		; своя очередь — когда счётчик был 0
-		inc	a
-		cp	FIRE_K
-		jp	c,flt7
-		xor	a
-flt7:		ld	(fl_c),a
-		dec	a
-		jp	nz,flt5
 flt6:		ld	a,(de)			; в карте уже другой тайл (взят предмет и т. п.) — не наша клетка: её
 		ld	hl,rr_t			; изменение и так в очереди
 		cp	(hl)
@@ -539,8 +556,11 @@ flt6:		ld	a,(de)			; в карте уже другой тайл (взят пре
 		ld	a,(hl)
 		or	a
 		jp	z,flt9
-		and	2
+fl_cover:	and	0x7E
 		jp	nz,flt_q
+		ld	a,(hl)
+		and	1
+		jp	z,flt9
 		ld	a,(dc_pt)		; ждёт полного вывода: только точки — не здесь (она в списке)
 		or	a
 		jp	nz,flt5
@@ -560,14 +580,15 @@ flt9:		ld	a,e			; HL = экран: L = 0DFh - 8 * строка, 8 * строка
 		ld	l,a
 		ld	a,e
 		and	31
-		add	a,0x80
+fl_hbase:	add	a,0x80
 		ld	h,a
 		di				; (SP цикла — в dc_sp с начала корзины)
 		ex	de,hl
 		ld	hl,(tile_src)
 		ld	sp,hl
 		ex	de,hl
-		ld	a,(fl_pm)
+fl_write:	jp	fl_slow
+fl_slow:	ld	a,(fl_pm)
 		ld	b,a
 flp0:		ld	a,b			; плоскость: бит 7 маски
 		add	a,a
@@ -599,7 +620,10 @@ flp3:		ld	hl,(dc_sp)
 		ld	sp,hl
 		ei
 		jp	flt5
-flt_q:		ld	a,(hl)			; под спрайтом — к выводу (PND), в список (после его стирания)
+flt_q:		ld	a,(hl)
+fl_qcover:	and	0x7E
+		call	cover_dirty
+		ld	a,(hl)			; под спрайтом — к выводу (PND), в список (после его стирания)
 		rrca
 		jp	c,flt5			; уже ждёт вывода — в списке есть
 		inc	(hl)
@@ -615,9 +639,12 @@ flt_q:		ld	a,(hl)			; под спрайтом — к выводу (PND), в сп
 		ld	(hl),e
 		inc	l
 		ld	(hl),d
-flt5:		ld	hl,fl_n
-		dec	(hl)
-		jp	nz,flt2
+flt5:		ld	a,c
+fl_stride:	add	a,1
+		ld	c,a
+		ld	hl,fl_end
+		cp	(hl)
+		jp	c,flt2
 flt3:		pop	bc
 		pop	hl
 		inc	hl
@@ -627,108 +654,97 @@ flt3:		pop	bc
 flt_o:		ld	a,1
 		ld	(dl_ovf),a
 		jp	flt5
-; fl_mark: A = 2 — PND |= 2, A = FDh — PND &= FDh у клеток мест нарисованных спрайтов (spr_rec +5..+8)
-fl_mark:	ld	(fm_op),a
-		ld	hl,spr_rec
-fx0:		ld	a,(hl)
-		or	a
-		jp	z,fx5
-		push	hl
-		ld	a,l
-		add	a,5
-		ld	l,a
-		ld	d,(hl)			; D = r0 .. E = r1 (до 23), B = c0 .. C = c1 (до 31)
-		inc	l
-		ld	e,(hl)
-		inc	l
-		ld	b,(hl)
-		inc	l
-		ld	c,(hl)
-fx1:		ld	a,d			; HL = PND + 32 * r + c0
-		rrca
-		rrca
-		rrca
-		ld	l,a
-		and	0x1F
-		add	a,PND/256
-		ld	h,a
-		ld	a,l
-		and	0xE0
-		or	b
-		ld	l,a
-		push	bc
-		ld	a,c
-		sub	b
-		inc	a
-		ld	b,a			; столбцов
-		ld	a,(fm_op)
-		ld	c,a
-		cp	2
-		jp	nz,fx3
-fx2:		ld	a,(hl)
-		or	c
-		ld	(hl),a
-		inc	l
-		dec	b
-		jp	nz,fx2
-		jp	fx4
-fx3:		ld	a,(hl)
-		and	c
-		ld	(hl),a
-		inc	l
-		dec	b
-		jp	nz,fx3
-fx4:		pop	bc
-		ld	a,d
-		inc	d
-		cp	e
-		jp	c,fx1
-		pop	hl
-fx5:		ld	a,l
-		add	a,16
-		ld	l,a
-		cp	16*SPR_MAX
-		jp	nz,fx0
+; Частые наборы плоскостей: готовые входы без цикла и проверки маски на каждой клетке.
+fl_select:	push	af
+		ld	a,(fl_pm)
+		and	0x80
+		ld	a,6			; A000/C000 не затрагивают врагов, рисуемых только в 8000
+		jp	z,fl_set_cover
+		ld	a,0x7E
+fl_set_cover:	ld	(fl_cover+1),a
+		ld	(fl_qcover+1),a
+		ld	a,0x80
+		ld	(fl_hbase+1),a
+		ld	a,(fl_pm)
+		ld	hl,fl_fast3
+		cp	0xA8
+		jp	z,fl_sel_done
+		ld	hl,fl_fast2
+		cp	0xA0
+		jp	z,fl_sel_done
+		cp	0x28
+		jp	nz,fl_sel_slow
+		ld	hl,(tile_src)
+		ld	de,8
+		add	hl,de
+		ld	(tile_src),hl
+		ld	a,0xA0
+		ld	(fl_hbase+1),a
+		ld	hl,fl_fast2
+		jp	fl_sel_done
+fl_sel_slow:	ld	hl,fl_slow
+fl_sel_done:	ld	(fl_write+1),hl
+		pop	af
 		ret
 
-; fire_diff: у анимированных тайлов изменился указатель исходной полосы.
-fire_changes:	ld	hl,raw_anim
-		ld	de,anim_set
-		ld	b,17
-fd0:		push	bc
-		push	de
-		push	hl
-		ld	a,(fire_shown)
+fl_fast3:
+		REPT	4
+		pop	de
+		ld	(hl),e
+		dec	l
+		ld	(hl),d
+		dec	l
+		ENDR
+		ld	a,l
+		add	a,8
+		ld	l,a
+		ld	a,h
+		add	a,0x20
+		ld	h,a
+fl_fast2:
+		REPT	4
+		pop	de
+		ld	(hl),e
+		dec	l
+		ld	(hl),d
+		dec	l
+		ENDR
+		ld	a,l
+		add	a,8
+		ld	l,a
+		ld	a,h
+		add	a,0x20
+		ld	h,a
+		REPT	4
+		pop	de
+		ld	(hl),e
+		dec	l
+		ld	(hl),d
+		dec	l
+		ENDR
+		jp	flp3
+
+; Список изменённых тайлов на переход кадра построен генератором графики.
+fire_changes:	ld	a,(fire_shown)
 		add	a,a
-		call	add_hl_a
-		ld	c,(hl)
-		inc	hl
-		ld	b,(hl)
-		pop	hl
-		push	hl
+		add	a,a
+		ld	b,a
 		ld	a,(fire_next)
+		add	a,b
 		add	a,a
+		ld	hl,fire_transitions
 		call	add_hl_a
-		ld	a,(hl)
-		cp	c
-		jp	nz,fd_mark
+		ld	e,(hl)
 		inc	hl
-		ld	a,(hl)
-		cp	b
-		jp	z,fd_next
-fd_mark:	ld	a,(de)
+		ld	d,(hl)
+fd0:		ld	a,(de)
+		cp	0xFF
+		ret	z
 		ld	l,a
 		ld	h,tile_changed/256
 		ld	(hl),1
-fd_next:	pop	hl
-		ld	bc,8
-		add	hl,bc
-		pop	de
-		pop	bc
 		inc	de
-		dec	b
-		jp	nz,fd0
-		ret
+		jp	fd0
 
 ; draw_all: все клетки на экран прямо по карте (графика — заново только при смене тайла подряд); спрайты —
 ; «не нарисованы» (экран под ними новый), очередь клеток и PND — пусто
@@ -742,6 +758,7 @@ dal0:		ld	(hl),0
 		xor	a
 		ld	(dl_n),a
 		ld	(dl_ovf),a
+		ld	(sprite_dirty),a
 		ld	hl,PND
 		ld	bc,768
 		ld	e,0
@@ -968,7 +985,7 @@ dl1:		ld	e,(hl)
 		ld	d,a
 		ld	e,l			; DE = PND + клетка
 		ld	a,(de)
-		or	a
+		and	1
 		jp	z,dl8			; уже выведена
 		ld	a,l			; строка и столбец
 		and	31
@@ -1012,7 +1029,8 @@ dl1:		ld	e,(hl)
 		ld	a,h
 		ld	(bc),a
 		jp	dl8
-dl_go:		xor	a
+dl_go:		ld	a,(de)
+		and	0xFE
 		ld	(de),a
 		ld	a,(hl)
 		ld	(rr_t),a
@@ -1071,7 +1089,7 @@ dr0:		ld	a,(hl)
 		ld	h,a
 		ld	b,32
 dr1:		ld	a,(de)
-		or	a
+		and	1
 		jp	nz,dr_draw
 dr2:		inc	l
 		inc	e
@@ -1107,7 +1125,8 @@ dr_draw:	ld	a,(dr_ex)
 		ld	(dr_skip),a
 		ld	(ex_any),a
 		jp	dr2
-dr_go:		xor	a
+dr_go:		ld	a,(de)
+		and	0xFE
 		ld	(de),a
 		ld	a,(hl)
 		ld	(rr_t),a

@@ -4,7 +4,7 @@ VNT equ 0x7C00
 room_colors equ 0x7F80
 NT equ VNT
 TILE_IMAGES equ 0xE000
-TILE_CAP equ 128
+TILE_CAP equ 120
 NTS equ 0xEC00
 tile_changed equ 0xF000
 spr_trim equ 0xF200

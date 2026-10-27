@@ -250,6 +250,8 @@ dla1:
 		ld	d,a
 		ld	e,l
 		ld	a,(de)
+		call	cover_dirty
+		ld	a,(de)
 		rrca
 		jp	c,dla_x
 		rlca

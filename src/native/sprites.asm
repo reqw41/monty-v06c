@@ -33,7 +33,11 @@ obj_ptr:	push	hl
 		pop	hl
 		ret
 
-spr_plan:	xor	a
+spr_plan:	ld	hl,0x0101
+		ld	(cover_moves),hl
+		ld	(cover_moves+2),hl
+		ld	(cover_moves+4),hl
+		xor	a
 		ld	(obj_end),a
 		ld	hl,spr_rec+1		; DE -> атрибуты, L = 16 * k + 1
 		ld	b,SPR_MAX
@@ -52,6 +56,25 @@ spl_end:	ld	de,spl_z
 spl_c:		ld	a,(spr_force)
 		or	a
 		jp	nz,spl_ch
+		ld	a,SPR_MAX
+		sub	b
+		cp	2
+		jp	c,spl_compare
+		cp	5
+		jp	nc,spl_compare
+		sub	2
+		push	hl
+		ld	hl,enemy_turn
+		cp	(hl)
+		pop	hl
+		jp	z,spl_compare
+		ld	a,l
+		and	0xF0
+		or	13
+		ld	l,a
+		ld	(hl),0
+		jp	spl_n
+spl_compare:
 		push	de
 		REPT	3
 		ld	a,(de)
@@ -173,75 +196,24 @@ spl_n:		inc	de			; следующий: DE += 4, L = 16 * (k + 1) + 1
 		jp	spl_done
 spl_z:		db	0xD0,0,0,0
 spl_done:
-; под нарисованным неотмеченным изменились клетки — отметить (только если клетки вообще менялись)
-		ld	a,(dl_n)
-		ld	b,a
-		ld	a,(dl_ovf)
-		or	b
-		jp	z,spx0
-		ld	hl,spr_rec
-spd0:		ld	a,(hl)			; нарисован и не отмечен?
-		or	a
-		jp	z,spd9
-		ld	a,l
-		or	13
-		ld	l,a
-		ld	a,(hl)
-		or	a
-		jp	nz,spd9
-		ld	a,l			; +5: r0 r1 c0 c1
-		sub	8
-		ld	l,a
-		ld	b,(hl)			; B = r0
-		inc	l
-		ld	a,(hl)
-		ld	(se_r1),a
-		inc	l
-		ld	c,(hl)			; C = c0
-		inc	l
-		ld	a,(hl)
-		sub	c
-		inc	a
-		ld	(se_y),a		; столбцов
-		push	hl
-spd1:		ld	a,b			; DE = PND + 32 r + c0
+; Очередь клеток уже накопила покрывающие её объекты; не сканировать их прямоугольники заново.
+		ld	a,(sprite_dirty)
 		rrca
+		ld	c,a
+		ld	b,SPR_MAX
+		ld	hl,spr_rec+13
+spd0:		ld	a,c
 		rrca
-		rrca
-		ld	e,a
-		and	0x1F
-		add	a,PND/256
-		ld	d,a
-		ld	a,e
-		and	0xE0
-		or	c
-		ld	e,a
-		ld	a,(se_y)
-		ld	l,a
-spd2:		ld	a,(de)			; ждёт вывода (PND)?
-		or	a
-		jp	nz,spd_m
-		inc	e
-		dec	l
-		jp	nz,spd2
-		inc	b
-		ld	a,(se_r1)
-		cp	b
-		jp	nc,spd1
-		pop	hl
-		jp	spd8
-spd_m:		pop	hl			; отметить (+13)
-		ld	a,l
-		or	13
-		ld	l,a
+		ld	c,a
+		jp	nc,spd_next
 		ld	(hl),1
-spd8:
-spd9:		ld	a,l
-		and	0xF0
+spd_next:	ld	a,l
 		add	a,16
 		ld	l,a
-		cp	16*SPR_MAX
+		dec	b
 		jp	nz,spd0
+		xor	a
+		ld	(sprite_dirty),a
 ; замыкание: неотмеченный нарисованный, чья рамка (ubr) пересекает рамку отмеченного
 spx0:		call	spn_cnt			; никто не отмечен — нечего замыкать
 		ret	z
@@ -617,6 +589,7 @@ restore1:	ld	a,b
 		ld	a,(de)			; отмечен?
 		or	a
 		ret	z
+		call	cover_clear
 		ld	(hl),0			; больше не нарисован
 		inc	de
 		ld	a,(de)			; фон сохранял он сам?
@@ -738,6 +711,11 @@ pm0:		ld	a,b			; только отмеченные (неотмеченные н�
 		ld	a,(hl)
 		or	a
 		jp	z,pm0n
+		inc	l
+		inc	l
+		ld	a,(hl)
+		or	a
+		jp	z,pm0n
 		ld	a,b
 		call	new_ptr
 		push	hl
@@ -783,7 +761,11 @@ pm0n:		inc	b
 		ld	a,b
 		cp	SPR_MAX
 		jp	nz,pm0
-		ld	b,0
+		ld	a,(spr_rec+15)
+		ld	hl,spr_rec+16+15
+		or	(hl)
+		jp	z,spr_ready
+		ld	b,0			; Джо — один объект с двумя слоями, общая область фона
 pm1:		ld	a,b			; оба готовы и не одной плоскостью?
 		call	new_ptr
 		ld	a,l
@@ -894,11 +876,7 @@ pm3:		ld	a,(pm_bot)
 		and	(hl)
 		ld	(hl),a			; пустые столбцы — общие
 		pop	bc
-pm8:		inc	b
-		ld	a,b
-		cp	SPR_MAX-1
-		jp	nz,pm1
-		jp	spr_ready
+pm8:		jp	spr_ready
 
 ; spr_one: HL -> атрибуты спрайта sp_k (spr_new + 1): обрезка, маски, место -> spr_new +9..+14
 spr_one:
@@ -1018,6 +996,7 @@ spr_put:
 		ld	a,b
 		call	rec_ptr
 		ld	(hl),1			; нарисован
+		call	cover_set
 		ld	a,l
 		add	a,14
 		ld	l,a
@@ -1481,13 +1460,8 @@ spr_masks:
 		ld	a,c
 		or	a
 		ret	z
-		ld	hl,(sp_name)		; шаблон: VSPR + 8 * имя
-		ld	h,0
-		add	hl,hl
-		add	hl,hl
-		add	hl,hl
-		ld	de,VSPR
-		add	hl,de
+		ld	a,(sp_name)
+		call	sprite_source
 		ld	a,(sm_off)
 		call	add_hl_a
 		ld	a,(st_rows)
@@ -1610,10 +1584,14 @@ ri2:		ld	a,(de)
 ; --- обрезка по шаблону: spr_trim[имя/4] = (первая строка, последняя, пустые половины: бит 0 — левая, 1 — правая);
 ; строка пуста, если пусты обе половины; всё пусто — первая = FF. Пересчёт — trim_build (при смене комнаты).
 trim_build:
-		ld	hl,VSPR
 		ld	de,spr_trim
 		ld	c,64
-tb0:		push	bc
+tb0:		ld	a,64
+		sub	c
+		add	a,a
+		add	a,a
+		call	sprite_source
+		push	bc
 		ld	b,0			; строка
 		ld	c,0xFF			; первая
 		xor	a
@@ -1670,8 +1648,6 @@ tb4:		ld	a,b
 		ld	(de),a
 		inc	de
 		inc	de
-		ld	a,16			; следующий шаблон: +32 (уже +16)
-		call	add_hl_a
 		pop	bc
 		dec	c
 		jp	nz,tb0
@@ -1731,6 +1707,21 @@ ts_e:		xor	a
 ; cr_list: пары (действие, номер): 1 — фон назад, 2 — клетки под прежним местом, 3 — спрайт; конец 0.
 ; Группа: фон всех назад (0..), клетки под прежними местами, спрайты (с последнего).
 crit_plan:
+		ld	a,(ml_n)
+		cp	1
+		jp	nz,crit_groups
+		ld	a,(ml)
+		ld	h,a
+		ld	l,1
+		ld	(cr_list),hl
+		inc	l
+		ld	(cr_list+2),hl
+		inc	l
+		ld	(cr_list+4),hl
+		xor	a
+		ld	(cr_list+6),a
+		ret
+crit_groups:
 		ld	hl,cr_list
 		ld	(cr_ptr),hl
 		ld	de,ml			; отмеченные -> ml (по возрастанию), grp[k] := k, неотмеченные — FF
@@ -2086,9 +2077,11 @@ cr0:		ld	a,(cr_r)		; HL = PND + 32 r + c0
 		ld	a,(cr_c1)
 		ld	b,a
 cr1:		ld	a,(hl)			; ждёт вывода
-		or	a
+		and	1
 		jp	z,cr2
-		ld	(hl),0
+		ld	a,(hl)
+		and	0xFE
+		ld	(hl),a
 		push	hl
 		push	bc
 		ld	a,h			; тайл — из VNT (то же смещение)
@@ -2267,14 +2260,8 @@ pbd7:		ld	(ps_m),a
 		ld	(hl),e
 		inc	hl
 		ld	(hl),d
-		ld	a,(ps_nm)		; источник: VSPR + 8 * имя + первая
-		ld	l,a
-		ld	h,0
-		add	hl,hl
-		add	hl,hl
-		add	hl,hl
-		ld	de,VSPR
-		add	hl,de
+		ld	a,(ps_nm)
+		call	sprite_source
 		ld	a,(ps_f)
 		call	add_hl_a
 		ld	a,(ps_r0)
@@ -2411,4 +2398,127 @@ ps_nrg:		push	hl
 		pop	hl
 		ret
 ; свободные места (начало, конец): невидимая плоскость — бывший кэш тайлов, затем основная память
-ps_rg:		dw	0xEF00, 0xF000, 0xF500, 0xF820, ps_heap, PS_TOP, 0, 0	; 0 — места нет
+ps_rg:		dw	sprite_sources_end, VNT, TILE_IMAGES+24*TILE_CAP, 0xEC00, 0xEF00, 0xF000, 0xF500, 0xF820, ps_heap, PS_TOP, 0, 0	; 0 — места нет
+
+; Покрытие клеток объектами постоянно хранится в PND, биты 1..6 по слоям.
+; Меняется только при восстановлении/рисовании объекта; перекрытия сохраняют чужие биты.
+cover_bits: db 2,4,8,16,32,64
+cover_set:	push	af
+		push	hl
+		ld	a,b
+		add	a,cover_moves&255
+		ld	l,a
+		ld	h,cover_moves/256
+		ld	a,(hl)
+		pop	hl
+		or	a
+		jp	z,cover_no_set
+		ld	a,0xF6			; OR immediate
+		jp	cover_start
+cover_clear:	push	af
+		ld	a,0xE6			; AND immediate
+cover_start:	ld	(cover_op),a
+		push	bc
+		push	de
+		push	hl
+		ld	a,(cover_op)
+		cp	0xE6
+		jp	nz,cover_go
+		ld	a,b
+		call	new_ptr
+		ld	a,(hl)
+		or	a
+		jp	z,cover_go
+		ld	a,l
+		or	5
+		ld	e,a
+		ld	d,h
+		and	0x7F
+		ld	l,a
+		REPT	4
+		ld	a,(de)
+		cp	(hl)
+		jp	nz,cover_go
+		inc	l
+		inc	e
+		ENDR
+		ld	a,b
+		add	a,cover_moves&255
+		ld	l,a
+		ld	h,cover_moves/256
+		ld	(hl),0
+		jp	cover_end
+cover_go:	ld	a,b
+		ld	hl,cover_bits
+		call	add_hl_a
+		ld	a,(cover_op)
+		cp	0xE6
+		ld	a,(hl)
+		jp	nz,cover_mask
+		cpl
+cover_mask:	ld	(cover_op+1),a
+		ld	a,b
+		call	rec_ptr
+		ld	a,l
+		add	a,5
+		ld	l,a
+		ld	d,(hl)
+		inc	l
+		ld	e,(hl)
+		inc	l
+		ld	b,(hl)
+		inc	l
+		ld	c,(hl)
+cover_row:	ld	a,d
+		rrca
+		rrca
+		rrca
+		ld	l,a
+		and	31
+		add	a,PND/256
+		ld	h,a
+		ld	a,l
+		and	0xE0
+		or	b
+		ld	l,a
+		push	bc
+		ld	a,c
+		sub	b
+		inc	a
+		ld	b,a
+cover_col:	ld	a,(hl)
+cover_op:	or	0
+		ld	(hl),a
+		inc	l
+		dec	b
+		jp	nz,cover_col
+		pop	bc
+		ld	a,d
+		inc	d
+		cp	e
+		jp	c,cover_row
+cover_end:	pop	hl
+		pop	de
+		pop	bc
+cover_no_set:	pop	af
+		ret
+
+; cover_dirty: A = байт PND; известны все объекты над изменившейся клеткой.
+cover_dirty:	push	hl
+		ld	hl,sprite_dirty
+		or	(hl)
+		ld	(hl),a
+		pop	hl
+		ret
+
+; sprite_source: A = кадр объекта (шаг 4) -> HL = 32 байта двух исходных половин.
+; Исходники разделяются между кадрами; DE/BC сохраняются.
+sprite_source:	rrca
+		and	0x7E
+		ld	l,a
+		ld	h,sprite_sources/256
+		ld	a,(hl)
+		inc	l
+		ld	h,(hl)
+		ld	l,a
+		ret
