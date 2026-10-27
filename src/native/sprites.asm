@@ -701,6 +701,8 @@ sr_x:		pop	bc
 ; --- spr_prep: для отмеченных видимых — обрезка, маски (в ячейку +C0), место; в spr_new: +9 L, +10 столбец,
 ; +11 строк, +12 пустые столбцы, +13 цвет (индекс), +14 рисовать. Всё долгое — до ожидания кадра.
 spr_prep:
+		xor	a
+		ld	(joe_dirty),a
 		ld	a,(spr_rec+15)
 		ld	hl,spr_rec+16+15
 		or	(hl)
@@ -1526,6 +1528,9 @@ spr_masks:
 		ld	a,c
 		or	a
 		ret	z
+		ld	a,(sp_k)
+		cp	2
+		call	c,joe_dirty_set
 		ld	a,(sp_name)
 		call	sprite_source
 		ld	a,(sm_off)
@@ -3341,7 +3346,7 @@ gq1:		ld	a,c
 		ld	h,ml/256
 		ld	b,(hl)			; B = ml[p]
 		ld	a,b
-		call	ub_r0
+		call	sort_r0
 		ld	d,a			; D = её верх
 		ld	e,c			; E = q
 gq2:		ld	a,e
@@ -3352,7 +3357,7 @@ gq2:		ld	a,e
 		ld	h,ml/256
 		ld	a,(hl)			; ml[q - 1]
 		push	af
-		call	ub_r0
+		call	sort_r0
 		cp	d
 		jp	c,gq4			; меньше или равно — стоп
 		jp	z,gq4
@@ -3376,6 +3381,11 @@ gq3:		ld	a,e
 		jp	nz,gq1
 		ret
 
+
+sort_r0:	cp 2
+		jp nc,ub_r0
+		xor a
+		ret
 
 ; Линейный катящийся враг: при задержке вывода выбрать промежуточную позу
 ; на его же траектории, не дальше трёх пикселей от нарисованной. ОЗУ игры не меняется.
@@ -3423,4 +3433,31 @@ rp_left:	cpl
 rp_set:		ld	(hl),a
 rp_done:	pop	bc
 		pop	hl
+		ret
+
+joe_dirty equ 0x66FC
+joe_pad0 equ 0x66FD
+joe_pad1 equ 0x66FE
+joe_was_fast equ 0x66FF
+joe_cache_rest:
+		ld a,(spr_new+9)
+		ld b,a
+		ld a,(svr+4)
+		sub b
+		ld hl,joe_pad0
+		cp (hl)
+		ld (hl),a
+		call nz,joe_dirty_set
+		ld a,(spr_new+16+9)
+		ld b,a
+		ld a,(svr+4)
+		sub b
+		ld hl,joe_pad1
+		cp (hl)
+		ld (hl),a
+		call nz,joe_dirty_set
+		ld a,(joe_was_fast)
+		xor 1
+		ld hl,joe_dirty
+		or (hl)
 		ret

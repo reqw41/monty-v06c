@@ -339,20 +339,19 @@ lv_idx		equ	0xF400			; тайл -> корзина (FF — не живой); бы
 ps_idx		equ	0x7F00			; 64 байта; выше остаются 64 байта стека IRQ
 ps_tab:		ds	2*8*PS_N
 ps_rr:		ds	PS_N
-ps_rp:		ds	2
-ps_p:		ds	2
-ps_end:		ds	2
-ps_nm:		ds	1
-ps_f:		ds	1
-ps_r0:		ds	1
-ps_s:		ds	1
-ps_dst:		ds	2
-ps_c0:		ds	1
-ps_c1:		ds	1
-ps_c2:		ds	1
-ps_m:		ds	1
-mb_d:		ds	16			; group_modes_build: вклад индекса как точек / как фона
-mb_e:		ds	16
+ps_rp equ 0xFF00
+ps_p equ 0xFF02
+ps_end equ 0xFF04
+ps_nm equ 0xFF06
+ps_f equ 0xFF07
+ps_r0 equ 0xFF08
+ps_s equ 0xFF09
+ps_dst equ 0xFF0A
+ps_c0 equ 0xFF0C
+ps_c1 equ 0xFF0D
+ps_c2 equ 0xFF0E
+ps_m equ 0xFF0F
+mb_d equ repl		; цепочки pal_build больше не нужны после построения cmap
 ps_heap:					; дальше до PS_TOP — место готовых сдвигов
 		ASSERT	ps_heap <= PS_TOP
 ; выровненные таблицы — на постоянных адресах под 7000 (рост кода не сдвигает их на страницу)

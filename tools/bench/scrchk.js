@@ -6,7 +6,7 @@ const fs = require('fs'); process.chdir(require('path').resolve(__dirname, '../.
 const E = require('../vec_emu');
 const dir = process.argv[2] || 'build/native', N = +(process.argv[3] || 2000), MODE = process.argv[4] || '';
 const sym = {}; for (const l of fs.readFileSync(dir + '/monty.sym', 'latin1').split('\n')) { const q = l.match(/^(\w+):\s+EQU\s+0x([0-9A-F]+)/i); if (q) sym[q[1]] = parseInt(q[2], 16); }
-const m = E.mk(dir + '/monty.bin'); const K = (r, b, d) => { if (d) m.keyboard.matrix[r] |= b; else m.keyboard.matrix[r] &= ~b; };
+const m = E.mk(dir + '/monty.bin'); const framecheck=process.env.FRAMECHECK==='1'?require('./framecheck')(m,sym):null; const K = (r, b, d) => { if (d) m.keyboard.matrix[r] |= b; else m.keyboard.matrix[r] &= ~b; };
 const ROOMS = []; for (let r = 0; r < 9; r++) for (let c = 8 - r; c <= 10 + r; c++) ROOMS.push([r, c]);
 const SPRMAX = 6, REC = sym.spr_rec;
 let steps = 0, fc = 0, checks = 0, bad = 0, skip = 0, justCritical = false; const ex = [];
@@ -48,6 +48,7 @@ function check() {
   if (nb) bad++;
 }
 m.onInstr = (pc) => {
+  if(framecheck)framecheck.instruction(pc);
   if (pc === sym.crit) justCritical = true;
   // Меню до первого шага содержит прямой текст вне VNT; исходный стенд начинал проверку с L_A5D1.
   if (pc === sym.isr0 && justCritical) { justCritical = false; if (steps) check(); }
@@ -59,3 +60,5 @@ while (steps < N) { if (fc === 10) K(2, 2, 1); if (fc === 100) K(2, 2, 0); fc++;
 console.log(dir, MODE, 'проверок', checks, 'пропущено', skip, 'неверных экранов', bad); console.log(ex.join('\n'));
 
 if (bad || !checks) process.exitCode = 1;
+
+if(framecheck){const q=framecheck.result();console.log('покадрово',JSON.stringify(q));if(q.bad||!q.checks)process.exitCode=1;}

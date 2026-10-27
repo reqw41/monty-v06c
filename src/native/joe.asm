@@ -9,6 +9,8 @@ joe_prepare:
 		ld a,(joe_changed)
 		or a
 		ret z
+		ld a,(joe_fast)
+		ld (joe_was_fast),a
 		xor a
 		ld (joe_fast),a
 		ld a,(spr_rec)		; прежний верхний слой не должен иметь фона
@@ -40,9 +42,10 @@ jp_attrs:	ld a,(spr_new+15)
 		ld a,0x2F		; CMA: 6 снизу, 11 сверху
 		jp nz,jp_color
 		xor a			; NOP: 6 сверху
-jp_color:	ld (jm_alpha),a
-		ld a,(svr+6)
-		ld (joe_rows),a
+jp_color:	ld c,a
+		call joe_cache_test
+		jp z,joe_cached_ready
+		ld a,(joe_rows)
 		add a,3
 		rrca
 		rrca
@@ -71,6 +74,12 @@ jb_done:	ld a,(sp_pm)
 		ld (sp_pm),a
 		cp 0xE0
 		jp nz,jb_plane
+		ret
+joe_dirty_set:	ld a,1
+		ld (joe_dirty),a
+		ret
+joe_cached_ready:	ld a,1
+		ld (joe_fast),a
 		ret
 		ENT
 joe_end0:
@@ -161,6 +170,18 @@ jm_end:	cp 0
 		ld a,1
 		ld (joe_fast),a
 		ret
+joe_cache_test:
+		ld hl,jm_alpha
+		ld a,c
+		cp (hl)
+		ld (hl),a
+		call nz,joe_dirty_set
+		ld a,(svr+6)
+		ld hl,joe_rows
+		cp (hl)
+		ld (hl),a
+		call nz,joe_dirty_set
+		jp joe_cache_rest
 		ENT
 joe_end1:
 		ASSERT joe_end1-joe_source1 <= 160
@@ -238,6 +259,7 @@ jb_call:	call jr_and
 joe_end2:
 		ASSERT joe_end2-joe_source2 <= 160
 
+		ORG video_raw_end
 joe_source3:
 		DISP 0xFE30
 jb_next:	ld hl,sv_col

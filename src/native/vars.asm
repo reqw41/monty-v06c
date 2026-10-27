@@ -62,8 +62,6 @@ st_rows:	ds	1
 st_kind:	ds	1
 sv_zc:		ds	1
 cl_n:		ds	1
-se_y:		ds	1
-se_r1:		ds	1
 tr_z0:		ds	1
 tr_z2:		ds	1
 tr_last:	ds	1
@@ -105,7 +103,6 @@ band_ok:	ds	1
 		ALIGN	8
 band_order:	ds	SPR_MAX
 pvars_end:
-dc_sp:		ds	2
 tabs_end:
 ; spr_rec, spr_new — на странице 6600, grp — в странице sprt (game.asm)
 

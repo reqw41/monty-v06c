@@ -1301,14 +1301,6 @@ mb4:		ld	hl,mb_d
 		ld	a,b
 		call	add_hl_a
 		ld	(hl),c
-		ld	a,c			; фон — то же, сдвинутое на 1 (2 в паре)
-		add	a,a
-		ld	hl,mb_e
-		push	af
-		ld	a,b
-		call	add_hl_a
-		pop	af
-		ld	(hl),a
 		inc	b
 		ld	a,b
 		cp	16
@@ -1329,9 +1321,11 @@ group_mode_color:	push	bc
 		push	hl
 		ld	b,a
 		and	15
-		ld	hl,mb_e
+		ld	hl,mb_d
 		call	add_hl_a
-		ld	c,(hl)
+		ld	a,(hl)
+		add	a,a
+		ld	c,a
 		ld	a,b
 		rrca
 		rrca
