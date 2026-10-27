@@ -56,10 +56,14 @@ dp1a:		ld	a,(vdirty)
 		call	bank_diff		; col_flag: тайлы, чей шаблон в новом банке другой (огонь — через раз)
 		ld	a,(bk_new)
 		ld	(tile_hi),a
-		ld	a,(fl_ph)		; их живые клетки — к перерисовке, но не все: часть FIRE_K по очереди
-		inc	a			; (огонь мигает вразнобой; дешевле в FIRE_K раз)
-		ld	(fl_ph),a
-		ld	a,FIRE_K-1
+		ld	a,(fl_ph)		; их живые клетки — к перерисовке, но не все: каждая FIRE_K-я по очереди
+		inc	a			; (огонь мигает вразнобой; дешевле в FIRE_K раз). FIRE_K и число кадров
+		cp	FIRE_K			; огня (4) — взаимно простые: каждая клетка проходит все кадры
+		jp	c,dpf1
+		xor	a
+dpf1:		ld	(fl_ph),a
+		ld	(fl_c),a
+		ld	a,1
 		ld	(fl_skm),a
 		ld	a,col_flag/256
 		call	force_live_t
@@ -291,7 +295,7 @@ room_redraw:
 ; (0..32) или FF; корзина b — элементы с lv_beg[b] по lv_beg[b + 1] - 1: адрес клетки в VNT — младший байт
 ; в live_list, старший — в live_hi (до LIVE_N клеток; в комнатах — до 189).
 LIVE_N		equ	250
-FIRE_K		equ	4			; огонь: при смене кадра — каждая FIRE_K-я клетка (по очереди)
+FIRE_K		equ	3			; огонь: при смене кадра — каждая FIRE_K-я клетка (по очереди)
 live_hi		equ	0xF100			; (бывшие флаги анимации тайлов — не читались)
 LV_N		equ	33
 ; lv_init: lv_idx и lv_tile (при загрузке)
@@ -472,14 +476,18 @@ flt2:		ld	a,(fl_i)		; DE = клетка в VNT
 		ld	e,(hl)
 		ld	h,live_hi/256
 		ld	d,(hl)
-		ld	a,(fl_skm)		; смена кадра огня: только клетки своей очереди
+		ld	a,(fl_skm)		; смена кадра огня: только клетки своей очереди (счётчик fl_c по кругу FIRE_K)
 		or	a
 		jp	z,flt6
+		ld	a,(fl_c)
 		ld	b,a
-		ld	a,(fl_i)
-		ld	hl,fl_ph
-		add	a,(hl)
-		and	b
+		inc	a
+		cp	FIRE_K
+		jp	c,flt7
+		xor	a
+flt7:		ld	(fl_c),a
+		ld	a,b
+		or	a
 		jp	nz,flt5
 flt6:		ld	a,(de)			; в карте уже другой тайл (взят предмет и т. п.) — не наша клетка: её
 		ld	hl,rr_t			; изменение и так в очереди

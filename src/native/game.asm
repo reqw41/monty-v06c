@@ -61,6 +61,7 @@ fl_bb		equ	0x7FF8
 lv_dirty	equ	0x7FFC			; список живых клеток устарел (в клетку поставлен живой тайл)
 fl_ph		equ	0x7FBD			; огонь: очередь клеток, маска (0 — все)
 fl_skm		equ	0x7FBE
+fl_c		equ	0x7FBF
 da_t		equ	0x7FFE			; draw_all: прошлый тайл
 in_isr		equ	0x7FFD			; идёт прерывание (короткая часть в нём): dc_draw не разрешает прерывания
 GSTACK		equ	0x73C0			; стек игры (как у оригинала)
