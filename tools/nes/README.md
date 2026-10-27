@@ -1,5 +1,9 @@
 # Local NES asset extraction
 
+Music, all nine SFX, standalone JS player, NSF and WAV extraction:
+[`music/README.md`](music/README.md), detailed addresses in
+[`docs/NES_MUSIC.md`](../../docs/NES_MUSIC.md).
+
 Run from the repository root with Python 3.10+ and Pillow:
 
 ```sh
