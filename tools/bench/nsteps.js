@@ -1,6 +1,6 @@
 // Кадров на N шагов (ввод по номеру шага — как ab.js), node nsteps.js dir... [N]
-const fs = require('fs'); process.chdir('/Users/boris/projects/monty-v06c');
-const E = require('/Users/boris/projects/monty-v06c/tools/vec_emu');
+const fs = require('fs'); process.chdir(require('path').resolve(__dirname, '../..'));
+const E = require('../vec_emu');
 const args = process.argv.slice(2); const N = /^\d+$/.test(args[args.length - 1]) ? +args.pop() : 2000;
 for (const dir of args) {
   const sym = {}; for (const l of fs.readFileSync(dir + '/monty.sym', 'latin1').split('\n')) { const q = l.match(/^(\w+):\s+EQU\s+0x([0-9A-F]+)/i); if (q) sym[q[1]] = parseInt(q[2], 16); }

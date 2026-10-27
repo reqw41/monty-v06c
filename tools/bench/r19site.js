@@ -1,6 +1,6 @@
 // такты вызовов процедур по местам вызова: P="cpir,nt_get"; комната 1,9 (R19=1) или обычная игра
-const fs = require('fs'); process.chdir('/Users/boris/projects/monty-v06c');
-const E = require('/Users/boris/projects/monty-v06c/tools/vec_emu'); const B = process.env.B || 'build/native';
+const fs = require('fs'); process.chdir(require('path').resolve(__dirname, '../..'));
+const E = require('../vec_emu'); const B = process.env.B || 'build/native';
 const sym = {}; for (const l of fs.readFileSync(B + '/monty.sym', 'latin1').split('\n')) { const q = l.match(/^(\w+):\s+EQU\s+0x([0-9A-F]+)/i); if (q) sym[q[1]] = parseInt(q[2], 16); }
 const labs = Object.entries(sym).filter(([k, v]) => v >= 0x38 && v < 0x7000 && !k.startsWith('C_')).sort((a, b) => a[1] - b[1]);
 const near = (a) => { let r = '?'; for (const [k, v] of labs) { if (v > a) break; r = k; } return r; };

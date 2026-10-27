@@ -1,5 +1,5 @@
-const fs = require('fs'); process.chdir('/Users/boris/projects/monty-v06c');
-const E = require('/Users/boris/projects/monty-v06c/tools/vec_emu');
+const fs = require('fs'); process.chdir(require('path').resolve(__dirname, '../..'));
+const E = require('../vec_emu');
 const sym = {}; for (const l of fs.readFileSync('build/native/monty.sym', 'latin1').split('\n')) { const q = l.match(/^(\w+):\s+EQU\s+0x([0-9A-F]+)/i); if (q) sym[q[1]] = parseInt(q[2], 16); }
 const m = E.mk('build/native/monty.bin'); const K = (r, b, d) => { if (d) m.keyboard.matrix[r] |= b; else m.keyboard.matrix[r] &= ~b; };
 let steps = 0, fc = 0, lf = 0, room = false, rooms = 0; const F = { room: 0, norm: 0 }, C = { room: 0, norm: 0 };

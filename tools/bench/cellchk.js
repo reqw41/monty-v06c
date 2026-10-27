@@ -1,8 +1,8 @@
 // Клетки экрана против исходной графики MSX по VNT, fire_shown и room_colors; клетки под
 // нарисованными спрайтами (spr_rec +5..+8) и ещё не выведенные (в dlist) — пропуск. node cellchk.js dir [шагов] [TP]
 const REF = require('./video-ref');
-const fs = require('fs'); process.chdir('/Users/boris/projects/monty-v06c');
-const E = require('/Users/boris/projects/monty-v06c/tools/vec_emu');
+const fs = require('fs'); process.chdir(require('path').resolve(__dirname, '../..'));
+const E = require('../vec_emu');
 const dir = process.argv[2], N = +(process.argv[3] || 2000), TP = process.argv[4] === 'tp';
 const sym = {}; for (const l of fs.readFileSync(dir + '/monty.sym', 'latin1').split('\n')) { const q = l.match(/^(\w+):\s+EQU\s+0x([0-9A-F]+)/i); if (q) sym[q[1]] = parseInt(q[2], 16); }
 const m = E.mk(dir + '/monty.bin'); const K = (r, b, d) => { if (d) m.keyboard.matrix[r] |= b; else m.keyboard.matrix[r] &= ~b; };

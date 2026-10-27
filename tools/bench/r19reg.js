@@ -1,6 +1,6 @@
 // такты по участкам кода (вложенные вызовы — к участку вызывающего, пока SP глубже входа): REG="имя:от:до,..."
-const fs = require('fs'); process.chdir('/Users/boris/projects/monty-v06c');
-const E = require('/Users/boris/projects/monty-v06c/tools/vec_emu'); const B = process.env.B || 'build/native';
+const fs = require('fs'); process.chdir(require('path').resolve(__dirname, '../..'));
+const E = require('../vec_emu'); const B = process.env.B || 'build/native';
 const sym = {}; for (const l of fs.readFileSync(B + '/monty.sym', 'latin1').split('\n')) { const q = l.match(/^(\w+):\s+EQU\s+0x([0-9A-F]+)/i); if (q) sym[q[1]] = parseInt(q[2], 16); }
 const R = process.env.REG.split(',').map((x) => { const [n, a, b] = x.split(':'); return { n, a: sym[a], b: sym[b], c: 0, sp: -1 }; });
 const m = E.mk(B + '/monty.bin'); let steps = 0, fc = 0, cur = null;

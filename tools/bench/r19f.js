@@ -1,5 +1,5 @@
-const fs = require('fs'); process.chdir('/Users/boris/projects/monty-v06c');
-const E = require('/Users/boris/projects/monty-v06c/tools/vec_emu'); const B = process.env.B || 'build/native';
+const fs = require('fs'); process.chdir(require('path').resolve(__dirname, '../..'));
+const E = require('../vec_emu'); const B = process.env.B || 'build/native';
 const sym = {}; for (const l of fs.readFileSync(B + '/monty.sym', 'latin1').split('\n')) { const q = l.match(/^(\w+):\s+EQU\s+0x([0-9A-F]+)/i); if (q) sym[q[1]] = parseInt(q[2], 16); }
 const m = E.mk(B + '/monty.bin'); let steps = 0, fc = 0; const W = (process.env.W || 'force_live_t,disp_prep,crit,spr_plan,spr_prep,crit_plan,draw_list,ex_build,fl_under,dc_draw,kb_scan,pal_load_isr').split(','); const A = {}, N = {}; const stk = [];
 let cyc = 0, lastc = 0; const tot = () => cyc;

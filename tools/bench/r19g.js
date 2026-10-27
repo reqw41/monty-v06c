@@ -1,5 +1,5 @@
-const fs = require('fs'); process.chdir('/Users/boris/projects/monty-v06c');
-const E = require('/Users/boris/projects/monty-v06c/tools/vec_emu'); const B = process.env.B || 'build/native'; const P = process.env.P || 'force_live_t';
+const fs = require('fs'); process.chdir(require('path').resolve(__dirname, '../..'));
+const E = require('../vec_emu'); const B = process.env.B || 'build/native'; const P = process.env.P || 'force_live_t';
 const sym = {}; for (const l of fs.readFileSync(B + '/monty.sym', 'latin1').split('\n')) { const q = l.match(/^(\w+):\s+EQU\s+0x([0-9A-F]+)/i); if (q) sym[q[1]] = parseInt(q[2], 16); }
 const labs = Object.entries(sym).filter(([k, v]) => v >= 0x38 && v < 0x7000 && !k.startsWith('C_')).sort((a, b) => a[1] - b[1]);
 const near = new Array(0x7000); { let j = 0; for (let a = 0; a < 0x7000; a++) { while (j + 1 < labs.length && labs[j + 1][1] <= a) j++; near[a] = labs[j] ? labs[j][0] : '?'; } }

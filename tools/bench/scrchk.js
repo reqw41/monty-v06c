@@ -2,8 +2,8 @@
 // враги (цвет не 6/11) — OR в 8000; Джо — тремя плоскостями по индексу cmap[цвет]: бит 2 -> 8000, 1 -> A000, 0 -> C000 (AND/OR), меньший номер сверху.
 // node scrchk.js dir шагов [tp|r19]
 const REF = require('./video-ref');
-const fs = require('fs'); process.chdir('/Users/boris/projects/monty-v06c');
-const E = require('/Users/boris/projects/monty-v06c/tools/vec_emu');
+const fs = require('fs'); process.chdir(require('path').resolve(__dirname, '../..'));
+const E = require('../vec_emu');
 const dir = process.argv[2] || 'build/native', N = +(process.argv[3] || 2000), MODE = process.argv[4] || '';
 const sym = {}; for (const l of fs.readFileSync(dir + '/monty.sym', 'latin1').split('\n')) { const q = l.match(/^(\w+):\s+EQU\s+0x([0-9A-F]+)/i); if (q) sym[q[1]] = parseInt(q[2], 16); }
 const m = E.mk(dir + '/monty.bin'); const K = (r, b, d) => { if (d) m.keyboard.matrix[r] |= b; else m.keyboard.matrix[r] &= ~b; };
