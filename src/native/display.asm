@@ -20,8 +20,8 @@ dp6:		cp	(hl)
 ; disp_prep: всё, кроме короткой части: клетки (кроме тех, что под перерисовываемыми спрайтами), план
 ; спрайтов; crit_pend := 1, если после прерывания нужна короткая часть (crit)
 disp_prep:
-		ld	a,(vregs+1)
-		and	0x40
+		ld	a,(video_enabled)
+		or	a
 		ret	z
 		xor	a
 		ld	(drew_any),a
@@ -86,22 +86,19 @@ dp2:		ld	a,(vdirty)
 		ld	a,(vdirty)
 		and	0xFF-VD_PAT
 		ld	(vdirty),a
-		ld	a,pat_flag/256		; тайлы с новой графикой: живые клетки с ними (E0/E8 — лента и цепь) —
-		call	force_live_t
-		xor	a			; E0/E8 — сбросить; другие тайлы (pat_oth — отмечается при записи) — редкость:
-		ld	(pat_flag+0xE0),a	; все их клетки (по карте)
-		ld	(pat_flag+0xE8),a
-		ld	a,(pat_oth)
-		or	a
+		ld	a,(belt_frame)
+		ld	hl,belt_shown
+		cp	(hl)
 		jp	z,dp3
+		ld	(hl),a
+		ld	a,1
+		ld	(col_flag+0xE0),a
+		ld	(col_flag+0xE8),a
+		ld	a,col_flag/256
+		call	force_live_t
 		xor	a
-		ld	(pat_oth),a
-		ld	a,pat_flag/256
-		call	force_tiles
-		ld	hl,pat_flag
-		ld	bc,256
-		ld	e,0
-		call	memfill_f
+		ld	(col_flag+0xE0),a
+		ld	(col_flag+0xE8),a
 dp3:		xor	a
 		ld	(dc_pt),a
 		ld	a,(vdirty)
@@ -275,6 +272,8 @@ et5:		inc	hl
 
 ; room_redraw: таблица анимации, палитра, всё к перерисовке
 room_redraw:
+		ld	a,(belt_frame)
+		ld	(belt_shown),a
 		ld	a,1
 		ld	(spr_force),a
 		ld	hl,col_flag
@@ -841,12 +840,7 @@ pp_b0:		ld	l,c			; банк 0: E000 + 8 * тайл
 		ld	h,a
 		ret
 
-; bank_hi: A = номер банка шаблонов по R4 (0 -> 0, 1 -> 1, 2 -> 2, 5 -> 3)
-bank_hi:	ld	a,(vregs+4)
-		and	7
-		cp	5
-		ret	nz
-		ld	a,3
+bank_hi:	ld	a,(fire_frame)
 		ret
 
 ; draw_all: все клетки на экран прямо по карте (графика — заново только при смене тайла подряд); спрайты —

@@ -6,7 +6,10 @@ isr_sp:		ds	2
 nmi_pend:	ds	1
 vdirty:		ds	1
 nt_age:		ds	1
-vregs:		ds	8
+video_enabled:	ds	1
+fire_frame:	ds	1
+belt_frame:	ds	1
+belt_shown:	ds	1
 pal_load:	ds	1
 tile_hi:	ds	1
 kbmat:		ds	8

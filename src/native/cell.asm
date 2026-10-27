@@ -76,6 +76,11 @@ dc_tile:
 		ld	l,(hl)
 		ld	h,cmodes/256
 		ld	c,(hl)
+		ld	a,b
+		cp	0xE0
+		jp	z,dc_belt0
+		cp	0xE8
+		jp	z,dc_belt8
 		ld	a,(tile_hi)		; графика: кадр анимации tile_hi (если у тайла есть кадры) или E000
 		or	a
 		jp	z,dcg0
@@ -112,6 +117,19 @@ dcg0:		ld	l,b			; E000 + 8 * тайл
 		ld	d,a
 		ld	e,l
 dcg1:
+		ret
+dc_belt0:	ld	a,(belt_shown)
+		add	a,a
+		ld	hl,C_85BC
+		jp	dc_belt
+dc_belt8:	ld	a,(belt_shown)
+		and	1
+		add	a,a
+		add	a,a
+		add	a,a
+		ld	hl,C_85CA
+dc_belt:	call	add_hl_a
+		ex	de,hl
 		ret
 ; dc_scr: rr_r, rr_c -> HL = экран (плоскость 8000, верхняя строка клетки)
 dc_scr:		ld	a,(rr_r)

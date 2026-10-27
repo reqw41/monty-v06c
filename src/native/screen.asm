@@ -64,10 +64,7 @@ eb1:		ld	c,a			; 7 * ряд
 L_A60B:		ld	a,(0x705F)
 		and	0xF7
 		ld	(0x705F),a
-		ld	bc,0x0182
-		call	vid_reg
-		ld	bc,0x0705
-		call	vid_reg
+		call	video_off
 		ld	de,0
 		ld	bc,0x0300
 		xor	a
@@ -131,5 +128,4 @@ a60c:		ld	a,(0x71A8)		; стены по краям (кроме столбца 10
 a60e:		ld	bc,0x1803
 		call	L_AA96
 a60d:		call	L_AEFE
-		ld	bc,0x01E2
-		jp	vid_reg
+		jp	video_on

@@ -17,39 +17,27 @@ a89x:		pop	bc
 		pop	hl
 		ret
 
-; frame_anim (A92F): 7085 := 73F9; кадр ленты (7096): E0 <- C_85BC + 2f, E8 <- C_85CA + 8 (f & 1); R4 := банк
-; по 73F9 (0 -> 0, 8 -> 1, 10 -> 2, 28 -> 5, иначе 5)
+; Кадры огня и лент — переменные игры. Графика всех кадров неизменяема.
 L_A92F:		ld	a,(0x73F9)
 		ld	(0x7085),a
-		ld	a,(0x7096)
-		push	af
-		add	a,a
-		ld	hl,C_85BC
-		call	add_hl_a
-		ld	e,0xE0
-		call	pat_put
-		pop	af
-		and	1
-		add	a,a
-		add	a,a
-		add	a,a
-		ld	hl,C_85CA
-		call	add_hl_a
-		ld	e,0xE8
-		call	pat_put
-		ld	a,(0x7085)
 		ld	c,0
 		or	a
-		jp	z,a92r
-		ld	c,1
+		jp	z,fa_set
+		inc	c
 		cp	8
-		jp	z,a92r
-		ld	c,2
+		jp	z,fa_set
+		inc	c
 		cp	0x10
-		jp	z,a92r
-		ld	c,5
-a92r:		ld	b,4
-		jp	vid_reg
+		jp	z,fa_set
+		inc	c
+fa_set:		ld	a,c
+		ld	(fire_frame),a
+		ld	a,(0x7096)
+		ld	(belt_frame),a
+		ld	a,(vdirty)
+		or	VD_REG+VD_PAT
+		ld	(vdirty),a
+		ret
 
 ; L_A8D6 LASERS: таймер 70A8 (60h..1); 60h — включить обе группы (1D, 1C), 48h / 30h — выключить
 L_A8D6:

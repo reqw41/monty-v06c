@@ -1,45 +1,22 @@
-; Нативный вывод: вместо VDP — копии VNT (таблица имён), VCOL (цвета), VSAT (атрибуты спрайтов), регистры
-; vregs; шаблоны тайлов — банк 0 в E000 (+ различия банков), шаблоны спрайтов — VSPR. Отметки для вывода
-; (display.asm): row_dirty — строки таблицы имён (только при переполнении списка), vdirty — VD_NT (вся комната), VD_COL, VD_PAT, VD_REG.
-; Клетки вне таблицы имён (0..2FF) запись пропускает, чтение даёт 0.
-
-; vid_reg: B = регистр, C = значение. R1: экран включён — всё заново; R4 (банк шаблонов), R7 — VD_REG
-vid_reg:
-		push	af
-		push	hl
-		ld	a,b
-		and	7
-		ld	l,a
-		ld	h,0
-		push	de
-		ld	de,vregs
-		add	hl,de
-		pop	de
-		ld	a,(hl)
-		ld	(hl),c
-		cp	c
-		jp	z,vr9
-		ld	a,b
-		cp	1
-		jp	nz,vr2
-		ld	a,c
-		and	0x40
-		jp	z,vr9
+ ; Данные карты игры и прямые уведомления вывода.
+; video_off/on: временно остановить вывод при построении комнаты.
+video_off:	push	af
+		xor	a
+		ld	(video_enabled),a
+		pop	af
+		ret
+video_on:	push	af
+		ld	a,(video_enabled)
+		or	a
+		jp	nz,vo_done
+		inc	a
+		ld	(video_enabled),a
 		ld	a,(vdirty)
 		or	VD_NT
 		ld	(vdirty),a
 		ld	a,2
 		ld	(nt_age),a
-		jp	vr9
-vr2:		cp	4
-		jp	z,vr3
-		cp	7
-		jp	nz,vr9
-vr3:		ld	a,(vdirty)
-		or	VD_REG
-		ld	(vdirty),a
-vr9:		pop	hl
-		pop	af
+vo_done:	pop	af
 		ret
 
 ; nt_put: HL = источник, DE = клетка, C = число (B не используется) — в VNT, строки к перерисовке.
@@ -251,57 +228,6 @@ cf1:		ld	(hl),b
 		jp	nz,cf1
 		ld	a,(vdirty)
 		or	VD_COL
-		ld	(vdirty),a
-		jp	np_x
-
-; pat_put: E = тайл, HL = источник (8 байт) — шаблон во всех банках (банк 0, различий у E0/E8 нет);
-; отличается — pat_flag[тайл], VD_PAT. HL, DE, BC сохраняются
-pat_put:	push	hl
-		push	de
-		push	bc
-		push	hl
-		ld	l,e			; DE = E000 + 8 * тайл
-		ld	h,0
-		add	hl,hl
-		add	hl,hl
-		add	hl,hl
-		ld	a,h
-		add	a,0xE0
-		ld	h,a
-		ex	de,hl
-		pop	hl
-		ld	b,8
-		ld	c,0			; изменилось?
-pp1:		ld	a,(de)
-		cp	(hl)
-		jp	z,pp2
-		ld	a,(hl)
-		ld	(de),a
-		ld	c,1
-pp2:		inc	hl
-		inc	de
-		dec	b
-		jp	nz,pp1
-		ld	a,c
-		or	a
-		jp	z,np_x
-		pop	bc
-		pop	de
-		push	de
-		push	bc
-		ld	l,e
-		ld	h,pat_flag/256
-		ld	(hl),1
-		ld	a,e			; не лента и не цепь (E0, E8) — отметка «другие» (pat_oth)
-		cp	0xE0
-		jp	z,pp3
-		cp	0xE8
-		jp	z,pp3
-		ld	a,1
-		ld	(pat_oth),a
-pp3:
-		ld	a,(vdirty)
-		or	VD_PAT
 		ld	(vdirty),a
 		jp	np_x
 

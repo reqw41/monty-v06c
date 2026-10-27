@@ -1,5 +1,5 @@
 // Весь экран против эталона: фон по VNT (огонь 38, D0-D5 — любой кадр банка) + нарисованные спрайты (spr_rec +0, атрибуты +1..+4):
-// враги (цвет не 6/11) — OR в 8000; Джо — по индексу cmap[цвет]: бит 2 -> 8000, 1 -> A000, 0 -> C000 (AND/OR), меньший номер сверху.
+// враги (цвет не 6/11) — OR в 8000; Джо — тремя плоскостями по индексу cmap[цвет]: бит 2 -> 8000, 1 -> A000, 0 -> C000 (AND/OR), меньший номер сверху.
 // node scrchk.js dir шагов [tp|r19]
 const fs = require('fs'); process.chdir('/Users/boris/projects/monty-v06c');
 const E = require('/Users/boris/projects/monty-v06c/tools/vec_emu');
@@ -12,11 +12,13 @@ let steps = 0, fc = 0, checks = 0, bad = 0, skip = 0; const ex = [];
 const keys = (s) => { K(7, 0x80, (s >= 20 && s < 30) || (s > 200 && s % 37 < 4)); const ph = s < 100 ? -1 : Math.floor((s - 100) / 70) % 4; K(0, 0x40, ph === 0); K(0, 0x10, ph === 2); K(0, 0x20, ph === 1 && s % 50 < 20); K(0, 0x80, ph === 3 && s % 50 < 20); };
 const isFire = (t) => t === 0x38 || (t >= 0xD0 && t <= 0xD5);
 function cellBytes(t, f) { const ds = m.rd(sym.dslot + t); let src = 0xE000 + 8 * t; if (f && ds !== 0xFF) src = sym.dstore + 24 * ds + 8 * (f - 1);
+  if (t === 0xE0) src = sym.C_85BC + 2 * m.rd(sym.belt_shown);
+  if (t === 0xE8) src = sym.C_85CA + 8 * (m.rd(sym.belt_shown) & 1);
   const md = m.rd(sym.cmodes + m.rd(sym.VCOL + (t >> 3))); const o = [];
   for (let p = 0; p < 3; p++) { const mode = (md >> (4 - 2 * p)) & 3; for (let y = 0; y < 8; y++) { const pat = m.rd(src + y); o.push([0, pat, pat ^ 0xFF, 0xFF][mode]); } } return o; }
 function check() {
   if (m.rd(sym.dl_n) || m.rd(sym.dl_ovf) || m.rd(sym.vdirty) || m.rd(sym.crit_pend) || m.rd(sym.lv_dirty)) { skip++; return; }
-  if (!(m.rd(sym.vregs + 1) & 0x40)) { skip++; return; }
+  if (!m.rd(sym.video_enabled)) { skip++; return; }
   // фон: 3 плоскости x 256 x 256 (строки экрана 0..191 сверху: адрес 0xFF - y... как у клетки: 0xDF - 8r - y)
   const scr = [new Uint8Array(8192), new Uint8Array(8192), new Uint8Array(8192)], fire = new Uint8Array(768); const th = m.rd(sym.tile_hi);
   const ad = (c, y) => c * 256 + 0xDF - y;   // y = 0..191 сверху
@@ -34,7 +36,7 @@ function check() {
       for (let half = 0; half < 2; half++) { const pb = m.rd(sym.VSPR + nm * 8 + half * 16 + yy);
         for (let bx = 0; bx < 8; bx++) { if (!(pb & (0x80 >> bx))) continue; const x = X + half * 8 + bx; if (x > 255) continue;
           const c = x >> 3, bit = 0x80 >> (x & 7), A = ad(c, y); under[(y >> 3) * 32 + c] = 1;
-          if (!hero) scr[0][A] |= bit; else for (let p = 0; p < 3; p++) { if (!(ci & 4) && p === 0) continue; if ((ci >> (2 - p)) & 1) scr[p][A] |= bit; else scr[p][A] &= ~bit; } } } } }
+          if (!hero) scr[0][A] |= bit; else for (let p = 0; p < 3; p++) { if ((ci >> (2 - p)) & 1) scr[p][A] |= bit; else scr[p][A] &= ~bit; } } } } }
   checks++; let nb = 0; for (let i = 0; i < 768; i++) if (fire[i]) under[i] = 0;
   for (let p = 0; p < 3; p++) for (let c = 0; c < 32; c++) for (let y = 0; y < 192; y++) { const cell = (y >> 3) * 32 + c; if (fire[cell] && !under[cell]) continue;
     const A = ad(c, y), got = m.rd(0x8000 + 0x2000 * p + A); if (got !== scr[p][A]) { nb++; if (ex.length < 8) ex.push(`шаг ${steps} пл ${p} кл ${y >> 3},${c} стр ${y & 7}: ${got.toString(16)} != ${scr[p][A].toString(16)}${fire[cell] ? ' (огонь под спрайтом)' : ''}${under[cell] ? ' (под спрайтом)' : ''}`); } }

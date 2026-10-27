@@ -20,6 +20,8 @@ function check() {
         for (let p = 0; p < 3 && g; p++) { const mode = (md >> (4 - 2 * p)) & 3; for (let y = 0; y < 8; y++) { const pat = m.rd(sr + y); if (m.rd(0x8000 + 0x2000 * p + c * 256 + 0xDF - 8 * r - y) !== [0, pat, pat ^ 0xFF, 0xFF][mode]) { g = false; break; } } } okf = g; }
       if (!okf) { bad++; if (ex.length < 6) ex.push('шаг ' + steps + ' огонь ' + r + ',' + c + ' тайл ' + t.toString(16) + ' не совпал ни с одним кадром'); } continue; }
     if (th && ds !== 0xFF) src = sym.dstore + 24 * ds + 8 * (th - 1);
+    if (t === 0xE0) src = sym.C_85BC + 2 * m.rd(sym.belt_shown);
+    if (t === 0xE8) src = sym.C_85CA + 8 * (m.rd(sym.belt_shown) & 1);
     for (let p = 0; p < 3; p++) { const mode = (md >> (4 - 2 * p)) & 3;
       for (let y = 0; y < 8; y++) { const pat = m.rd(src + y); const want = [0, pat, pat ^ 0xFF, 0xFF][mode];
         const got = m.rd(0x8000 + 0x2000 * p + c * 256 + 0xDF - 8 * r - y);

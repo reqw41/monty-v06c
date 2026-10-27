@@ -662,13 +662,11 @@ a548a:		ld	a,(hl)
 ; --- AE77 / AE83: прерывание VDP выкл. (70B3 += 1, R1 := 82) / вкл. при 70B3 = 0 (R1 := E2) -----------------
 L_AE77:		ld	hl,0x70B3
 		inc	(hl)
-		ld	bc,0x0182
-		jp	vid_reg
+		jp	video_off
 L_AE83:		ld	hl,0x70B3
 		dec	(hl)
 		ret	nz
-		ld	bc,0x01E2
-		jp	vid_reg
+		jp	video_on
 
 ; --- L_A067 DRAW_ROOM -----------------------------------------------------------------------------------------
 L_A067:		call	L_AE77

@@ -9,10 +9,9 @@ game_init:	ld	hl,0x7000
 		ld	de,col0
 		ld	bc,32
 		call	copy_de_hl
-		ld	hl,vregs
-		ld	de,reg0
-		ld	bc,8
-		jp	copy_de_hl
+		ld	a,1
+		ld	(video_enabled),a
+		ret
 ; game_start: стартовая комната уровня 1 с Джо, поверх — надпись выбора уровня (клавиши 1, 2, 3; звук молчит);
 ; выбран — надпись стирается, комната заново для выбранного уровня (от него зависят предметы и строка
 ; состояния), дальше игра
@@ -194,4 +193,3 @@ font_tab:	db	"S",0x70,0x88,0x80,0x70,0x08,0x88,0x70,0x00
 		db	0,0,0,0,0,0,0,0,0	; конец: пустой глиф
 ram0_pk:	INCBIN	"../../build/native/ram0.pk"
 pat0_pk:	INCBIN	"../../build/native/pat0.pk"
-reg0:		INCBIN	"../../build/native/vreg0.bin"

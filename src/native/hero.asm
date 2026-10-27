@@ -228,8 +228,6 @@ p8e3:		push	bc
 		ld	hl,0x70C0
 		ld	bc,0xC6
 		call	L_840B
-		ld	bc,0x0700
-		call	vid_reg
 		pop	bc
 p8e1:		call	L_8DD4
 		call	L_8C13
