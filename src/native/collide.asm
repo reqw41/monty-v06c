@@ -2,23 +2,21 @@
 
 ; cpir: поиск A с HL, C байт (B = 0) — как CPIR Z80: Z — найден; HL — за найденным (или за концом), C — остаток.
 ; A сохраняется
-cpir:		push	de
-		ld	d,a
-cpr1:		ld	a,(hl)
+cpir:		cp	(hl)
+		jp	z,cpr_f
 		inc	hl
 		dec	c
-		cp	d
-		jp	z,cpr_f
-		ld	a,c
+		jp	nz,cpir
+		push	bc			; не найден: NZ (A, B сохраняются)
+		ld	b,a
+		ld	a,1
 		or	a
-		jp	nz,cpr1
-		ld	a,1			; не найден: NZ
-		or	a
-		ld	a,d
-		pop	de
+		ld	a,b
+		pop	bc
 		ret
-cpr_f:		ld	a,d
-		pop	de
+cpr_f:		inc	hl			; найден: HL — за ним, C — остаток, Z
+		dec	c
+		cp	a
 		ret
 
 ; L_840B: (HL) .. (HL + BC) := 0
