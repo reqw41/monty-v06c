@@ -694,7 +694,15 @@ pp9:		inc	b
 ; области фона: своя (new +9..+12); слой k над k+1 в той же точке (оба готовы) — k без фона (+15 = 1),
 ; у k+1 — объединение: верх = max L, низ = min (L - строк + 1), пустые столбцы — общие
 		ld	b,0
-pm0:		ld	a,b
+pm0:		ld	a,b			; только отмеченные (неотмеченные не рисуются; слой — только с отмеченным:
+		call	rec_ptr			; они пересекаются — замыкание отметило оба)
+		ld	a,l
+		add	a,13
+		ld	l,a
+		ld	a,(hl)
+		or	a
+		jp	z,pm0n
+		ld	a,b
 		call	new_ptr
 		push	hl
 		inc	hl			; +4: цвет
@@ -742,7 +750,7 @@ pm0a:		pop	hl
 		inc	de
 		inc	hl
 		ENDR
-		inc	b
+pm0n:		inc	b
 		ld	a,b
 		cp	SPR_MAX
 		jp	nz,pm0
@@ -1234,9 +1242,15 @@ so6:		pop	de
 spr_ready:
 		ld	b,0
 sy0:		ld	a,b
-		call	new_ptr
+		call	rec_ptr
 		ld	a,l
-		add	a,14
+		add	a,13
+		ld	l,a
+		ld	a,(hl)			; не отмечен — рисоваться не будет
+		or	a
+		jp	z,sy9
+		ld	a,l
+		add	a,0x81
 		ld	l,a
 		ld	a,(hl)
 		or	a
@@ -2021,48 +2035,49 @@ cells_rect:
 		ld	(cr_c0),a
 		inc	hl
 		ld	a,(hl)
-		ld	(cr_c1),a
-cr0:		ld	a,(cr_r)		; HL = VNT + 32 r + c0
-		ld	(rr_r),a
+		inc	a
+		ld	hl,cr_c0
+		sub	(hl)
+		ld	(cr_c1),a		; (здесь — число столбцов)
+cr0:		ld	a,(cr_r)		; HL = PND + 32 r + c0
+		rrca
+		rrca
+		rrca
 		ld	l,a
-		ld	h,0
-		add	hl,hl
-		add	hl,hl
-		add	hl,hl
-		add	hl,hl
-		add	hl,hl
-		ld	a,(cr_c0)
-		call	add_hl_a
-		ld	de,VNT
-		add	hl,de
-		ld	a,(cr_c0)
-		ld	(rr_c),a
-cr1:		ld	a,h			; DE = PND + то же смещение
-		sub	VNT/256
+		and	0x1F
 		add	a,PND/256
-		ld	d,a
-		ld	e,l
-		ld	a,(cr_force)		; все клетки (стирание врага одной плоскости)
-		or	a
-		jp	nz,cr1f
-		ld	a,(de)
+		ld	h,a
+		ld	a,l
+		and	0xE0
+		ld	l,a
+		ld	a,(cr_c0)
+		or	l
+		ld	l,a
+		ld	a,(cr_c1)
+		ld	b,a
+cr1:		ld	a,(hl)			; ждёт вывода
 		or	a
 		jp	z,cr2
-cr1f:		xor	a
-		ld	(de),a
-		ld	a,(hl)
-		ld	(rr_t),a
+		ld	(hl),0
 		push	hl
-		call	draw_cell
-		pop	hl
-cr2:		inc	hl
-		ld	a,(rr_c)
-		inc	a
+		push	bc
+		ld	a,h			; тайл — из VNT (то же смещение)
+		add	a,(VNT-PND)/256
+		ld	d,a
+		ld	e,l
+		ld	a,(de)
+		ld	(rr_t),a
+		ld	a,(cr_r)
+		ld	(rr_r),a
+		ld	a,l
+		and	31
 		ld	(rr_c),a
-		ld	b,a
-		ld	a,(cr_c1)
-		cp	b
-		jp	nc,cr1
+		call	draw_cell
+		pop	bc
+		pop	hl
+cr2:		inc	l
+		dec	b
+		jp	nz,cr1
 		ld	a,(cr_r)
 		inc	a
 		ld	(cr_r),a
