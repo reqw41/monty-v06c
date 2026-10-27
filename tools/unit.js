@@ -14,7 +14,8 @@ const [FN, LABEL, NC = '40', LV = '1', PLAN = ''] = process.argv.slice(2);
 const [MOD, NAME] = FN.split('.');
 const SKIP = (process.env.SKIP || '7340-73FF').split(',').map((r) => r.split('-').map((x) => parseInt(x, 16)));
 const cart = (w) => (w >= 0x800C && w < 0xC000 ? sym['C_' + w.toString(16).toUpperCase().padStart(4, '0')] : undefined);
-const sym = {}; for (const l of fs.readFileSync('build/native/monty.sym', 'latin1').split('\n')) { const m = l.match(/^(\w+):\s+EQU\s+0x([0-9A-F]+)/i); if (m) sym[m[1]] = parseInt(m[2], 16); }
+const nativeDir = process.env.B || 'build/native';
+const sym = {}; for (const l of fs.readFileSync(nativeDir + '/monty.sym', 'latin1').split('\n')) { const m = l.match(/^(\w+):\s+EQU\s+0x([0-9A-F]+)/i); if (m) sym[m[1]] = parseInt(m[2], 16); }
 if (sym[LABEL] === undefined) throw new Error('нет метки ' + LABEL);
 
 // --- старт JS-игры: снимок модели MSX на первой итерации уровня LV
@@ -42,7 +43,7 @@ mod[NAME] = orig;
 if (process.env.DEBUG) console.log('вызовов', calls);
 console.log(`случаев ${cases.length} (${FN} -> ${LABEL})`);
 // --- проверка на Векторе
-const v = E.mk('build/native/monty.bin');
+const v = E.mk(nativeDir + '/monty.bin');
 const TRAP = sym.unit_trap; if (TRAP === undefined) throw new Error('нет метки unit_trap');
 let bad = 0, maxCyc = 0, sumCyc = 0;
 for (let k = 0; k < cases.length; k++) {

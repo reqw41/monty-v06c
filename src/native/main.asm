@@ -3,7 +3,9 @@
 main_loop:
 L_A5D1:		xor	a
 		ld	(0x7207),a
-mn_proc0:	call	mn_ready
+mn_proc0:	ld	a,(0x705F)
+		and	8
+		call	nz,mn_ready
 		ld	a,(0x7073)
 		cp	0xFE
 		jp	z,mn_proc1
@@ -13,7 +15,9 @@ mn_proc0:	call	mn_ready
 		dec	(hl)
 		jp	nz,mn_proc1
 		ld	(hl),2
-mn_proc1:	call	mn_ready
+mn_proc1:	ld	a,(0x705F)
+		and	8
+		call	nz,mn_ready
 		ld	a,(0x7012)
 		cp	0xFE
 		jp	z,mn_proc2
@@ -23,7 +27,9 @@ mn_proc1:	call	mn_ready
 		dec	(hl)
 		jp	nz,mn_proc2
 		ld	(hl),4
-mn_proc2:	call	mn_ready
+mn_proc2:	ld	a,(0x705F)
+		and	8
+		call	nz,mn_ready
 		ld	a,(0x7068)
 		cp	0xFE
 		jp	z,mn_proc3
@@ -33,7 +39,9 @@ mn_proc2:	call	mn_ready
 		dec	(hl)
 		jp	nz,mn_proc3
 		ld	(hl),1
-mn_proc3:	call	mn_ready
+mn_proc3:	ld	a,(0x705F)
+		and	8
+		call	nz,mn_ready
 		ld	a,(0x7074)
 		cp	0xFE
 		jp	z,mn_proc4
@@ -43,7 +51,9 @@ mn_proc3:	call	mn_ready
 		dec	(hl)
 		jp	nz,mn_proc4
 		ld	(hl),1
-mn_proc4:	call	mn_ready		; the original sentinel also waits for 705F bit 3
+mn_proc4:	ld	a,(0x705F)
+		and	8
+		call	nz,mn_ready		; the original sentinel also waits for 705F bit 3
 mn9:		ld	a,(0x7207)
 		and	0x80
 		jp	nz,main_loop

@@ -1,7 +1,7 @@
 ; Нативно: враги A7A1 (по src/model/enemy.js). Список 7086: (флаги, счётчик) на врага, FF — конец; спрайт
 ; 7300 + 4 * (флаги & 7). Флаги: 7 — направление, 6 — прыгающий, 5 — на конвейере/цепи, 4 — без проверки
-; стен, 3 — катящийся. Указатели — в ячейках en_hl (запись списка), en_sp (спрайт); сдвиг — en_c (по Y),
-; en_b (по X).
+; стен, 3 — катящийся. DE держит запись списка, en_sp — адрес спрайта;
+; сдвиг остаётся в регистрах C (по Y), B (по X) до применения.
 
 ; L_A69F: 7097 += 1; CF := (7097 & 11h) = 0 (HL сохраняется)
 L_A69F:		ld	a,(0x7097)
@@ -26,7 +26,8 @@ eab1:		ld	a,(hl)
 		ld	(hl),a
 		ret
 ; en_flip: направление записи списка — наоборот
-en_flip:	ld	hl,(en_hl)
+en_flip:	ld	h,d
+		ld	l,e
 		ld	a,(hl)
 		xor	0x80
 		ld	(hl),a
@@ -40,10 +41,13 @@ en_next:	ld	a,(hl)
 		and	7			; спрайт
 		add	a,a
 		add	a,a
-		ld	hl,0x7300
-		call	add_hl_a
+		ld	l,a
+		ld	h,0x73
 		ld	(en_sp),hl
 		call	L_9159			; тайлы под врагом -> 7057..705C
+		ld	hl,(en_hl)
+		ld	d,h
+		ld	e,l			; DE = current record; helpers preserve it
 		ld	hl,(en_sp)
 		ld	a,(hl)			; Y < 15h или >= B8h — направление наоборот
 		cp	0x15
@@ -51,7 +55,8 @@ en_next:	ld	a,(hl)
 		cp	0xB8
 		jp	c,en_f2
 en_f1:		call	en_flip
-en_f2:		ld	hl,(en_hl)
+en_f2:		ld	h,d
+		ld	l,e
 		ld	a,(hl)
 		and	0x40
 		jp	nz,en_6b3
@@ -68,7 +73,8 @@ en_f2:		ld	hl,(en_hl)
 		jp	z,en_c0
 		dec	a
 en_c0:		ld	(hl),a
-en_c1:		ld	hl,(en_hl)
+en_c1:		ld	h,d
+		ld	l,e
 		ld	a,(hl)
 		and	8
 		jp	z,en_81d
@@ -101,7 +107,8 @@ en_r2:		cp	0x08
 en_r3:		ld	(hl),a
 		jp	en_81d
 
-en_6b3:		ld	hl,(en_hl)		; прыгающий: счётчик - 1 (с 0 — на 5), бит 7 — как был
+en_6b3:		ld	h,d
+		ld	l,e		; прыгающий: счётчик - 1 (с 0 — на 5), бит 7 — как был
 		inc	hl
 		ld	a,(hl)
 		and	0x80
@@ -138,7 +145,8 @@ en_b3:		ld	a,(0x705A)		; на конвейере (10, 11 под ним)?
 		ld	a,(0x705B)
 		cp	0x11
 		jp	nz,en_762
-		ld	hl,(en_hl)
+		ld	h,d
+		ld	l,e
 		ld	a,(hl)
 		and	0x20
 		jp	nz,en_71a
@@ -152,7 +160,8 @@ en_b3:		ld	a,(0x705A)		; на конвейере (10, 11 под ним)?
 		ld	a,(hl)
 		add	a,2
 		ld	(hl),a
-		ld	hl,(en_hl)
+		ld	h,d
+		ld	l,e
 		ld	a,(hl)
 		or	0xA0
 		ld	(hl),a
@@ -177,15 +186,15 @@ en_72d:		ld	hl,(en_sp)		; X += A, Y -= 7
 		add	a,0xF9
 		ld	(hl),a
 		jp	en_88f
-en_73a:		ld	a,0xFF
-		ld	(en_c),a
+en_73a:		ld	c,0xFF
 		ld	a,(0x705B)
 		cp	0xE8
 		jp	z,en_73b
 		cp	0x08
 		jp	nz,en_73c
 en_73b:		call	L_A69F
-		ld	hl,(en_hl)
+		ld	h,d
+		ld	l,e
 		jp	c,en_73d
 		ld	a,(hl)
 		or	0x80
@@ -196,15 +205,13 @@ en_73d:		ld	a,(hl)
 		and	0x7F
 		ld	(hl),a
 		ld	a,8
-en_73e:		ld	(en_b),a
-		xor	a
-		ld	(en_c),a
+en_73e:		ld	b,a
+		ld	c,0
 		ld	a,(hl)
 		and	0xDF
 		ld	(hl),a
 		jp	en_87f
-en_73c:		xor	a
-		ld	(en_b),a
+en_73c:		ld	b,0
 		jp	en_87f
 en_762:		ld	a,(0x7057)		; на цепи (88, 89 под ним)?
 		cp	0x88
@@ -215,35 +222,37 @@ en_762:		ld	a,(0x7057)		; на цепи (88, 89 под ним)?
 		ld	a,(0x70AB)
 		cp	2
 		jp	nz,en_796
-		ld	hl,(en_hl)
+		ld	h,d
+		ld	l,e
 		ld	a,(hl)
 		and	0x20
 		jp	nz,en_78e
 		call	L_A69F
 		jp	c,en_796
 		call	en_abed
-		ld	hl,(en_hl)
+		ld	h,d
+		ld	l,e
 		ld	a,(hl)
 		and	0x7F
 		or	0x20
 		ld	(hl),a
 		xor	a
 		jp	en_72d
-en_78e:		ld	hl,(en_hl)
+en_78e:		ld	h,d
+		ld	l,e
 		ld	a,(hl)
 		and	0x80
 		jp	nz,en_73a
-		ld	a,1
-		ld	(en_c),a
-		xor	a
-		ld	(en_b),a
+		ld	bc,1
 		jp	en_87f
-en_796:		ld	hl,(en_hl)
+en_796:		ld	h,d
+		ld	l,e
 		ld	a,(hl)
 		and	0x20
 		jp	nz,en_78e
 		jp	en_82f
-en_81d:		ld	hl,(en_hl)
+en_81d:		ld	h,d
+		ld	l,e
 		ld	a,(hl)
 		and	0x10
 		jp	z,en_82f
@@ -256,7 +265,8 @@ en_81d:		ld	hl,(en_hl)
 en_82f:		ld	a,(0x705B)
 		or	a
 		jp	z,en_846
-		ld	hl,(en_hl)
+		ld	h,d
+		ld	l,e
 		ld	a,(hl)
 		and	0x80
 		ld	a,(0x7057)
@@ -265,9 +275,9 @@ en_82f:		ld	a,(0x705B)
 en_82a:		call	L_A894
 		jp	nz,en_84a
 en_846:		call	en_flip
-en_84a:		xor	a
-		ld	(en_c),a
-		ld	hl,(en_hl)
+en_84a:		ld	c,0
+		ld	h,d
+		ld	l,e
 		ld	a,(hl)
 		and	8
 		jp	nz,en_84b
@@ -280,9 +290,9 @@ en_84a:		xor	a
 en_84c:		ld	(hl),a
 		ld	hl,C_ABB3
 		call	add_hl_a
-		ld	a,(hl)
-		ld	(en_c),a
-en_84b:		ld	hl,(en_hl)
+		ld	c,(hl)
+en_84b:		ld	h,d
+		ld	l,e
 		ld	a,(hl)
 		and	0x80
 		ld	b,1
@@ -295,21 +305,19 @@ en_84d:		inc	hl
 		ld	a,b
 		add	a,b
 		ld	b,a
-en_84e:		ld	a,b
-		ld	(en_b),a
+en_84e:
 en_87f:		ld	hl,(en_sp)		; Y -= C, X += B; X < 8 — направление наоборот
-		ld	a,(en_c)
-		ld	c,a
 		ld	a,(hl)
 		sub	c
 		ld	(hl),a
 		inc	hl
-		ld	a,(en_b)
+		ld	a,b
 		add	a,(hl)
 		ld	(hl),a
 		cp	8
 		call	c,en_flip
-en_88f:		ld	hl,(en_hl)
+en_88f:		ld	h,d
+		ld	l,e
 		inc	hl
 		inc	hl
 		jp	en_next

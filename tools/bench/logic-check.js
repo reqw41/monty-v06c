@@ -19,6 +19,14 @@ for(let flags of [0,0x20,0x40,0x60,0xFF])for(let a=0;a<256;a++) {
   const results=machines.map(o=>{o.m.wr(0x7000,flags);return call(o,'L_9122',a,0x12,0x34);});
   for(const k of ['a','bc','hl','cf'])if(results[0][k]!==results[1][k])throw Error(`floor ${a} ${flags} ${k}`);
 }
+for(let state=0;state<11;state++)for(let tile=0;tile<256;tile++)for(let b of [0,1,127,255]) {
+  const out=machines.map(o=>{o.m.wr(0x7079,state);o.m.wr(0x705B,tile);const r=call(o,'L_8F37',0,b,0x34);return [r.a,r.bc,r.de,r.hl].join(',');});
+  if(out[0]!==out[1])throw Error(`belt ${state} ${tile} ${b}: ${out}`);
+}
+for(let keys=0;keys<256;keys++)for(let space of [0,128]) {
+  const out=machines.map(o=>{const {m,s}=o;m.wr(s.kbmat,keys);m.wr(s.kbmat+7,space);call(o,'L_8C1F',0,0,0x34);return [m.rd(s.kb_req),...[0x73EE,0x73EF,0x73F0,0x73F1].map(a=>m.rd(a))].join(',');});
+  if(out[0]!==out[1])throw Error(`input ${keys} ${space}`);
+}
 for(const {m,s} of machines)for(let a=0;a<768;a++)m.wr(s.VNT+a,(a*13+(a>>8))&255);
 let count=0;
 for(let y=0;y<256;y++)for(let x=0;x<256;x++) {
