@@ -29,6 +29,8 @@ for old in range(4):
 out += ['fire_transitions:']
 for i in range(0,16,4): out += [' dw '+','.join(transitions[i:i+4])]
 for changed,label in changes.items(): out += [label+': db '+','.join(map(str,changed+(255,)))]
+out += ['video_low_end equ $', ' ORG 0x6900']
 for b,label in strips.items(): out += [label+': db '+','.join(map(str,b))]
+out += ['video_raw_end equ $', ' ORG video_low_end']
 (R/'src/native/gen/video.asm').write_text('\n'.join(out)+'\n')
 print('Исходных полос:',len(strips),'байт графики:',8*len(strips))

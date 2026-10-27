@@ -82,9 +82,17 @@ tile_count:	ds	1
 tile_src:	ds	2
 tile_dst:	ds	2
 group_modes:	ds	32
-disp_phase:	ds	1
 enemy_turn:	ds	1
 sprite_dirty:	ds	1
+fire_ran:	ds	1
+en_zero:	ds	1
+en_stride:	ds	1
+en_mask:	ds	1
+band_candidate:	ds	1
+band_valid:	ds	1
+band_ok:	ds	1
+		ALIGN	8
+band_order:	ds	SPR_MAX
 pvars_end:
 dc_sp:		ds	2
 tabs_end:

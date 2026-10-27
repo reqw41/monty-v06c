@@ -33,7 +33,14 @@ obj_ptr:	push	hl
 		pop	hl
 		ret
 
-spr_plan:	ld	hl,0x0101
+spr_plan:	ld	a,(nmi_pend)
+		or	a
+		ld	a,3
+		jp	z,spl_limit
+		ld	a,2
+spl_limit:	ld	(spl_dx+1),a
+		ld	(spl_dy+1),a
+		ld	hl,0x0101
 		ld	(cover_moves),hl
 		ld	(cover_moves+2),hl
 		ld	(cover_moves+4),hl
@@ -53,7 +60,12 @@ spl0:		ld	a,SPR_MAX
 		ld	a,1
 		ld	(obj_end),a
 spl_end:	ld	de,spl_z
-spl_c:		ld	a,(spr_force)
+spl_c:		ld	a,(de)
+		cp	(hl)
+		jp	z,spl_band_y
+		xor	a
+		ld	(band_valid),a
+spl_band_y:	ld	a,(spr_force)
 		or	a
 		jp	nz,spl_ch
 		ld	a,SPR_MAX
@@ -62,12 +74,65 @@ spl_c:		ld	a,(spr_force)
 		jp	c,spl_compare
 		cp	5
 		jp	nc,spl_compare
+		push	hl
+		push	de
+		inc	l
+		inc	de
+		ld	a,(de)
+		sub	(hl)
+		jp	nc,spl_dx
+		cpl
+		inc	a
+spl_dx:		cp	3
+		jp	nc,spl_distance
+		ld	c,a
+		dec	l
+		dec	de
+		ld	a,(de)
+		sub	(hl)
+		jp	nc,spl_dy
+		cpl
+		inc	a
+spl_dy:		cp	3
+		jp	nc,spl_distance
+		or	c
+		ld	c,a
+		scf
+spl_distance:	pop	de
+		pop	hl
+		jp	nc,spl_compare
+		push	de
+		inc	de
+		inc	de
+		inc	de
+		ld	a,(de)
+		and	0x8F
+		pop	de
+		jp	z,spl_compare
+		jp	m,spl_compare
+		ld	a,c
+		or	a
+		jp	nz,spl_hold
+		push	de
+		inc	de
+		inc	de
+		ld	a,(de)
+		pop	de
+		push	hl
+		inc	l
+		inc	l
+		cp	(hl)
+		pop	hl
+		jp	z,spl_hold
+		ld	a,SPR_MAX
+		sub	b
 		sub	2
 		push	hl
 		ld	hl,enemy_turn
 		cp	(hl)
 		pop	hl
 		jp	z,spl_compare
+spl_hold:
 		ld	a,l
 		and	0xF0
 		or	13
@@ -115,6 +180,7 @@ spl_ch:		ld	a,l
 		inc	l
 		ENDR
 		pop	de
+		call	rolling_pose
 		ld	a,(de)			; виден: Y + 1 < 192, цвет без EC и не 0
 		inc	a
 		cp	192
@@ -147,7 +213,12 @@ spl_ch:		ld	a,l
 		ld	a,23
 spl2:		ld	(hl),a
 		inc	l
-		ld	a,(de)
+		push	hl
+		ld	a,l
+		sub	5
+		ld	l,a
+		ld	a,(hl)			; рамка показанной позиции, включая промежуточную позу
+		pop	hl
 		dec	de
 		ld	c,a
 		push	bc
@@ -181,7 +252,22 @@ spl_inv:	ld	a,l
 		and	0xF0
 		ld	l,a
 		ld	(hl),0
-spl_n:		inc	de			; следующий: DE += 4, L = 16 * (k + 1) + 1
+spl_n:		push	hl
+		ld	a,l
+		and	0x70
+		ld	l,a
+		ld	a,(hl)
+		ld	c,a
+		ld	a,l
+		or	0x80
+		ld	l,a
+		ld	a,(hl)
+		cp	c
+		jp	z,spl_band_v
+		xor	a
+		ld	(band_valid),a
+spl_band_v:	pop	hl
+		inc	de			; следующий: DE += 4, L = 16 * (k + 1) + 1
 		inc	de
 		inc	de
 		inc	de
@@ -215,9 +301,22 @@ spd_next:	ld	a,l
 		xor	a
 		ld	(sprite_dirty),a
 ; замыкание: неотмеченный нарисованный, чья рамка (ubr) пересекает рамку отмеченного
-spx0:		call	spn_cnt			; никто не отмечен — нечего замыкать
+spx0:		ld	a,(band_candidate)
+		or	a
+		jp	z,spx_normal
+		ld	a,(band_valid)
+		or	a
+		call	z,band_build
+		ld	a,(band_ok)
+		or	a
+		jp	nz,band_marked
+spx_normal:	call	spn_cnt			; никто не отмечен — нечего замыкать
 		ret	z
-		call	ub_build
+		cp	1
+		jp	nz,spx_general
+		call	single_clear
+		ret	c
+spx_general:	call	ub_build
 spx0a:		ld	de,ml			; ml := отмеченные (номера)
 		ld	hl,spr_rec+13
 		ld	b,0
@@ -514,67 +613,6 @@ st_rs:		REPT	SV_MAX			; фон из ячейки
 		ENDR
 		ret
 
-; se_init: se_tab[строк 0..SV_MAX] — адреса входа (cs_sv, cs_rs, cs_or, cs_and)
-se_init:	ld	de,se_tab
-		xor	a
-sei1:		ld	(st_rows),a
-		push	de
-		call	set_entries_slow
-		pop	de
-		ld	hl,cs_sv+1
-		call	sei_w
-		ld	hl,cs_rs+1
-		call	sei_w
-		ld	hl,cs_or+1
-		call	sei_w
-		ld	hl,cs_and+1
-		call	sei_w
-		ld	a,(st_rows)
-		inc	a
-		cp	SV_MAX+1
-		jp	nz,sei1
-		ret
-sei_w:		ld	a,(hl)
-		ld	(de),a
-		inc	hl
-		inc	de
-		ld	a,(hl)
-		ld	(de),a
-		inc	de
-		ret
-set_entries_slow:
-		ld	a,(st_rows)
-		ld	b,a
-		add	a,a
-		add	a,a			; 4 * строк
-		ld	c,a
-		ld	hl,st_sv+SV_MAX*4
-		call	sub_hl_c
-		ld	(cs_sv+1),hl
-		ld	hl,st_rs+SV_MAX*4
-		call	sub_hl_c
-		ld	(cs_rs+1),hl
-		ld	a,c
-		add	a,b
-		ld	c,a			; 5 * строк
-		ld	hl,st_or+16*5
-		call	sub_hl_c
-		ld	(cs_or+1),hl
-		ld	a,c
-		add	a,b
-		ld	c,a			; 6 * строк
-		ld	hl,st_and+16*6
-		call	sub_hl_c
-		ld	(cs_and+1),hl
-		ret
-sub_hl_c:	ld	a,l
-		sub	c
-		ld	l,a
-		ld	a,h
-		sbc	a,0
-		ld	h,a
-		ret
-
 ; --- spr_restore: фон под нарисованными отмеченными спрайтами — назад (в порядке, обратном рисованию: 0..) ----
 ; restore1: B = номер — если нарисован и отмечен: фон назад, «не нарисован» (BC сохраняется)
 restore1:	ld	a,b
@@ -596,6 +634,8 @@ restore1:	ld	a,b
 		or	a
 		ret	z
 		ld	(rs_mode),a		; 2 — одной плоскостью: фон только плоскости 8000
+		cp	2
+		jp	z,enemy_restore
 		ld	a,l
 		add	a,9
 		ld	l,a
@@ -665,8 +705,13 @@ spr_prep:
 		or	(hl)
 		ld	(hl),a
 		ld	(spr_rec+15),a
-		ld	b,0
-pp0:		ld	a,b
+		ld	a,(ml_n)
+		ld	b,a
+		ld	hl,ml
+pp0:		push	bc
+		push	hl
+		ld	b,(hl)
+		ld	a,b
 		ld	(sp_k),a
 		call	rec_ptr
 		ld	de,13
@@ -694,12 +739,22 @@ pp0:		ld	a,b
 		call	new_ptr
 		inc	hl
 		push	bc
-		call	spr_one
-		pop	bc
-pp9:		inc	b
 		ld	a,b
-		cp	SPR_MAX
+		cp	2
+		jp	c,pp_hero
+		call	enemy_prepare
+		jp	pp_ready
+pp_hero:	call	spr_one
+pp_ready:	pop	bc
+pp9:		pop	hl
+		pop	bc
+		inc	l
+		dec	b
 		jp	nz,pp0
+		ld	a,(spr_rec+15)
+		ld	hl,spr_rec+16+15
+		or	(hl)
+		ret	z
 ; области фона: своя (new +9..+12); слой k над k+1 в той же точке (оба готовы) — k без фона (+15 = 1),
 ; у k+1 — объединение: верх = max L, низ = min (L - строк + 1), пустые столбцы — общие
 		ld	b,0
@@ -759,7 +814,7 @@ pm0a:		pop	hl
 		ENDR
 pm0n:		inc	b
 		ld	a,b
-		cp	SPR_MAX
+		cp	2
 		jp	nz,pm0
 		ld	a,(spr_rec+15)
 		ld	hl,spr_rec+16+15
@@ -1010,6 +1065,8 @@ pu_n:		or	a			; +14: 1 — с фоном, 2 — одной плоскостью 
 		jp	nz,pu_s
 		inc	a
 pu_s:		ld	(hl),a
+		cp	2
+		jp	z,enemy_native_put
 		ld	a,l			; запись +9..+12 := svr[k]
 		sub	5
 		ld	l,a
@@ -1383,7 +1440,7 @@ sy4:		ld	(cb_st),a
 		pop	bc
 sy9:		inc	b
 		ld	a,b
-		cp	SPR_MAX
+		cp	2
 		jp	nz,sy0
 		ret
 ; se_ptr: A = строк -> sy_se = se_tab + 8 * строк (BC сохраняется)
@@ -1434,6 +1491,7 @@ cbt2:		ld	a,b
 		ld	(de),a
 		inc	e
 		ret
+		ALIGN	4
 cb_m:		ds	3
 		ASSERT	cb_m/256 == (cb_m+2)/256
 
@@ -1473,9 +1531,8 @@ spr_masks:
 		ld	a,(sp_x)
 		and	7
 		jp	z,smz			; s = 0
-		ld	b,a			; B — страница таблицы поворота на s
-		add	a,rot_tab/256-1
-		push	af
+		call	rotate_select
+		ld	b,a
 		ld	a,0xFF			; m
 smm:		or	a
 		rra
@@ -1486,10 +1543,8 @@ smm:		or	a
 		cpl
 		ld	(smk_n1+1),a
 		ld	(smk_n2+1),a
-		pop	af
-		ld	b,a
-smk1:		ld	c,(hl)			; левая половина строки -> r0
-		ld	a,(bc)
+smk1:		ld	a,(hl)
+		call	rotate_byte
 		ld	c,a
 smk_m0:		and	0
 		ld	(de),a			; столбец 0 = r0 & m
@@ -1502,8 +1557,8 @@ smk_n1:		and	0
 		ld	a,l
 		add	a,16
 		ld	l,a
-		ld	c,(hl)			; правая -> r1
-		ld	a,(bc)
+		ld	a,(hl)
+		call	rotate_byte
 		ld	c,a
 smk_m1:		and	0
 		ex	de,hl
@@ -1557,26 +1612,8 @@ smz1:		ld	a,(hl)
 		jp	nz,smz1
 		ret
 
-; rot_init: rot_tab[s - 1][b] = b, повёрнутый вправо на s (s = 1..7); mk_key := FF (масок нет)
-rot_init:	ld	hl,rot_tab		; s = 1: из самого байта, дальше — из таблицы s - 1
-ri0:		ld	a,l
-		rrca
-		ld	(hl),a
-		inc	l
-		jp	nz,ri0
-ri1:		ld	d,h			; DE — таблица s - 1
-		ld	e,l
-		inc	h
-ri2:		ld	a,(de)
-		rrca
-		ld	(hl),a
-		inc	e
-		inc	l
-		jp	nz,ri2
-		ld	a,h
-		cp	rot_tab/256+6
-		jp	nz,ri1
-		ld	hl,mk_key
+; Начальное состояние масок слоёв Джо; таблицы поворота больше не нужны.
+rot_init:	ld	hl,mk_key
 		ld	bc,4*SPR_MAX
 		ld	e,0xFF
 		jp	memfill
@@ -1722,7 +1759,13 @@ crit_plan:
 		ld	(cr_list+6),a
 		ret
 crit_groups:
-		ld	hl,cr_list
+		ld	a,(band_candidate)
+		or	a
+		jp	z,crit_general
+		ld	a,(band_ok)
+		or	a
+		jp	nz,band_emit
+crit_general:	ld	hl,cr_list
 		ld	(cr_ptr),hl
 		ld	de,ml			; отмеченные -> ml (по возрастанию), grp[k] := k, неотмеченные — FF
 		ld	b,0
@@ -1825,49 +1868,7 @@ cu7:		pop	hl
 cu8:		pop	hl
 		inc	l
 		jp	cu1
-gp0:		ld	a,(ml_n)		; ml — по верхней строке рамки (вставками; равные — по номеру)
-		cp	2
-		jp	c,gq9
-		ld	c,1			; p
-gq1:		ld	a,c
-		add	a,ml&0xFF
-		ld	l,a
-		ld	h,ml/256
-		ld	b,(hl)			; B = ml[p]
-		ld	a,b
-		call	ub_r0
-		ld	d,a			; D = её верх
-		ld	e,c			; E = q
-gq2:		ld	a,e
-		or	a
-		jp	z,gq3
-		add	a,(ml&0xFF)-1
-		ld	l,a
-		ld	h,ml/256
-		ld	a,(hl)			; ml[q - 1]
-		push	af
-		call	ub_r0
-		cp	d
-		jp	c,gq4			; меньше или равно — стоп
-		jp	z,gq4
-		ld	a,e			; (ub_r0 портит HL)
-		add	a,ml&0xFF
-		ld	l,a
-		ld	h,ml/256
-		pop	af
-		ld	(hl),a			; ml[q] := ml[q - 1]
-		dec	e
-		jp	gq2
-gq4:		pop	af
-gq3:		ld	a,e
-		add	a,ml&0xFF
-		ld	l,a
-		ld	h,ml/256
-		ld	(hl),b
-		inc	c
-		ld	a,(ml_n)
-		cp	c
-		jp	nz,gq1
+gp0:		call	sort_marked
 gq9:		ld	hl,(cr_ptr)		; группы — по первому в порядке ml; DE -> список
 		ex	de,hl
 		ld	hl,ml
@@ -2222,6 +2223,7 @@ pbd0:		ld	a,(hl)
 		xor	a
 		ld	(ps_s),a
 pbd1:		ld	a,(ps_s)		; m = FFh >> s
+		call	rotate_select
 		ld	b,a
 		ld	a,0xFF
 		inc	b
@@ -2286,14 +2288,12 @@ pbd2:		push	bc
 		jp	z,pbd4
 		push	hl
 		push	de
-		add	a,rot_tab/256-1
-		ld	h,a
 		ld	a,(ps_c0)
-		ld	l,a
-		ld	d,(hl)			; D = r0
+		call	rotate_byte
+		ld	d,a
 		ld	a,(ps_c1)
-		ld	l,a
-		ld	e,(hl)			; E = r1
+		call	rotate_byte
+		ld	e,a
 		ld	a,(ps_m)
 		ld	c,a			; C = m
 		and	d
@@ -2398,7 +2398,7 @@ ps_nrg:		push	hl
 		pop	hl
 		ret
 ; свободные места (начало, конец): невидимая плоскость — бывший кэш тайлов, затем основная память
-ps_rg:		dw	sprite_sources_end, VNT, TILE_IMAGES+24*TILE_CAP, 0xEC00, 0xEF00, 0xF000, 0xF500, 0xF820, ps_heap, PS_TOP, 0, 0	; 0 — места нет
+ps_rg:		dw	PS_MORE, 0x7000, sprite_sources_end, VNT, TILE_IMAGES+24*TILE_CAP, 0xEC00, 0xEF00, 0xF000, 0xF500, 0xF820, ps_heap, PS_TOP, 0, 0	; 0 — места нет
 
 ; Покрытие клеток объектами постоянно хранится в PND, биты 1..6 по слоям.
 ; Меняется только при восстановлении/рисовании объекта; перекрытия сохраняют чужие биты.
@@ -2521,4 +2521,621 @@ sprite_source:	rrca
 		inc	l
 		ld	h,(hl)
 		ld	l,a
+		ret
+
+
+; Нативный враг: дескриптор — L, столбец, строки, пустые столбцы; без PPS/PPD/RST.
+enemy_native_put:	ld	a,l
+		sub	5
+		ld	l,a
+		push	hl
+		ld	a,(sp_k)
+		call	new_ptr
+		ld	a,l
+		add	a,9
+		ld	l,a
+		ex	de,hl
+		pop	hl
+		REPT	4
+		ld	a,(de)
+		ld	(hl),a
+		inc	l
+		inc	e
+		ENDR
+		ld	a,(sp_k)
+		add	a,ps_hi&255
+		ld	l,a
+		ld	h,ps_hi/256
+		ld	a,(hl)
+		or	a
+		jp	z,en_slot_mask
+		ld	(sp_mskp),a
+		ld	a,l
+		add	a,ps_r-ps_hi
+		ld	l,a
+		ld	a,(hl)
+		ld	(en_stride),a
+		ld	a,l
+		sub	ps_r-ps_lo
+		ld	l,a
+		ld	a,(hl)
+		jp	en_mask_ready
+en_slot_mask:	ld	a,(sp_mpage)
+		ld	(sp_mskp),a
+		ld	a,16
+		ld	(en_stride),a
+		ld	a,SM_OFS
+en_mask_ready:	ld	(en_mask),a
+		ld	a,(sp_k)
+		call	new_ptr
+		ld	a,l
+		add	a,9
+		ld	l,a
+		call	en_load
+		ld	a,(st_rows)
+		add	a,a
+		ld	hl,enemy_entries
+		call	add_hl_a
+		ld	e,(hl)
+		inc	hl
+		ld	d,(hl)
+		ex	de,hl
+		ld	(en_mix_call+1),hl
+		jp	en_entry_ready
+en_entry_ready:	ld	a,(sp_mpage)
+		ld	b,a
+		ld	c,0
+		ld	a,3
+		ld	(cl_n),a
+en_paint_col:	ld	a,(en_zero)
+		rrca
+		ld	(en_zero),a
+		jp	c,en_paint_next
+		ld	a,(sv_col)
+		cp	32
+		ret	nc
+		add	a,0x80
+		ld	h,a
+		ld	a,(sv_lo)
+		ld	l,a
+		ld	a,(en_mask)
+		ld	e,a
+		ld	a,(sp_mskp)
+		ld	d,a
+en_mix_call:	call	enemy_mix
+en_paint_next:	ld	hl,sv_col
+		inc	(hl)
+		ld	a,(en_stride)
+		ld	hl,en_mask
+		add	a,(hl)
+		ld	(hl),a
+		ld	hl,cl_n
+		dec	(hl)
+		jp	nz,en_paint_col
+		ret
+
+; HL -> L, столбец, строки, пустые столбцы.
+en_load:	ld	a,(hl)
+		ld	(sv_lo),a
+		inc	l
+		ld	a,(hl)
+		ld	(sv_col),a
+		inc	l
+		ld	a,(hl)
+		ld	(st_rows),a
+		inc	l
+		ld	a,(hl)
+		ld	(en_zero),a
+		ret
+
+enemy_restore:	push	bc
+		ld	a,l
+		add	a,9
+		ld	l,a
+		call	en_load
+		ld	a,(st_rows)
+		add	a,a
+		add	a,a
+		add	a,a
+		add	a,2
+		ld	hl,se_tab
+		jp	en_restore_lookup
+en_restore_lookup:	call	add_hl_a
+		ld	e,(hl)
+		inc	hl
+		ld	d,(hl)
+		ex	de,hl
+		ld	(en_restore_call+1),hl
+		ld	a,b
+		add	a,SPR_SLOTS/256
+		ld	d,a
+		ld	e,0
+		ld	a,(sv_col)
+		ld	c,a
+		ld	b,3
+en_restore_col:	ld	a,(en_zero)
+		rrca
+		ld	(en_zero),a
+		jp	c,en_restore_next
+		ld	a,c
+		cp	32
+		jp	nc,en_restore_done
+		add	a,0x80
+		ld	h,a
+		ld	a,(sv_lo)
+		ld	l,a
+		xor	a
+en_restore_call:	call	st_rs
+en_restore_next:	inc	c
+		dec	b
+		jp	nz,en_restore_col
+en_restore_done:	pop	bc
+		ret
+
+enemy_entries:
+		dw	enemy_mix+8*(16-0)
+		dw	enemy_mix+8*(16-1)
+		dw	enemy_mix+8*(16-2)
+		dw	enemy_mix+8*(16-3)
+		dw	enemy_mix+8*(16-4)
+		dw	enemy_mix+8*(16-5)
+		dw	enemy_mix+8*(16-6)
+		dw	enemy_mix+8*(16-7)
+		dw	enemy_mix+8*(16-8)
+		dw	enemy_mix+8*(16-9)
+		dw	enemy_mix+8*(16-10)
+		dw	enemy_mix+8*(16-11)
+		dw	enemy_mix+8*(16-12)
+		dw	enemy_mix+8*(16-13)
+		dw	enemy_mix+8*(16-14)
+		dw	enemy_mix+8*(16-15)
+		dw	enemy_mix+8*(16-16)
+enemy_mix:
+		REPT	16
+		ld	a,(hl)
+		ld	(bc),a
+		ld	a,(de)
+		or	(hl)
+		ld	(hl),a
+		inc	c
+		inc	e
+		dec	l
+		ENDR
+		ret
+
+; Выбор цепочки RRCA только при подготовке изменившегося кадра/сдвига.
+rotate_select:	push	af
+		push	hl
+		ld	hl,rotate_7
+		cpl
+		add	a,8
+		call	add_hl_a
+		ld	(rotate_byte+1),hl
+		pop	hl
+		pop	af
+		ret
+rotate_byte:	jp	rotate_0
+rotate_7:	rrca
+		rrca
+		rrca
+		rrca
+		rrca
+		rrca
+		rrca
+rotate_0:	ret
+
+; Дескриптор врага не содержит таблиц вызовов и списков столбцов.
+enemy_prepare:	call	spr_one
+		ld	c,2
+		ld	a,(sp_k)
+		call	new_ptr
+		ld	a,l
+		add	a,15
+		ld	l,a
+		ld	(hl),c
+		ld	a,l
+		and	0x7F
+		ld	l,a
+		ld	(hl),0
+		ret
+
+; Один изменённый объект: покрытие клеток доказывает отсутствие пересечений.
+; CY — замыкание не нужно, ml содержит единственный объект.
+single_clear:	ld	hl,spr_rec+13
+		ld	b,0
+sc_find:	ld	a,(hl)
+		or	a
+		jp	nz,sc_found
+		ld	a,l
+		add	a,16
+		ld	l,a
+		inc	b
+		jp	sc_find
+sc_found:	ld	a,b
+		ld	(sp_k),a
+		call	ub_one
+		ld	a,(sp_k)
+		call	ub_ld
+		ld	a,d
+		cp	24
+		jp	nc,sc_no
+		ld	a,c
+		cp	32
+		jp	nc,sc_no
+		ld	(sv_col),a
+		ld	a,(ub_c1)
+		sub	c
+		inc	a
+		ld	(cl_n),a
+		ld	c,0
+sc_row:		ld	a,d
+		rrca
+		rrca
+		rrca
+		ld	l,a
+		and	31
+		add	a,PND/256
+		ld	h,a
+		ld	a,l
+		and	0xE0
+		ld	b,a
+		ld	a,(sv_col)
+		or	b
+		ld	l,a
+		ld	a,(cl_n)
+		ld	b,a
+sc_col:		ld	a,(hl)
+		or	c
+		ld	c,a
+		inc	l
+		dec	b
+		jp	nz,sc_col
+		ld	a,d
+		inc	d
+		cp	e
+		jp	c,sc_row
+		ld	a,(sp_k)
+		ld	hl,cover_bits
+		call	add_hl_a
+		ld	a,(hl)
+		cpl
+		and	c
+		and	0x7E
+		jp	nz,sc_no
+		ld	a,(sp_k)
+		ld	(ml),a
+		ld	a,1
+		ld	(ml_n),a
+		scf
+		ret
+sc_no:		or	a
+		ret
+
+
+; Комната с катящимися врагами: неизменные полосы Y позволяют кэшировать независимость объектов.
+band_room_init:	xor	a
+		ld	(band_valid),a
+		ld	(band_ok),a
+		ld	(band_candidate),a
+		ld	a,(0x707A)
+		or	a
+		ret	z
+		ld	hl,0x7086
+br0:		ld	a,(hl)
+		cp	255
+		jp	z,br_yes
+		and	0x48
+		cp	8
+		ret	nz
+		inc	hl
+		inc	hl
+		jp	br0
+br_yes:		ld	a,1
+		ld	(band_candidate),a
+		ret
+
+band_build:	ld	a,1
+		ld	(band_valid),a
+		xor	a
+		ld	(band_ok),a
+		ld	b,0
+bb_bounds:	ld	a,b
+		call	ub_one
+		inc	b
+		ld	a,b
+		cp	SPR_MAX
+		jp	nz,bb_bounds
+		xor	a
+		ld	(cu_i),a
+bb_i:		ld	a,(cu_i)
+		add	a,a
+		add	a,a
+		add	a,ubr&255
+		ld	l,a
+		ld	h,ubr/256
+		ld	d,(hl)
+		inc	l
+		ld	e,(hl)
+		ld	a,(cu_i)
+		inc	a
+		ld	(cu_j),a
+bb_j:		ld	a,(cu_i)
+		or	a
+		jp	nz,bb_pair
+		ld	a,(cu_j)
+		cp	1
+		jp	z,bb_next
+bb_pair:	ld	a,(cu_j)
+		add	a,a
+		add	a,a
+		add	a,ubr&255
+		ld	l,a
+		ld	h,ubr/256
+		ld	a,e
+		cp	(hl)
+		jp	c,bb_next
+		inc	l
+		ld	a,(hl)
+		cp	d
+		ret	nc			; строки пересекаются: общий путь
+bb_next:	ld	hl,cu_j
+		inc	(hl)
+		ld	a,(hl)
+		cp	SPR_MAX
+		jp	nz,bb_j
+		ld	hl,cu_i
+		inc	(hl)
+		ld	a,(hl)
+		cp	SPR_MAX-1
+		jp	nz,bb_i
+		ld	hl,band_order
+		ld	b,SPR_MAX
+		xor	a
+bb_order:	ld	(hl),a
+		inc	l
+		inc	a
+		dec	b
+		jp	nz,bb_order
+		ld	a,SPR_MAX
+		ld	(ml_n),a
+		ld	hl,ml
+		ld	b,SPR_MAX
+		xor	a
+bb_sort_input:	ld	(hl),a
+		inc	l
+		inc	a
+		dec	b
+		jp	nz,bb_sort_input
+		call	sort_marked
+		ld	de,ml
+		ld	hl,band_order
+		ld	b,SPR_MAX
+		call	memcpyb
+		ld	a,1
+		ld	(band_ok),a
+		ret
+
+band_marked:	ld	a,(spr_rec+13)
+		ld	hl,spr_rec+16+13
+		or	(hl)
+		ld	(hl),a
+		ld	(spr_rec+13),a
+		ld	de,ml
+		ld	hl,spr_rec+13
+		ld	b,0
+		ld	c,0
+bm0:		ld	a,(hl)
+		or	a
+		jp	z,bm_next
+		ld	a,b
+		ld	(de),a
+		inc	e
+		inc	c
+bm_next:	ld	a,l
+		add	a,16
+		ld	l,a
+		inc	b
+		ld	a,b
+		cp	SPR_MAX
+		jp	nz,bm0
+		ld	a,c
+		ld	(ml_n),a
+		or	a
+		ret
+
+band_emit:	ld	de,cr_list
+		ld	hl,band_order
+		ld	b,SPR_MAX
+be0:		ld	a,(hl)
+		cp	1
+		jp	z,be_next
+		ld	c,a
+		push	hl
+		add	a,a
+		add	a,a
+		add	a,a
+		add	a,a
+		or	13
+		ld	l,a
+		ld	h,spr_rec/256
+		ld	a,(hl)
+		pop	hl
+		or	a
+		jp	z,be_next
+		push	hl
+		push	bc
+		ld	b,c
+		ld	a,b
+		or	a
+		jp	z,be_hero
+		call	band_actor
+		jp	be_pop
+be_hero:	ld	b,0
+		ld	a,1
+		call	band_emit_one
+		inc	b
+		ld	a,1
+		call	band_emit_one
+		dec	b
+		ld	a,2
+		call	band_emit_one
+		inc	b
+		ld	a,2
+		call	band_emit_one
+		ld	a,3
+		call	band_emit_one
+		dec	b
+		ld	a,3
+		call	band_emit_one
+be_pop:		pop	bc
+		pop	hl
+be_next:	inc	l
+		dec	b
+		jp	nz,be0
+		xor	a
+		ld	(de),a
+		ret
+
+band_actor:	ld	a,b
+		call	rec_ptr
+		ld	a,(hl)
+		or	a
+		jp	z,ba_draw
+		ld	a,1
+		ld	(de),a
+		inc	de
+		ld	a,b
+		ld	(de),a
+		inc	de
+		ld	a,2
+		ld	(de),a
+		inc	de
+		ld	a,b
+		ld	(de),a
+		inc	de
+ba_draw:	ld	a,3
+		ld	(de),a
+		inc	de
+		ld	a,b
+		ld	(de),a
+		inc	de
+		ret
+
+band_emit_one:	ld	(gp_a),a
+		ld	a,b
+		call	rec_ptr
+		push	hl
+		ld	a,l
+		or	13
+		ld	l,a
+		ld	a,(hl)
+		pop	hl
+		or	a
+		ret	z
+		ld	a,(gp_a)
+		cp	3
+		jp	z,be_write
+		ld	a,(hl)
+		or	a
+		ret	z
+be_write:	ld	a,(gp_a)
+		ld	(de),a
+		inc	de
+		ld	a,b
+		ld	(de),a
+		inc	de
+		ret
+
+sort_marked:		ld	a,(ml_n)		; ml — по верхней строке рамки (вставками; равные — по номеру)
+		cp	2
+		ret	c
+		ld	c,1			; p
+gq1:		ld	a,c
+		add	a,ml&0xFF
+		ld	l,a
+		ld	h,ml/256
+		ld	b,(hl)			; B = ml[p]
+		ld	a,b
+		call	ub_r0
+		ld	d,a			; D = её верх
+		ld	e,c			; E = q
+gq2:		ld	a,e
+		or	a
+		jp	z,gq3
+		add	a,(ml&0xFF)-1
+		ld	l,a
+		ld	h,ml/256
+		ld	a,(hl)			; ml[q - 1]
+		push	af
+		call	ub_r0
+		cp	d
+		jp	c,gq4			; меньше или равно — стоп
+		jp	z,gq4
+		ld	a,e			; (ub_r0 портит HL)
+		add	a,ml&0xFF
+		ld	l,a
+		ld	h,ml/256
+		pop	af
+		ld	(hl),a			; ml[q] := ml[q - 1]
+		dec	e
+		jp	gq2
+gq4:		pop	af
+gq3:		ld	a,e
+		add	a,ml&0xFF
+		ld	l,a
+		ld	h,ml/256
+		ld	(hl),b
+		inc	c
+		ld	a,(ml_n)
+		cp	c
+		jp	nz,gq1
+		ret
+
+
+; Линейный катящийся враг: при задержке вывода выбрать промежуточную позу
+; на его же траектории, не дальше трёх пикселей от нарисованной. ОЗУ игры не меняется.
+rolling_pose:	ld	a,(band_candidate)
+		or	a
+		ret	z
+		ld	a,l
+		and	0x70
+		cp	32
+		ret	c
+		push	hl
+		push	bc
+		ld	c,a
+		ld	l,a
+		ld	a,(hl)
+		or	a
+		jp	z,rp_done
+		inc	l
+		ld	a,(de)
+		cp	(hl)
+		jp	nz,rp_done
+		inc	l
+		ld	b,(hl)
+		ld	a,c
+		or	0x82
+		ld	l,a
+		ld	a,(hl)
+		sub	b
+		jp	c,rp_left
+		cp	4
+		jp	c,rp_done
+		cp	9
+		jp	nc,rp_done
+		ld	a,b
+		add	a,3
+		jp	rp_set
+rp_left:	cpl
+		inc	a
+		cp	4
+		jp	c,rp_done
+		cp	9
+		jp	nc,rp_done
+		ld	a,b
+		sub	3
+rp_set:		ld	(hl),a
+rp_done:	pop	bc
+		pop	hl
 		ret

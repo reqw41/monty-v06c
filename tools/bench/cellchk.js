@@ -1,4 +1,4 @@
-// Клетки экрана против тайлов карты (VNT): графика E000/dstore по fire_shown, режимы cmodes[room_colors]; клетки под
+// Клетки экрана против исходной графики MSX по VNT, fire_shown и room_colors; клетки под
 // нарисованными спрайтами (spr_rec +5..+8) и ещё не выведенные (в dlist) — пропуск. node cellchk.js dir [шагов] [TP]
 const REF = require('./video-ref');
 const fs = require('fs'); process.chdir('/Users/boris/projects/monty-v06c');
@@ -31,3 +31,5 @@ m.onInstr = (pc) => { if (process.env.R19 && pc === sym.L_8DA2 && steps > 60) { 
   if (TP && steps >= 300 && steps % 60 === 0) { const [r, c] = ROOMS[(steps / 60 - 5) % ROOMS.length]; m.wr(0x71A7, r); m.wr(0x71A8, c); m.wr(0x7079, 9); } } };
 while (steps < N) { if (fc === 10) K(2, 2, 1); if (fc === 100) K(2, 2, 0); fc++; m.frame(); }
 console.log(dir, 'проверок', checks, 'неверных клеток', bad); console.log(ex.join('\n'));
+
+if (bad || !checks) process.exitCode = 1;

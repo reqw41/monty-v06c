@@ -25,9 +25,8 @@ dp1:		ld	a,(lv_dirty)		; в клетки ставились живые тайл�
 		xor	a
 		ld	(lv_dirty),a
 		call	live_build
-dp1a:		ld	a,(disp_phase)
-		xor	1
-		ld	(disp_phase),a
+dp1a:		xor	a
+		ld	(fire_ran),a
 		ld	hl,enemy_turn
 		inc	(hl)
 		ld	a,(hl)
@@ -36,11 +35,18 @@ dp1a:		ld	a,(disp_phase)
 		ld	(hl),0
 dp_phase:	ld	a,1			; до dp3 (кадры огня и лент) у живых клеток меняются только точки
 		ld	(dc_pt),a
-		ld	a,(disp_phase)
-		or	a
-		jp	nz,dp2
 		ld	a,(video_dirty)
-		and	DIRTY_FIRE			; R4 — фаза анимации
+		and	DIRTY_COLOR
+		jp	nz,dp_color_first
+		ld	a,(video_dirty)
+		and	DIRTY_BELT
+		jp	z,dp_fire_new
+		ld	a,(belt_frame)
+		ld	hl,belt_shown
+		cp	(hl)
+		jp	nz,dp2
+dp_fire_new:	ld	a,(video_dirty)
+		and	DIRTY_FIRE			; фаза анимации
 		jp	z,dp2
 		ld	a,(video_dirty)
 		and	0xFF-DIRTY_FIRE
@@ -61,6 +67,7 @@ dp_phase:	ld	a,1			; до dp3 (кадры огня и лент) у живых к
 dpf1:		ld	(fl_ph),a
 		ld	(fl_c),a
 		ld	a,1
+		ld	(fire_ran),a
 		ld	(fl_skm),a
 		ld	a,tile_changed/256
 		call	force_live_t
@@ -77,9 +84,18 @@ bdz:		ld	a,(hl)
 		pop	hl
 		inc	hl
 		jp	bdz
-dp2:		ld	a,(disp_phase)
+dp_color_first:	xor	a
+		ld	(dc_pt),a
+		ld	a,(video_dirty)
+		and	0xFF-DIRTY_COLOR
+		ld	(video_dirty),a
+		call	room_color_changes
+		ld	a,1
+		ld	(dc_pt),a
+		jp	dp2
+dp2:		ld	a,(fire_ran)
 		or	a
-		jp	z,dp3
+		jp	nz,dp3
 		ld	a,(video_dirty)
 		and	DIRTY_BELT
 		jp	z,dp3
@@ -101,6 +117,9 @@ dp2:		ld	a,(disp_phase)
 		ld	(tile_changed+0xE8),a
 dp3:		xor	a
 		ld	(dc_pt),a
+		ld	a,(fire_ran)
+		or	a
+		jp	nz,dp4
 		ld	a,(video_dirty)
 		and	DIRTY_COLOR
 		jp	z,dp4
@@ -276,6 +295,7 @@ et5:		inc	hl
 
 ; room_redraw: таблица анимации, палитра, всё к перерисовке
 room_redraw:
+		call	band_room_init
 		ld	a,(belt_frame)
 		ld	(belt_shown),a
 		ld	a,1
@@ -439,16 +459,11 @@ lbn1:		inc	b
 		ld	(lv_nn),a
 		ret
 
-; force_live_t: A = страница флагов по тайлам — живые клетки отмеченных тайлов к перерисовке (по корзинам).
-; До spr_plan — бит 1 в PND у клеток под нарисованными спрайтами (fl_mark): такие — в список (после стирания
-; спрайта), остальные — сразу: образ клетки (da_img) один на корзину, плоскости fl_pm (биты 7, 5, 3 — 8000, A000,
-; C000; при dc_pt — только плоскости с точками) — через стек
 force_live_t:
-		ld	(fl_pg),a		; страница флагов
+		ld	(fl_pg),a
 		ld	a,(lv_nn)
 		or	a
 		ret	z
-		ld	a,(lv_nn)
 		ld	b,a
 		ld	hl,lv_pos
 flt1:		ld	c,(hl)			; корзина (из непустых)
@@ -463,6 +478,7 @@ flt1:		ld	c,(hl)			; корзина (из непустых)
 		ld	a,(de)
 		or	a
 		jp	z,flt3
+		ld	(fl_color_pm+1),a
 		ld	a,e
 		ld	(rr_t),a
 		ld	c,LV_N
@@ -488,8 +504,7 @@ flt1:		ld	c,(hl)			; корзина (из непустых)
 		ld	b,a
 		ld	a,(dc_pt)
 		or	a
-		ld	a,b
-		jp	z,flt4
+		jp	z,fl_color_pm
 		ld	a,c
 		rrca
 		xor	c
@@ -497,7 +512,9 @@ flt1:		ld	c,(hl)			; корзина (из непустых)
 flt4:		rlca
 		rlca
 		rlca
-		ld	(fl_pm),a
+		jp	fl_pm_ready
+fl_color_pm:	ld	a,0xA8
+fl_pm_ready:	ld	(fl_pm),a
 		call	fl_select
 		pop	bc
 		or	a
@@ -661,9 +678,9 @@ fl_set_cover:	ld	(fl_cover+1),a
 		ld	hl,fl_fast3
 		cp	0xA8
 		jp	z,fl_sel_done
-		ld	hl,fl_fast2
+		ld	hl,fl_dual_same
 		cp	0xA0
-		jp	z,fl_sel_done
+		jp	z,fl_sel_dual0
 		cp	0x28
 		jp	nz,fl_sel_slow
 		ld	hl,(tile_src)
@@ -672,7 +689,20 @@ fl_set_cover:	ld	(fl_cover+1),a
 		ld	(tile_src),hl
 		ld	a,0xA0
 		ld	(fl_hbase+1),a
-		ld	hl,fl_fast2
+		ld	a,c
+		rrca
+		rrca
+		xor	c
+		and	3
+		jp	fl_sel_dual
+fl_sel_dual0:	ld	a,c
+		rrca
+		rrca
+		xor	c
+		and	12
+fl_sel_dual:	ld	hl,fl_dual_same
+		jp	z,fl_sel_done
+		ld	hl,fl_dual_inv
 		jp	fl_sel_done
 fl_sel_slow:	ld	hl,fl_slow
 fl_sel_done:	ld	(fl_write+1),hl
@@ -680,6 +710,7 @@ fl_sel_done:	ld	(fl_write+1),hl
 		ret
 
 fl_fast3:
+		REPT	3
 		REPT	8
 		ld	a,(de)
 		ld	(hl),a
@@ -692,25 +723,40 @@ fl_fast3:
 		ld	a,h
 		add	a,0x20
 		ld	h,a
-fl_fast2:
-		REPT	8
-		ld	a,(de)
-		ld	(hl),a
-		inc	de
-		dec	l
 		ENDR
-		ld	a,l
-		add	a,8
-		ld	l,a
+		jp	flp3
+
+; Две меняющиеся плоскости: одна исходная полоса, общий или обратный узор.
+fl_dual_same:	push	bc
 		ld	a,h
 		add	a,0x20
-		ld	h,a
+		ld	b,a
+		ld	c,l
 		REPT	8
 		ld	a,(de)
 		ld	(hl),a
+		ld	(bc),a
 		inc	de
 		dec	l
+		dec	c
 		ENDR
+		pop	bc
+		jp	flp3
+fl_dual_inv:	push	bc
+		ld	a,h
+		add	a,0x20
+		ld	b,a
+		ld	c,l
+		REPT	8
+		ld	a,(de)
+		ld	(hl),a
+		cpl
+		ld	(bc),a
+		inc	de
+		dec	l
+		dec	c
+		ENDR
+		pop	bc
 		jp	flp3
 
 ; Список изменённых тайлов на переход кадра построен генератором графики.
@@ -785,7 +831,7 @@ dal3:		pop	hl
 		ld	bc,24
 		ld	e,0
 		jp	memfill
-; da_img: C = режимы, DE = графика -> da_buf: 3 плоскости по 8 байт (сверху вниз)
+; da_img: C = режимы, DE = графика -> (tile_dst): 3 плоскости по 8 байт (сверху вниз)
 da_img:		ld	hl,(tile_dst)
 		ld	a,c
 		rrca
@@ -882,7 +928,6 @@ room_color_snapshot:
 
 ; room_color_changes: группы с новым цветом -> их клетки к перерисовке (палитра и режимы — при смене комнаты)
 room_color_changes:
-		call	group_modes_build
 		xor	a
 		ld	(other_colors),a
 		ld	hl,room_colors
@@ -894,6 +939,28 @@ cg1:		ld	a,(de)
 		jp	z,cg2
 		ld	a,(hl)
 		ld	(de),a
+		push	bc
+		push	de
+		push	hl
+		call	group_mode_color
+		ld	c,a
+		ld	a,b
+		ld	hl,group_modes
+		call	add_hl_a
+		ld	a,(hl)
+		ld	(hl),c
+		xor	c
+		ld	c,a
+		rrca
+		or	c
+		and	0x15
+		rlca
+		rlca
+		rlca
+		ld	(cg_mask+1),a
+		pop	hl
+		pop	de
+		pop	bc
 		ld	a,b			; группа не 1C, 1D — по карте
 		and	0xFE
 		cp	0x1C
@@ -907,7 +974,7 @@ cg1a:		push	hl			; tile_changed[8b .. 8b+7] := 1
 		add	a,a
 		ld	l,a
 		ld	h,tile_changed/256
-		ld	a,1
+cg_mask:	ld	a,0xA8
 		REPT	8
 		ld	(hl),a
 		call	tile_recolor
@@ -924,6 +991,18 @@ cg2:		inc	hl
 		ld	a,c
 		or	a
 		ret	z
+		ld	a,(belt_frame)
+		ld	hl,belt_shown
+		cp	(hl)
+		jp	z,cg_phase_ready
+		ld	(hl),a
+		ld	a,0xE0
+		call	color_belt_phase
+		ld	a,0xE8
+		call	color_belt_phase
+cg_phase_ready:	ld	a,(video_dirty)
+		and	0xFF-DIRTY_BELT
+		ld	(video_dirty),a
 		ld	a,(other_colors)		; тайлы групп с новым цветом — их клетки к перерисовке: только группы
 		or	a			; ленты и цепи (1C, 1D: тайлы E0-EF — живые) — по списку живых клеток,
 		ld	a,tile_changed/256		; иначе — по карте
@@ -936,6 +1015,30 @@ cgc2:
 		ld	bc,256
 		ld	e,0
 		jp	memfill_f
+
+ ; При общей смене цвета/кадра нужны только плоскости нового узора и нового цвета.
+color_belt_phase:	ld	l,a
+		ld	h,tile_changed/256
+		push	hl
+		ld	b,(hl)
+		rrca
+		rrca
+		rrca
+		and	31
+		ld	hl,group_modes
+		call	add_hl_a
+		ld	c,(hl)
+		ld	a,c
+		rrca
+		xor	c
+		and	0x15
+		rlca
+		rlca
+		rlca
+		or	b
+		pop	hl
+		ld	(hl),a
+		ret
 
 ; draw_list: клетки из списка, ждущие вывода (PND), — на экран; при dr_ex клетки под прежними местами
 ; перерисовываемых спрайтов откладываются (остаются в списке). Список переполнен — по строкам (draw_rows)
@@ -1205,17 +1308,26 @@ mb4:		ld	hl,mb_d
 		ld	a,b
 		cp	16
 		jp	nz,mb0
-		ld	de,room_colors
+group_modes_refresh:	ld	de,room_colors
 		ld	hl,group_modes
 		ld	b,32
-mb5:		push	bc
+mb5:		ld	a,(de)
+		call	group_mode_color
+		ld	(hl),a
+		inc	hl
+		inc	de
+		dec	b
+		jp	nz,mb5
+		ret
+
+group_mode_color:	push	bc
 		push	hl
-		ld	a,(de)
+		ld	b,a
 		and	15
 		ld	hl,mb_e
 		call	add_hl_a
 		ld	c,(hl)
-		ld	a,(de)
+		ld	a,b
 		rrca
 		rrca
 		rrca
@@ -1226,10 +1338,5 @@ mb5:		push	bc
 		ld	a,(hl)
 		or	c
 		pop	hl
-		ld	(hl),a
-		inc	hl
-		inc	de
 		pop	bc
-		dec	b
-		jp	nz,mb5
 		ret

@@ -12,18 +12,34 @@ tiles_reset:	ld	hl,tile_slots
 
 ; Все варианты живого тайла строятся вместе; смена кадра только выбирает образ.
 tile_kind:	ld	a,(rr_t)
-		cp	0xE8
-		ld	c,2
-		ret	z
 		cp	0xE0
-		ld	c,4
-		ret	z
-		ld	l,a
+		jp	c,tk_other
+		cp	0xF0
+		jp	nc,tk_other
+		call	tile_belt_frames
+		ld	c,a
+		add	a,a
+		add	a,c
+		ld	c,a
+		ret
+tk_other:	ld	l,a
 		ld	h,lv_idx/256
 		ld	a,(hl)
 		cp	17
+		ld	c,4
 		ret	c
 		ld	c,1
+		ret
+; Группы E0..EF: обычная лента A0, выключенный лазер 00, включённый 40.
+tile_belt_frames:	ld	a,(rr_t)
+		cp	0xE0
+		ld	a,4
+		ret	z
+		ld	a,(rr_t)
+		cp	0xE8
+		ld	a,2
+		ret	z
+		ld	a,1
 		ret
 
 tile_ready:	ld	a,(rr_t)
@@ -70,7 +86,32 @@ tsel_chain:	ld	a,(belt_shown)
 		and	1
 		jp	tsel_add
 tsel_belt:	ld	a,(belt_shown)
-tsel_add:	add	a,b
+tsel_add:	ld	c,a
+		ld	a,(rr_t)
+		cp	0xE0
+		jp	c,tsel_color_done
+		cp	0xF0
+		jp	nc,tsel_color_done
+		rrca
+		rrca
+		rrca
+		and	31
+		add	a,room_colors&255
+		ld	l,a
+		ld	h,room_colors/256
+		ld	a,(hl)
+		or	a
+		jp	z,tsel_off
+		cp	0x40
+		jp	nz,tsel_color_done
+		call	tile_belt_frames
+		add	a,a
+		jp	tsel_color_add
+tsel_off:	call	tile_belt_frames
+tsel_color_add:	add	a,c
+		ld	c,a
+tsel_color_done:	ld	a,c
+		add	a,b
 ; tile_addr: A = номер образа -> HL = TILE_IMAGES + 24*A
 tile_addr:	ld	l,a
 		ld	h,0
@@ -78,8 +119,8 @@ tile_addr:	ld	l,a
 		add	hl,hl
 		ld	d,h
 		ld	e,l
-		add	hl,de
 		add	hl,hl
+		add	hl,de
 		add	hl,hl
 		ld	de,TILE_IMAGES
 		add	hl,de
@@ -110,7 +151,11 @@ tile_recolor:	push	af
 		push	hl
 		ld	a,l
 		ld	(rr_t),a
-		ld	h,tile_slots/256
+		cp	0xE0
+		jp	c,trc_rebuild
+		cp	0xF0
+		jp	c,trc_end
+trc_rebuild:	ld	h,tile_slots/256
 		ld	a,(hl)
 		cp	0xFF
 		jp	z,trc_end
@@ -136,6 +181,7 @@ dc_tile:	ld	a,(rr_t)
 		ld	hl,group_modes
 		call	add_hl_a
 		ld	c,(hl)
+		call	tile_belt_mode
 		ld	a,b
 		cp	0xE0
 		jp	z,dc_belt0
@@ -167,6 +213,7 @@ dc_source:	ld	e,(hl)
 		ld	d,(hl)
 		ret
 dc_belt0:	ld	a,(tile_phase)
+		and	3
 		add	a,a
 		ld	hl,C_85BC
 		jp	dc_belt
@@ -178,6 +225,30 @@ dc_belt8:	ld	a,(tile_phase)
 		ld	hl,C_85CA
 dc_belt:	call	add_hl_a
 		ex	de,hl
+		ret
+
+; Все три цвета лент/лазеров готовы заранее, смена цвета только выбирает образ.
+tile_belt_mode:	ld	a,b
+		cp	0xE0
+		ret	c
+		cp	0xF0
+		ret	nc
+		push	bc
+		call	tile_belt_frames
+		ld	b,a
+		ld	a,(tile_phase)
+		cp	b
+		jp	c,tbm_normal
+		sub	b
+		cp	b
+		jp	c,tbm_off
+		ld	a,(mb_d+4)
+		jp	tbm_done
+tbm_normal:	ld	a,(mb_d+10)
+		jp	tbm_done
+tbm_off:	xor	a
+tbm_done:	pop	bc
+		ld	c,a
 		ret
 
 ; dc_scr: клетка -> экран (верхняя строка, плоскость 8000).

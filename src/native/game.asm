@@ -109,7 +109,6 @@ bclr:		REPT	64
 		ld	sp,0x0100
 		call	vi_off			; ВИ53 молчит, каналы SN — тоже (TURN_OFF_SOUND оригинала)
 		call	snd_off
-		call	se_init
 		call	rot_init
 		call	trim_build
 		call	ps_build		; готовые сдвиги кадров врагов
@@ -300,7 +299,32 @@ unit_fw:	push	af			; tools/unit.js: ожидание кадра = обработ
 		INCLUDE	"../vec/util.asm"
 		INCLUDE	"../vec/gen/pal.asm"
 		INCLUDE	"gen/cart.asm"
-se_tab:		ds	8*24			; адреса входа блоков по числу строк (se_init)
+se_tab:
+		dw	st_sv+4*(SV_MAX-0), st_rs+4*(SV_MAX-0), st_or+5*(16-0), st_and+6*(16-0)
+		dw	st_sv+4*(SV_MAX-1), st_rs+4*(SV_MAX-1), st_or+5*(16-1), st_and+6*(16-1)
+		dw	st_sv+4*(SV_MAX-2), st_rs+4*(SV_MAX-2), st_or+5*(16-2), st_and+6*(16-2)
+		dw	st_sv+4*(SV_MAX-3), st_rs+4*(SV_MAX-3), st_or+5*(16-3), st_and+6*(16-3)
+		dw	st_sv+4*(SV_MAX-4), st_rs+4*(SV_MAX-4), st_or+5*(16-4), st_and+6*(16-4)
+		dw	st_sv+4*(SV_MAX-5), st_rs+4*(SV_MAX-5), st_or+5*(16-5), st_and+6*(16-5)
+		dw	st_sv+4*(SV_MAX-6), st_rs+4*(SV_MAX-6), st_or+5*(16-6), st_and+6*(16-6)
+		dw	st_sv+4*(SV_MAX-7), st_rs+4*(SV_MAX-7), st_or+5*(16-7), st_and+6*(16-7)
+		dw	st_sv+4*(SV_MAX-8), st_rs+4*(SV_MAX-8), st_or+5*(16-8), st_and+6*(16-8)
+		dw	st_sv+4*(SV_MAX-9), st_rs+4*(SV_MAX-9), st_or+5*(16-9), st_and+6*(16-9)
+		dw	st_sv+4*(SV_MAX-10), st_rs+4*(SV_MAX-10), st_or+5*(16-10), st_and+6*(16-10)
+		dw	st_sv+4*(SV_MAX-11), st_rs+4*(SV_MAX-11), st_or+5*(16-11), st_and+6*(16-11)
+		dw	st_sv+4*(SV_MAX-12), st_rs+4*(SV_MAX-12), st_or+5*(16-12), st_and+6*(16-12)
+		dw	st_sv+4*(SV_MAX-13), st_rs+4*(SV_MAX-13), st_or+5*(16-13), st_and+6*(16-13)
+		dw	st_sv+4*(SV_MAX-14), st_rs+4*(SV_MAX-14), st_or+5*(16-14), st_and+6*(16-14)
+		dw	st_sv+4*(SV_MAX-15), st_rs+4*(SV_MAX-15), st_or+5*(16-15), st_and+6*(16-15)
+		dw	st_sv+4*(SV_MAX-16), st_rs+4*(SV_MAX-16), st_or+5*(16-16), st_and+6*(16-16)
+		dw	st_sv+4*(SV_MAX-17), st_rs+4*(SV_MAX-17), st_or+5*(16-17), st_and+6*(16-17)
+		dw	st_sv+4*(SV_MAX-18), st_rs+4*(SV_MAX-18), st_or+5*(16-18), st_and+6*(16-18)
+		dw	st_sv+4*(SV_MAX-19), st_rs+4*(SV_MAX-19), st_or+5*(16-19), st_and+6*(16-19)
+		dw	st_sv+4*(SV_MAX-20), st_rs+4*(SV_MAX-20), st_or+5*(16-20), st_and+6*(16-20)
+		dw	st_sv+4*(SV_MAX-21), st_rs+4*(SV_MAX-21), st_or+5*(16-21), st_and+6*(16-21)
+		dw	st_sv+4*(SV_MAX-22), st_rs+4*(SV_MAX-22), st_or+5*(16-22), st_and+6*(16-22)
+		dw	st_sv+4*(SV_MAX-23), st_rs+4*(SV_MAX-23), st_or+5*(16-23), st_and+6*(16-23)
+
 ex_bb:		ds	4			; общая рамка отложенных клеток
 lv_tile:	ds	33			; живые клетки: тайл корзины
 lv_beg:		ds	34			; начало корзины в live_list (+ всего)
@@ -328,7 +352,7 @@ mb_e:		ds	16
 mf_v:		ds	1			; memfill_f
 mf_sp:		ds	2
 ps_heap:					; дальше до PS_TOP — место готовых сдвигов
-		ASSERT	ps_heap < PS_TOP - 0x400
+		ASSERT	ps_heap <= PS_TOP
 ; выровненные таблицы — на постоянных адресах под 7000 (рост кода не сдвигает их на страницу)
 PS_TOP		equ	0x6600
 		ORG	PS_TOP
@@ -349,8 +373,8 @@ sprt_end:
 		ASSERT	sprt/256 == (sprt_end-1)/256
 		ORG	0x6800
 dlist:		ds	256			; список изменённых клеток (адреса в VNT)
-rot_tab:	ds	7*256			; повороты байта на 1..7 (rot_init) — маски спрайтов
-		ASSERT	rot_tab + 7*256 == 0x7000
+PS_MORE		equ	video_raw_end		; после исходных полос — готовые сдвиги
+		ASSERT	PS_MORE < 0x7000
 		INCLUDE	"gen/spat.asm"			; ORG VSPR — шаблоны спрайтов прямо в образе
 
 		IFDEF STRICT

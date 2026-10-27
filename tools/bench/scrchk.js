@@ -33,7 +33,7 @@ function check() {
   const under = new Uint8Array(768);
   for (let k = SPRMAX - 1; k >= 0; k--) { const a = REC + 16 * k; if (!m.rd(a)) continue;
     const Y = m.rd(a + 1), X = m.rd(a + 2), nm = m.rd(a + 3) & 0xFC, col = m.rd(a + 4) & 15; const ci = m.rd(sym.cmap + col);
-    const hero = col === 6 || col === 11; const top = Y + 1;
+    const hero = col === 6 || col === 11; const top = (Y + 1) & 255;
     for (let yy = 0; yy < 16; yy++) { const y = top + yy; if (y >= 192) break;
       for (let half = 0; half < 2; half++) { const pb = REF.sprite(nm, half, yy);
         for (let bx = 0; bx < 8; bx++) { if (!(pb & (0x80 >> bx))) continue; const x = X + half * 8 + bx; if (x > 255) continue;
@@ -51,3 +51,5 @@ m.onInstr = (pc) => {
     if (MODE === 'tp' && steps >= 300 && steps % 60 === 0) { const [r, c] = ROOMS[(steps / 60 - 5) % ROOMS.length]; m.wr(0x71A7, r); m.wr(0x71A8, c); m.wr(0x7079, 9); } } };
 while (steps < N) { if (fc === 10) K(2, 2, 1); if (fc === 100) K(2, 2, 0); fc++; m.frame(); }
 console.log(dir, MODE, 'проверок', checks, 'пропущено', skip, 'неверных экранов', bad); console.log(ex.join('\n'));
+
+if (bad || !checks) process.exitCode = 1;
