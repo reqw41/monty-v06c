@@ -175,6 +175,13 @@ isr:
 		ld	sp,ISR_STACK
 		push	bc
 		push	de
+		ld	a,(kb_req)		; сначала то, что только в начале кадра: клавиатура (порт 03 — он же прокрутка),
+		or	a			; палитра; потом спрайты (короткая часть), пока луч наверху
+		jp	z,isr1
+		xor	a
+		ld	(kb_req),a
+		call	kb_scan
+isr1:		call	pal_load_isr
 		ld	a,(crit_pend)		; вывод подготовлен — спрайты сейчас, пока луч наверху кадра (короткая часть)
 		or	a
 		jp	z,isr0
@@ -185,14 +192,7 @@ isr:
 		call	crit
 		xor	a
 		ld	(in_isr),a
-isr0:
-		ld	a,(kb_req)		; клавиатура — по запросу (раз в шаг, после чтения игрой)
-		or	a
-		jp	z,isr1
-		xor	a
-		ld	(kb_req),a
-		call	kb_scan
-isr1:		ld	hl,(frames)
+isr0:		ld	hl,(frames)
 		inc	hl
 		ld	(frames),hl
 		IFNDEF	STRICT
@@ -212,7 +212,6 @@ is_s2:		ld	(snd_acc),a
 		call	snd_vi53
 isr2:
 		ENDIF
-		call	pal_load_isr
 		ld	a,1
 		ld	(nmi_pend),a
 		pop	de
