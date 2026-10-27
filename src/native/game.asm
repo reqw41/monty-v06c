@@ -348,24 +348,6 @@ unit_fw:	push	af			; tools/unit.js: ожидание кадра = обработ
 		INCLUDE	"../vec/util.asm"
 		INCLUDE	"../vec/gen/pal.asm"
 		INCLUDE	"gen/cart.asm"
-		ALIGN	256
-rot_tab:	ds	7*256			; повороты байта на 1..7 (rot_init) — маски спрайтов
-dlist:		ds	256			; список изменённых клеток (адреса в VNT)
-; таблицы спрайтов — в одной странице (адрес — одной командой)
-sprt:
-gact:		ds	SPR_MAX			; gact, gs, ge, gd — подряд
-gs:		ds	SPR_MAX
-ge:		ds	SPR_MAX
-gd:		ds	SPR_MAX
-svr:		ds	4*SPR_MAX
-rst:		ds	6*SPR_MAX
-pps:		ds	6*SPR_MAX
-pps2:		ds	2*SPR_MAX
-ppd:		ds	11*SPR_MAX
-ubr:		ds	4*SPR_MAX		; рамки спрайтов: прежнее и новое место (ub_build)
-mk_key:		ds	4*SPR_MAX		; маска в ячейке: шаблон, сдвиг, начало, строк (spr_masks)
-sprt_end:
-		ASSERT	sprt/256 == (sprt_end-1)/256
 se_tab:		ds	8*24			; адреса входа блоков по числу строк (se_init)
 bd_tab:		ds	48			; переходы банков: какие анимированные тайлы меняются (bd_init)
 ex_bb:		ds	4			; общая рамка отложенных клеток
@@ -395,8 +377,30 @@ mb_e:		ds	16
 mf_v:		ds	1			; memfill_f
 mf_sp:		ds	2
 da_buf:		ds	24			; draw_all: образ клетки (плоскости 8000, A000, C000 по 8 байт)
-ps_heap:					; дальше до 7000 — место готовых сдвигов
-		ASSERT	ps_heap < 0x7000 - 0x400
+ps_heap:					; дальше до PS_TOP — место готовых сдвигов
+		ASSERT	ps_heap < PS_TOP - 0x400
+; выровненные таблицы — на постоянных адресах под 7000 (рост кода не сдвигает их на страницу)
+PS_TOP		equ	0x6700
+		ORG	PS_TOP
+; таблицы спрайтов — в одной странице (адрес — одной командой)
+sprt:
+gact:		ds	SPR_MAX			; gact, gs, ge, gd — подряд
+gs:		ds	SPR_MAX
+ge:		ds	SPR_MAX
+gd:		ds	SPR_MAX
+svr:		ds	4*SPR_MAX
+rst:		ds	6*SPR_MAX
+pps:		ds	6*SPR_MAX
+pps2:		ds	2*SPR_MAX
+ppd:		ds	11*SPR_MAX
+ubr:		ds	4*SPR_MAX		; рамки спрайтов: прежнее и новое место (ub_build)
+mk_key:		ds	4*SPR_MAX		; маска в ячейке: шаблон, сдвиг, начало, строк (spr_masks)
+sprt_end:
+		ASSERT	sprt/256 == (sprt_end-1)/256
+		ORG	0x6800
+dlist:		ds	256			; список изменённых клеток (адреса в VNT)
+rot_tab:	ds	7*256			; повороты байта на 1..7 (rot_init) — маски спрайтов
+		ASSERT	rot_tab + 7*256 == 0x7000
 		INCLUDE	"gen/spat.asm"			; ORG VSPR — шаблоны спрайтов прямо в образе
 
 		IFDEF STRICT

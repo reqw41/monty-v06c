@@ -58,9 +58,14 @@ tl2:		ld	d,0
 		ld	a,(0x705F)
 		or	2
 		ld	(0x705F),a
-		ld	a,d			; клетка + 22h внутри таблицы имён (0..2FF)?
+		ld	a,d			; клетка .. клетка + 22h внутри таблицы имён (0..2FF)? (клетка <= 2DDh)
 		cp	2
+		jp	c,tl_f
+		jp	nz,tl_slow
+		ld	a,e
+		cp	0xDE
 		jp	nc,tl_slow
+tl_f:
 		pop	hl			; HL = приёмник
 		push	de
 		ex	de,hl
