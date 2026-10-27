@@ -3461,3 +3461,18 @@ joe_cache_rest:
 		ld hl,joe_dirty
 		or (hl)
 		ret
+
+; Сначала C000, затем A000: луч не увидит индекс 2 (A без C) на Джо.
+; Фон по-прежнему упакован 8000/A000/C000 и стирается в этом порядке.
+joe_bg_setup:	ld b,(hl)
+		ld a,(joe_rows)
+		ld e,a
+		xor a
+jbs_mul:	add a,e
+		dec b
+		jp nz,jbs_mul
+		add a,a
+		ld (jb_bg_sub+1),a
+		ld c,a
+		ld b,0xFA
+		ret

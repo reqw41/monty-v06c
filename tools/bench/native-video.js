@@ -28,7 +28,7 @@ function checkMasks() {
   }
   if (sym.joe_load !== undefined) {
     const mutable = new Set([sym.jm_alpha,sym.jm_bits+1,sym.jm_end+1,
-      sym.jb_call+1,sym.jb_call+2,sym.jr_ac+1,sym.jr_mc+1,sym.jr_oc+1]);
+      sym.jb_call+1,sym.jb_call+2,sym.jb_bg_sub+1,sym.jr_ac+1,sym.jr_mc+1,sym.jr_oc+1]);
     for (let i=0;i<4;i++) {
       const source=sym['joe_source'+i], end=sym['joe_end'+i], target=0xFB30+256*i;
       if (end-source>160) throw Error('Код Джо пересекает маску врага');

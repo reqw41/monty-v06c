@@ -69,10 +69,13 @@ jp_color:	ld c,a
 		ld bc,spr_new+16+9
 		call joe_expand
 		jp joe_merge
-jb_done:	ld a,(sp_pm)
-		add a,0x20
+jb_done:	ld a,c
+jb_bg_sub:	sub 0
+		ld c,a
+		ld a,(sp_pm)
+		sub 0x20
 		ld (sp_pm),a
-		cp 0xE0
+		cp 0x60
 		jp nz,jb_plane
 		ret
 joe_dirty_set:	ld a,1
@@ -189,9 +192,9 @@ joe_end1:
 joe_source2:
 		DISP 0xFD30
 joe_blit:
-		ld a,0x80
+		ld a,0xC0
 		ld (sp_pm),a
-		ld bc,0xFA00
+		call joe_bg_setup
 jb_plane:
 		ld hl,spr_rec+16+9
 		call en_load
