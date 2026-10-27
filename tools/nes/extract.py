@@ -23,7 +23,7 @@ ANIMATIONS=[
  dict(name='torch_right',table=0xc5b9,count=4,update='BB73 / 8DED',cadence='phase every 8 game frames'),
 ]
 ITEMS=[('key_white',5,0xd28b),('key_blue',6,0xd28f),('key_red',7,0xd293),('amulet',9,0xd297),('torch',12,0xd29b),('sword',10,0xd29f),('jewel',11,0xd2a3)]
-POSES=[('34/98','walk right / idle',1,0,1),('40/A4','walk left / idle',1,0,2),('40/A8','walk left phase 3',1,3,2),('4C/B0','jump right',3,0,1),('50/B4','jump left',3,0,2),('54/B8','chain phase 0',5,0,1),('58/BC','chain phase 1',6,0,1),('5C/C0','ladder phase 0',4,0,1),('60/C4','ladder phase 1',4,1,1),('64/C8','fall / treasure descent',3,0,1),('6C/A0','walk right phase 1',1,1,1),('7C/AC','walk left phase 1',1,1,2),('34/9C','walk right phase 3',1,3,1),('D8/D4','death burst phase 0',11,1,1),('E0/DC','death burst phase 1',11,2,1)]
+POSES=[('34/98','idle right',0,0,1),('40/A4','idle left',0,0,2),('40/A8','walk left phase 3',1,3,2),('4C/B0','jump right',3,0,1),('50/B4','jump left',3,0,2),('54/B8','chain phase 0',5,0,1),('58/BC','chain phase 1',6,0,1),('5C/C0','ladder phase 0',4,0,1),('60/C4','ladder phase 1',4,1,1),('64/C8','fall / treasure descent',3,0,1),('6C/A0','walk right phase 1',1,1,1),('7C/AC','walk left phase 1',1,1,2),('34/9C','walk right phase 3',1,3,1),('D8/D4','death phase 0',8,1,1),('E0/DC','death phase 1',8,3,1)]
 
 
 def dump(path,value):
@@ -176,6 +176,8 @@ def main():
     export_catalog(r,out,canonical,cpus)
 
     mapping=dict(joe=[dict(msx_layers=p,meaning=name,nes_state=s,nes_frame=f,direction=di,status='proposed semantic correspondence; not pixel identity') for p,name,s,f,di in POSES],enemies=[dict(msx=f'{n:02X}',nes_group='skull',nes_frame=(i*12)//8,status='proposed phase correspondence (8 MSX vs 12 NES)') for i,n in enumerate(range(12,44,4))]+[dict(msx='2C/30',nes_group='spider',nes_frames=list(range(8))),dict(msx='68',nes_group='joe',nes_state=8,note='MSX death/respawn frame; ps_names includes it but it is not an ordinary enemy'),dict(msx='78',nes_group='joe',nes_state=2,note='MSX falling-death single white sprite, src/model/hero.js 8B6E')],items=[dict(msx=f'{k:02X}',nes=n) for k,n in [(0x20,'jewel'),(0x21,'torch'),(0x22,'sword'),(0x23,'amulet'),(0x24,'key_blue'),(0x25,'key_red'),(0x26,'key_white'),(0x27,'snake left'),(0x28,'snake right')]],extra_nes=['bat'],geometry='NES 32x24 playfield below 6 HUD rows; MSX 32x19 below 5 HUD rows. Room IDs and topology correspond; raster layout needs adaptation.')
+    from msx import add_semantic_contexts
+    add_semantic_contexts(mapping)
     dump(out/'data/mapping.json',mapping)
     # All four rendering choices, native-size and 19-row, two and three colours.
     comparisons=[]

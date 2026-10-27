@@ -68,10 +68,17 @@ class ROM:
         return im
 
 def sheet(entries,path,columns=8,cell=(96,120),scale=3):
-    im=Image.new('RGB',(columns*cell[0],((len(entries)+columns-1)//columns)*cell[1]),'#20242c');d=ImageDraw.Draw(im)
-    for i,(label,pic) in enumerate(entries):
-        x=i%columns*cell[0];y=i//columns*cell[1]
-        for j,line in enumerate(label.split('\n')):d.text((x+3,y+2+11*j),line,fill='white')
+    """Captions below pictures; grow cells instead of resampling at fractional scale."""
+    import textwrap
+    width=max([cell[0]]+[pic.width*scale+8 for _,pic in entries])
+    captions=[[part for line in label.split('\n') for part in (textwrap.wrap(line,max(1,(width-8)//6)) or [''])] for label,_ in entries]
+    height=max([cell[1]]+[pic.height*scale+11*len(lines)+12 for (_,pic),lines in zip(entries,captions)])
+    im=Image.new('RGB',(columns*width,((len(entries)+columns-1)//columns)*height),'#20242c');d=ImageDraw.Draw(im)
+    for i,((label,pic),lines) in enumerate(zip(entries,captions)):
+        x=i%columns*width;y=i//columns*height
+        caption_height=11*len(lines);available=height-caption_height-12
         p=pic.convert('RGBA');p=p.resize((p.width*scale,p.height*scale),Image.Resampling.NEAREST)
-        im.paste(p,(x+3,y+cell[1]-p.height-3),p)
+        im.paste(p,(x+(width-p.width)//2,y+4+(available-p.height)//2),p)
+        for j,line in enumerate(lines):d.text((x+4,y+height-caption_height-4+11*j),line,fill='white')
+        d.rectangle((x,y,x+width-1,y+height-1),outline='#424954')
     im.save(path)

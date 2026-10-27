@@ -32,7 +32,7 @@ def make_msx_deliverables(rom,out,groups,canonical,pics,mapping):
         for row in mapping['joe']:
             a,b=[int(v,16) for v in row['msx_layers'].split('/')];old=Image.new('RGBA',(16,19));old.alpha_composite(sprite(a,6),(0,0));old.alpha_composite(sprite(b,11),(0,3))
             new=pics[f'joe_{row["nes_state"]:02x}_{row["nes_frame"]:02d}_{"right" if row["direction"]==1 else "left"}']
-            comparisons.extend([(f'MSX {row["msx_layers"]}',old),(f'NES {row["nes_state"]:02X}:{row["nes_frame"]}',new)])
+            comparisons.extend([(f'MSX {row["msx_layers"]}\nst '+','.join(f'{n:X}' for n in row['msx_states']),old),(f'NES {row["nes_state"]:02X}:{row["nes_frame"]} '+('R' if row['direction']==1 else 'L'),new)])
         sheet(comparisons,out/'mockups/msx_joe_mapping.png',6,(128,152),3)
         enemy=[]
         for row in mapping['enemies']:
@@ -96,3 +96,33 @@ def make_msx_deliverables(rom,out,groups,canonical,pics,mapping):
     sheet(overview,out/'mockups/overview.png',4,(264,218),1)
     (out/'data/vector_proposals.json').write_text(json.dumps(proposals,ensure_ascii=False,indent=2)+'\n')
     return status
+
+
+def add_semantic_contexts(mapping):
+    """MSX selector $92DC and tables $9378..$93A6; context beats silhouette."""
+    contexts={
+      '34/98':([0,1,6,7],'9378', [0,2], 'idle 00:0; while walking use NES 01:0/2'),
+      '40/A4':([0,1,6,7],'9380', [0,2], 'idle 00:0; while walking use NES 01:0/2'),
+      '40/A8':([1],'9380',[3],'NES walking phase 3'),
+      '4C/B0':([2],'9388',[0],'jump, even though the silhouette resembles a wide step'),
+      '50/B4':([2],'938A',[0],'jump'),
+      '54/B8':([3],'938E',[0,2],'chain: NES 05:0; moving descent may use 0A:0'),
+      '58/BC':([3],'938E',[1,3],'chain: NES 05/0A; 06 is a pole pose, not a second chain phase'),
+      '5C/C0':([4],'9396',[0,2],'ladder NES 04:0; rope/pole use NES 05/06/0A by context'),
+      '60/C4':([4],'9396',[1,3],'ladder NES 04:1; rope/pole use NES 05/06/0A by context'),
+      '64/C8':([5],'938C',[0],'fall / treasure-room descent; NES 03:0'),
+      '6C/A0':([1],'9378',[1],'NES walking phase 1'),
+      '7C/AC':([1],'9380',[1],'NES walking phase 1'),
+      '34/9C':([1],'9378',[3],'NES walking phase 3'),
+      'D8/D4':([8],'93A6',[0,1],'death: NES 08 progress for enemy; 0B:1 for fire burst'),
+      'E0/DC':([8],'93A6',[2,3],'death: NES 08 progress for enemy; 0B:2 for fire burst'),
+    }
+    for row in mapping['joe']:
+        states,table,phases,note=contexts[row['msx_layers']]
+        row.update(msx_states=states,msx_selector='92DC (death: 8B7F)',msx_table=table,msx_phases=phases,policy=note,status='semantic context; different drawings and phase counts')
+        if row['msx_layers']=='58/BC':row.update(nes_state=10,nes_frame=0)
+    mapping['phase_policy']={
+      'walk':'MSX four ticks select three unique poses per direction (six total); retain four NES phases, including phase 2, with an independent visual counter or the existing four-phase logical counter.',
+      'death':'Use cause and elapsed effect time, not only the MSX layer pair: enemy 08 has five phases; fire 0B has three; lethal fall 02 has two. Map normalised progress or run a separate NES visual counter.',
+      'ladder':'Four MSX selector phases repeat two pictures; NES 04 has two pictures. Use phase & 1. Rope/pole states need a separate context.',
+      'idle':'MSX reuses walking pose zero for states 0/6/7; NES has a dedicated idle 00. States 6/7 retain motion context when appropriate.'}
