@@ -239,7 +239,7 @@ pb11:		ld	hl,cmap
 		ld	(cmap+0),a
 		ret
 
-; spr_ecolor: A = цвет врагов комнаты — первый видимый спрайт VSAT с цветом 15, 12 или 14 (иначе 15)
+; spr_ecolor: A = цвет врагов комнаты — первый видимый спрайт VSAT с цветом 15, 12 или 14 (14 — как 15; иначе 15)
 spr_ecolor:
 		ld	hl,VSAT
 		ld	b,SPR_MAX
@@ -256,8 +256,8 @@ sec1:		ld	a,(hl)
 		ret	z
 		cp	12
 		ret	z
-		cp	14
-		ret	z
+		cp	14			; серый — кадр мигания белого черепа: цвет врагов — белый
+		jp	z,sec9
 		dec	b
 		jp	nz,sec1
 sec9:		ld	a,15
