@@ -1,15 +1,15 @@
 ; Montezuma's Revenge для Вектора-06Ц — нативная сборка (docs/NATIVE.md): логика вручную по JS-модели
-; (src/model), вывод — общий с src/vec (display, sprites, cell, render), без перевода Z80 и слоя OS7.
+; (src/model), прямой вывод карты и объектов, без перевода Z80 и слоя OS7.
 ;   node tools/vsnap.js && python3 -I tools/mknative.py && \
 ;   (cd src/native && ../../tools/sjasmplus --nologo --i8080 --sym=../../build/native/monty.sym game.asm)
-; Память — src/vec/mem.asm; ОЗУ игры 7000-73FF — как у оригинала (сверка tools/lockstep.js).
+; Память — src/native/mem.asm; ОЗУ игры 7000-73FF — как у оригинала (сверка tools/lockstep.js).
 		DEVICE	NOSLOT64K
 		INCLUDE	"mem.asm"
 PND		equ	NTS			; клетка ждёт вывода (1) — по адресу клетки в VNT (выровнена так же)
-VD_PAT		equ	0x01			; отметки для вывода (display.asm)
-VD_COL		equ	0x02
-VD_NT		equ	0x04
-VD_REG		equ	0x08
+DIRTY_BELT		equ	0x01			; отметки для вывода (display.asm)
+DIRTY_COLOR		equ	0x02
+DIRTY_ROOM		equ	0x04
+DIRTY_FIRE		equ	0x08
 DMIN		equ	2			; вывод — не чаще раза в DMIN шагов
 DSKIP		equ	3			; ... и не реже раза в DSKIP (когда отстаём)
 		DEFINE	NATIVE
@@ -21,9 +21,6 @@ dl_cnt		equ	0x7FAA
 dl_k		equ	0x7FAB
 kb_req		equ	0x7FAC
 rs_mode		equ	0x7FAD
-sp_end		equ	0x7FAE
-sp_vp		equ	0x7FB0
-sp_ap		equ	0x7FB2
 sy_k		equ	0x7FB4
 sy_se		equ	0x7FB5
 ub_c1		equ	0x7FB7
@@ -50,14 +47,13 @@ ps_r		equ	0x7FE7
 cb_st		equ	0x7FED			; cb_to: шаг столбцов масок
 sp_mskp		equ	0x7FEE			; рисование: страница масок
 sp_cr		equ	0x7FEF			; исходный цвет спрайта
-pat_oth		equ	0x7FF0			; новая графика у тайлов не E0/E8 (pat_put)
-col_oth		equ	0x7FF1			; новый цвет у групп не 1C/1D (col_changed)
+other_colors		equ	0x7FF1			; новый цвет у групп не 1C/1D (room_color_changes)
 fl_pg		equ	0x7FF2			; force_live_t: страница флагов, плоскости, клеток, огонь по очереди
 fl_pm		equ	0x7FF3
 fl_n		equ	0x7FF4
 fl_fire		equ	0x7FF5
 fm_op		equ	0x7FF8			; fl_mark: операция (2 — поставить, FDh — снять)
-dc_pt		equ	0x7FF9			; dc_draw: только плоскости с точками (force_live_t при смене банка/шаблонов;
+dc_pt		equ	0x7FF9			; только изменяющиеся плоскости живых тайлов (force_live_t;
 						; прерывание тогда клетки не рисует — подготовка идёт только без crit_pend)
 lv_dirty	equ	0x7FFC			; список живых клеток устарел (в клетку поставлен живой тайл)
 fl_ph		equ	0x7FBD			; огонь: очередь клеток, маска (0 — все)
@@ -100,7 +96,7 @@ boot:
 		ld	bc,0x0400
 		ld	e,0
 		call	memfill
-		ld	hl,VNT			; копии VRAM (шаблоны спрайтов VSPR 7400-7BFF — из образа)
+		ld	hl,VNT			; карта и переменные (исходные спрайты 7400-7BFF — из образа)
 		ld	bc,0x0400
 		ld	e,0
 		call	memfill
@@ -292,7 +288,7 @@ ks0:		ld	a,b
 		out	(0x03),a
 		ret
 
-		INCLUDE	"vid.asm"
+		INCLUDE	"map.asm"
 L_9156:		INCLUDE	"tiles.asm"
 L_AEA7:		INCLUDE	"block.asm"
 unit_trap:	jp	unit_trap		; возврат для tools/unit.js
@@ -345,7 +341,7 @@ ps_c0:		ds	1
 ps_c1:		ds	1
 ps_c2:		ds	1
 ps_m:		ds	1
-mb_d:		ds	16			; modes_build: вклад индекса как точек / как фона
+mb_d:		ds	16			; group_modes_build: вклад индекса как точек / как фона
 mb_e:		ds	16
 mf_v:		ds	1			; memfill_f
 mf_sp:		ds	2
@@ -359,10 +355,6 @@ spr_new:	ds	SREC*SPR_MAX		; новые атрибуты (spr_rec + 80h)
 		ORG	0x6700
 ; таблицы спрайтов — в одной странице (адрес — одной командой)
 sprt:
-gact:		ds	SPR_MAX			; gact, gs, ge, gd — подряд
-gs:		ds	SPR_MAX
-ge:		ds	SPR_MAX
-gd:		ds	SPR_MAX
 svr:		ds	4*SPR_MAX
 rst:		ds	6*SPR_MAX
 pps:		ds	6*SPR_MAX

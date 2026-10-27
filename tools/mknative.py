@@ -78,17 +78,9 @@ print('данных картриджа', data_kept, 'из', len(data), 'байт
 
 # --- шаблоны из снимка VRAM ---
 V = open(os.path.join(ROOT, 'build/native/vram.bin'), 'rb').read()
-ANIM = [0x04, 0x05, 0x06, 0x38, 0xA0, 0xA3, 0xA4, 0xA7, 0xB8, 0xB9, 0xBA, 0xD0, 0xD1, 0xD2, 0xD3, 0xD4, 0xD5]
-BANKS = [0x0000, 0x0800, 0x1000, 0x2800]
-other = [t for t in range(256) if t not in ANIM and any(V[b + 8 * t:b + 8 * t + 8] != V[8 * t:8 * t + 8] for b in BANKS[1:])]
-if other: print('ВНИМАНИЕ: различия банков вне набора:', ' '.join(f'{t:02X}' for t in other))
-V0 = open(os.path.join(ROOT, 'build/native/vram0.bin'), 'rb').read()   # на входе в A59D (банк 0 — сжатым, tools/pack.py)
-P = ['; создано tools/mknative.py — не править'] + ['; различия банков 1, 2, 5: anim_set[i] -> pdiff + 24 i (по 8 байт на банк)', 'anim_set:\tdb\t' + ','.join(f'0x{t:02X}' for t in ANIM) + ',0xFF', 'pdiff:']
-for t in ANIM:
-    for b in BANKS[1:]: P.append('\t\tdb\t' + ','.join(f'0x{x:02X}' for x in V[b + 8 * t:b + 8 * t + 8]))
-P += ['; цвета групп на входе в начало уровня', 'col0:\t\tdb\t' + ','.join(f'0x{x:02X}' for x in V0[0x2000:0x2020])]
 S = ['; создано tools/mknative.py — не править', '; шаблоны спрайтов (VDP 3800) — прямо по рабочему адресу VSPR (часть образа)', '\t\tORG\tVSPR', 'spat:']
 for i in range(0, 0x800, 16): S.append('\t\tdb\t' + ','.join(f'0x{x:02X}' for x in V[0x3800 + i:0x3810 + i]))
 open(os.path.join(ROOT, 'src/native/gen/spat.asm'), 'w').write('\n'.join(S) + '\n')
-open(os.path.join(ROOT, 'src/native/gen/pats.asm'), 'w').write('\n'.join(P) + '\n')
-print('шаблоны: банк 0, различия', len(ANIM), 'тайлов, спрайты 2 КБ')
+import runpy
+runpy.run_path(os.path.join(ROOT, 'tools/mkvideo.py'), run_name='__main__')
+print('шаблоны спрайтов: 2 КБ исходной графики')

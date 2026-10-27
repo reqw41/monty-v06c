@@ -1,4 +1,4 @@
-// Клетки экрана против тайлов карты (VNT): графика E000/dstore по tile_hi, режимы cmodes[VCOL]; клетки под
+// Клетки экрана против тайлов карты (VNT): графика E000/dstore по fire_shown, режимы cmodes[room_colors]; клетки под
 // нарисованными спрайтами (spr_rec +5..+8) и ещё не выведенные (в dlist) — пропуск. node cellchk.js dir [шагов] [TP]
 const REF = require('./video-ref');
 const fs = require('fs'); process.chdir('/Users/boris/projects/monty-v06c');
@@ -10,9 +10,9 @@ const ROOMS = []; for (let r = 0; r < 9; r++) for (let c = 8 - r; c <= 10 + r; c
 let steps = 0, fc = 0, checks = 0, bad = 0; const ex = [];
 const keys = (s) => { K(7, 0x80, (s >= 20 && s < 30) || (s > 200 && s % 37 < 4)); const ph = s < 100 ? -1 : Math.floor((s - 100) / 70) % 3; K(0, 0x40, ph === 0); K(0, 0x10, ph === 1); };
 function check() {
-  if (m.rd(sym.dl_n) || m.rd(sym.dl_ovf) || m.rd(sym.vdirty)) return;
+  if (m.rd(sym.dl_n) || m.rd(sym.dl_ovf) || m.rd(sym.video_dirty)) return;
   const sp = []; for (let k = 0; k < 6; k++) { const a = sym.spr_rec + 16 * k; if (m.rd(a)) sp.push([m.rd(a + 5), m.rd(a + 6), m.rd(a + 7), m.rd(a + 8)]); }
-  const th = m.rd(sym.tile_hi); checks++;
+  const th = m.rd(sym.fire_shown); checks++;
   for (let r = 0; r < 24; r++) for (let c = 0; c < 32; c++) {
     if (sp.some(([r0, r1, c0, c1]) => r >= r0 && r <= r1 && c >= c0 && c <= c1)) continue;
     const t = m.rd(sym.VNT + r * 32 + c); if (process.env.NOFIRE && m.rd(sym.lv_idx + t) !== 0xFF && REF.animated.has(t)) continue; if (process.env.SKIPF && (t === 0x38 || t >= 0xD0 && t <= 0xD5)) continue; if (process.env.LIVEONLY && m.rd(sym.lv_idx + t) === 0xFF) continue; let pat = REF.pattern(t, th, m.rd(sym.belt_shown)); const anim = REF.animated.has(t);

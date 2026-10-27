@@ -118,8 +118,8 @@ de_add_a:	add	a,e
 		ret
 ; bk_mark: HL = VNT + клетка, B = тайлов — строки клеток HL .. HL + B - 1 к перерисовке
 		IFDEF	NATIVE
-bk_mark:	ld	a,(vdirty)		; нативная сборка: клетки — в список изменённых; комната будет нарисована
-		and	VD_NT			; целиком — не нужно
+bk_mark:	ld	a,(video_dirty)		; нативная сборка: клетки — в список изменённых; комната будет нарисована
+		and	DIRTY_ROOM			; целиком — не нужно
 		ret	nz
 		push	hl
 bkn1:		call	mark_row

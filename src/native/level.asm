@@ -5,7 +5,7 @@
 game_init:	ld	hl,0x7000
 		ld	de,ram0_pk
 		call	unpack
-		ld	hl,VCOL
+		ld	hl,room_colors
 		ld	de,col0
 		ld	bc,32
 		call	copy_de_hl

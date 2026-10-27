@@ -13,7 +13,7 @@ function pattern(t, frame, belt) {
   return (bank ? v : v0).subarray(bank + 8*t, bank + 8*t + 8);
 }
 function modes(m, sym, t) {
-  const col = m.rd(sym.VCOL + (t >> 3));
+  const col = m.rd(sym.room_colors + (t >> 3));
   const fg = m.rd(sym.cmap + ((col >> 4) || 1));
   const bg = m.rd(sym.cmap + ((col & 15) || 1));
   let out = 0;

@@ -1,6 +1,5 @@
-; Нативно: обработчик кадра A9B3, кадр анимации банков A92F, лазеры A8D6, A894 (по src/model/frame.js).
-; Банки шаблонов у нативной сборки общие (различия — в dstore), поэтому кадр ленты E0/E8 пишется один раз,
-; а не в каждый из 4 банков; итог в ОЗУ (7085, 73F9) и R4 — как у оригинала.
+; Обработчик кадра игры и прямые фазы анимации (по src/model/frame.js).
+; Значения ОЗУ игры 7085/73F9 сохраняются как у MSX.
 
 ; L_A894: Z — A есть среди 8 байт C_943C (стены); HL, BC сохраняются
 L_A894:		push	hl
@@ -34,9 +33,9 @@ fa_set:		ld	a,c
 		ld	(fire_frame),a
 		ld	a,(0x7096)
 		ld	(belt_frame),a
-		ld	a,(vdirty)
-		or	VD_REG+VD_PAT
-		ld	(vdirty),a
+		ld	a,(video_dirty)
+		or	DIRTY_FIRE+DIRTY_BELT
+		ld	(video_dirty),a
 		ret
 
 ; L_A8D6 LASERS: таймер 70A8 (60h..1); 60h — включить обе группы (1D, 1C), 48h / 30h — выключить
@@ -61,7 +60,7 @@ a8d2:		cp	0x48
 		ld	hl,C_A92E
 a8d3:		ld	e,0x1D
 		ld	c,1
-		call	col_put
+		call	room_color_write
 a8d4:		ld	a,(0x70A8)
 		cp	0x60
 		jp	nz,a8d5
@@ -78,10 +77,10 @@ a8d5:		cp	0x30
 		ld	hl,C_A92E
 a8d6:		ld	e,0x1C
 		ld	c,1
-		jp	col_put
+		jp	room_color_write
 
 ; frame_handler (A9B3): раз в кадр — 919A (70B1 бит 3), A60B (705F бит 3), 8EB0 (70B1 бит 4), счётчики
-; 7097, 7047, смена банка анимации (7011), 7207 -= 1, атрибуты спрайтов -> VSAT, шаг звука
+; 7097, 7047, смена банка анимации (7011), 7207 -= 1, шаг звука
 frame_handler:
 		ld	hl,0x70B1
 		ld	a,(hl)
@@ -141,7 +140,7 @@ fh3:		ld	a,c
 		ld	(0x7011),a
 fh5:		ld	hl,0x7207
 		dec	(hl)
-		IFDEF	STRICT			; (атрибуты спрайтов -> VSAT — перед выводом, disp_prep)
+		IFDEF	STRICT			; звук синхронно с логикой — для сравнения с MSX
 		call	L_AC6D			; шаг звука: как у оригинала; иначе — в прерывании (isr), по времени
 		call	snd_vi53
 		ENDIF

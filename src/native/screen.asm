@@ -16,7 +16,7 @@ tab4:		ld	e,(hl)
 		push	hl
 		ex	de,hl
 		ld	e,a
-		call	col_put
+		call	room_color_write
 		pop	hl
 		jp	tab4
 
@@ -40,7 +40,7 @@ eb1:		ld	c,a			; 7 * ряд
 		call	add_hl_a
 		ld	e,1
 		ld	c,7
-		call	col_put
+		call	room_color_write
 		ld	a,(0x71A6)
 		ld	b,a
 		ld	a,9

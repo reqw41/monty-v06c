@@ -11,9 +11,9 @@ video_on:	push	af
 		jp	nz,vo_done
 		inc	a
 		ld	(video_enabled),a
-		ld	a,(vdirty)
-		or	VD_NT
-		ld	(vdirty),a
+		ld	a,(video_dirty)
+		or	DIRTY_ROOM
+		ld	(video_dirty),a
 		ld	a,2
 		ld	(nt_age),a
 vo_done:	pop	af
@@ -80,7 +80,7 @@ nt_read3:	push	bc
 		ret
 
 ; nt_fill: DE = клетка, BC = число, A = тайл. Очистка с первых 256 клеток длиной от 256 — новая комната
-; (VD_NT, nt_age := 0, как у слоя OS7). Регистры сохраняются
+; (DIRTY_ROOM, nt_age := 0, как у слоя OS7). Регистры сохраняются
 nt_fill:	push	af
 		push	bc
 		push	de
@@ -92,9 +92,9 @@ nt_fill:	push	af
 		ld	a,b
 		or	a
 		jp	z,nf1
-		ld	a,(vdirty)
-		or	VD_NT
-		ld	(vdirty),a
+		ld	a,(video_dirty)
+		or	DIRTY_ROOM
+		ld	(video_dirty),a
 		xor	a
 		ld	(nt_age),a
 nf1:		ld	a,b
@@ -105,8 +105,8 @@ nf1:		ld	a,b
 		jp	nc,nf2
 		ld	hl,VNT
 		add	hl,de
-		ld	a,(vdirty)		; комната будет нарисована целиком — без отметок, быстро
-		and	VD_NT
+		ld	a,(video_dirty)		; комната будет нарисована целиком — без отметок, быстро
+		and	DIRTY_ROOM
 		jp	nz,nf3
 		ld	a,(nf_val)
 		ld	(hl),a
@@ -195,13 +195,13 @@ vnt_row:	push	de
 		ld	a,23
 		ret
 
-; col_put: HL = источник, E = группа, C = число — в VCOL (VD_COL). HL, DE, BC сохраняются
-col_put:	push	hl
+; room_color_write: HL = источник, E = группа, C = число — в room_colors (DIRTY_COLOR). HL, DE, BC сохраняются
+room_color_write:	push	hl
 		push	de
 		push	bc
-		ld	d,VCOL/256
+		ld	d,room_colors/256
 		ld	a,e
-		add	a,VCOL&0xFF
+		add	a,room_colors&0xFF
 		ld	e,a
 cp1:		ld	a,(hl)
 		ld	(de),a
@@ -209,33 +209,33 @@ cp1:		ld	a,(hl)
 		inc	de
 		dec	c
 		jp	nz,cp1
-		ld	a,(vdirty)
-		or	VD_COL
-		ld	(vdirty),a
+		ld	a,(video_dirty)
+		or	DIRTY_COLOR
+		ld	(video_dirty),a
 		jp	np_x
-; col_fill: E = группа, C = число, A = цвет
-col_fill:	push	hl
+; room_color_fill: E = группа, C = число, A = цвет
+room_color_fill:	push	hl
 		push	de
 		push	bc
-		ld	h,VCOL/256
+		ld	h,room_colors/256
 		ld	b,a
 		ld	a,e
-		add	a,VCOL&0xFF
+		add	a,room_colors&0xFF
 		ld	l,a
 cf1:		ld	(hl),b
 		inc	hl
 		dec	c
 		jp	nz,cf1
-		ld	a,(vdirty)
-		or	VD_COL
-		ld	(vdirty),a
+		ld	a,(video_dirty)
+		or	DIRTY_COLOR
+		ld	(video_dirty),a
 		jp	np_x
 
 ; dl_add (mark_row): HL = адрес клетки в VNT -> в список изменённых клеток (dlist, до DL_MAX; больше — dl_ovf,
 ; вывод тогда по всем строкам). Регистры, кроме A, сохраняются
 mark_row:
-dl_add:		ld	a,(vdirty)		; комната будет нарисована целиком — клетки не отмечать
-		and	VD_NT
+dl_add:		ld	a,(video_dirty)		; комната будет нарисована целиком — клетки не отмечать
+		and	DIRTY_ROOM
 		ret	nz
 		push	de
 		ld	e,(hl)			; в клетке живой тайл (огонь, лента...) — список живых клеток устарел

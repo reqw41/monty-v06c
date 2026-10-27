@@ -4,31 +4,25 @@ pvars:
 frames:		ds	2
 isr_sp:		ds	2
 nmi_pend:	ds	1
-vdirty:		ds	1
+video_dirty:		ds	1
 nt_age:		ds	1
 video_enabled:	ds	1
 fire_frame:	ds	1
 belt_frame:	ds	1
 belt_shown:	ds	1
 pal_load:	ds	1
-tile_hi:	ds	1
+fire_shown:	ds	1
 kbmat:		ds	8
 row_dirty:	ds	24
 drew_any:	ds	1
-dc_m:		ds	1
-col_shown:	ds	32
+shown_colors:	ds	32
 used:		ds	16
 repl:		ds	16
 cmap:		ds	16
 pal:		ds	16
 rr_r:		ds	1
 rr_c:		ds	1
-rr_nt:		ds	2
 rr_t:		ds	1
-rr_m:		ds	6
-rr_p:		ds	1
-rr_np:		ds	1
-rr_y:		ds	1
 spr_force:	ds	1
 spx_ch:		ds	1
 spx_a:		ds	2
@@ -37,24 +31,7 @@ dr_ex:		ds	1
 dr_skip:	ds	1
 ex_n:		ds	1
 ex_r:		ds	4*SPR_MAX
-		IFNDEF	NATIVE
-		ENDIF
-		IFNDEF	NATIVE
-svr:		ds	4*SPR_MAX
-		ENDIF
 pm_bot:		ds	1
-		IFNDEF	NATIVE
-rst:		ds	6*SPR_MAX
-		ENDIF
-		IFNDEF	NATIVE
-pps:		ds	6*SPR_MAX
-		ENDIF
-		IFNDEF	NATIVE
-pps2:		ds	2*SPR_MAX
-		ENDIF
-		IFNDEF	NATIVE
-ppd:		ds	11*SPR_MAX
-		ENDIF
 rs_h:		ds	2
 rs_n:		ds	1
 pu_lo:		ds	1
@@ -65,21 +42,9 @@ bk_c:		ds	1
 nf_val:		ds	1
 disp_n:		ds	1
 dp_done:	ds	1
-bk_new:		ds	1
+fire_next:		ds	1
 spr_E:		ds	1
 sp_sp:		ds	1
-		IFNDEF	NATIVE
-gact:		ds	SPR_MAX
-		ENDIF
-		IFNDEF	NATIVE
-gs:		ds	SPR_MAX
-		ENDIF
-		IFNDEF	NATIVE
-ge:		ds	SPR_MAX
-		ENDIF
-		IFNDEF	NATIVE
-gd:		ds	SPR_MAX
-		ENDIF
 pp_h:		ds	2
 pp_m:		ds	2
 cr_ptr:		ds	2

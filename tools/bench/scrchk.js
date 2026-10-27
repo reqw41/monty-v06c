@@ -19,10 +19,10 @@ function cellBytes(t, f) {
   return o;
 }
 function check() {
-  if (m.rd(sym.dl_n) || m.rd(sym.dl_ovf) || m.rd(sym.vdirty) || m.rd(sym.crit_pend) || m.rd(sym.lv_dirty)) { skip++; return; }
+  if (m.rd(sym.dl_n) || m.rd(sym.dl_ovf) || m.rd(sym.video_dirty) || m.rd(sym.crit_pend) || m.rd(sym.lv_dirty)) { skip++; return; }
   if (!m.rd(sym.video_enabled)) { skip++; return; }
   // фон: 3 плоскости x 256 x 256 (строки экрана 0..191 сверху: адрес 0xFF - y... как у клетки: 0xDF - 8r - y)
-  const scr = [new Uint8Array(8192), new Uint8Array(8192), new Uint8Array(8192)], fire = new Uint8Array(768); const th = m.rd(sym.tile_hi);
+  const scr = [new Uint8Array(8192), new Uint8Array(8192), new Uint8Array(8192)], fire = new Uint8Array(768); const th = m.rd(sym.fire_shown);
   const ad = (c, y) => c * 256 + 0xDF - y;   // y = 0..191 сверху
   for (let r = 0; r < 24; r++) for (let c = 0; c < 32; c++) { const t = m.rd(sym.VNT + r * 32 + c); if (isFire(t) && REF.animated.has(t)) fire[r * 32 + c] = 1;
     const b = cellBytes(t, th); for (let p = 0; p < 3; p++) for (let y = 0; y < 8; y++) scr[p][ad(c, 8 * r + y)] = b[p * 8 + y]; }

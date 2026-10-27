@@ -1,7 +1,6 @@
-; Вывод виртуальной VRAM на экран Вектора раз в кадр (из прерывания).
-; Отметки: row_dirty[24] (записи в таблицу имён), pat_flag[256] (тайлы с новыми шаблонами), vdirty (VD_*).
-; Клетки к выводу: PND (1 — ждёт), список dlist; col_shown (цвета), tile_hi (кадр анимации 0-3); спрайты — spr_rec.
-; Пока экран VDP выключен (R1 бит 6 = 0) — не рисуем; при включении — полная перерисовка с палитрой.
+; Прямой вывод карты и объектов на экран Вектора.
+; video_dirty: комната, её цвета, кадры огня/лент; PND/dlist: изменённые клетки.
+; spr_rec/spr_new и таблицы полос — постоянные дескрипторы слоёв объектов.
 
 ; display: подготовка и, если есть спрайты к перерисовке, — ожидание кадра и короткая часть (меню)
 display:
@@ -25,8 +24,8 @@ disp_prep:
 		ret	z
 		xor	a
 		ld	(drew_any),a
-		ld	a,(vdirty)
-		and	VD_NT			; новая комната: дождаться конца рисования (2 кадра без очистки)
+		ld	a,(video_dirty)
+		and	DIRTY_ROOM			; новая комната: дождаться конца рисования (2 кадра без очистки)
 		jp	z,dp1
 		ld	hl,nt_age
 		ld	a,(hl)
@@ -40,22 +39,22 @@ dp1:		ld	a,(lv_dirty)		; в клетки ставились живые тайл�
 		xor	a
 		ld	(lv_dirty),a
 		call	live_build
-dp1a:		ld	a,1			; до dp3 (банк, шаблоны) у живых клеток меняются только точки
+dp1a:		ld	a,1			; до dp3 (кадры огня и лент) у живых клеток меняются только точки
 		ld	(dc_pt),a
-		ld	a,(vdirty)
-		and	VD_REG			; R4 — фаза анимации
+		ld	a,(video_dirty)
+		and	DIRTY_FIRE			; R4 — фаза анимации
 		jp	z,dp2
-		ld	a,(vdirty)
-		and	0xFF-VD_REG
-		ld	(vdirty),a
-		call	bank_hi
-		ld	hl,tile_hi
+		ld	a,(video_dirty)
+		and	0xFF-DIRTY_FIRE
+		ld	(video_dirty),a
+		ld	a,(fire_frame)
+		ld	hl,fire_shown
 		cp	(hl)
 		jp	z,dp2
-		ld	(bk_new),a
-		call	bank_diff		; col_flag: тайлы, чей шаблон в новом банке другой (огонь — через раз)
-		ld	a,(bk_new)
-		ld	(tile_hi),a
+		ld	(fire_next),a
+		call	fire_changes		; tile_changed: тайлы, у которых меняется исходная полоса
+		ld	a,(fire_next)
+		ld	(fire_shown),a
 		ld	a,(fl_ph)		; их живые клетки — к перерисовке, но не все: каждая FIRE_K-я по очереди
 		inc	a			; (огонь мигает вразнобой; дешевле в FIRE_K раз). FIRE_K и число кадров
 		cp	FIRE_K			; огня (4) — взаимно простые: каждая клетка проходит все кадры
@@ -65,49 +64,49 @@ dpf1:		ld	(fl_ph),a
 		ld	(fl_c),a
 		ld	a,1
 		ld	(fl_skm),a
-		ld	a,col_flag/256
+		ld	a,tile_changed/256
 		call	force_live_t
 		xor	a
 		ld	(fl_skm),a
-		ld	hl,anim_set		; col_flag := 0
+		ld	hl,anim_set		; tile_changed := 0
 bdz:		ld	a,(hl)
 		cp	0xFF
 		jp	z,dp2
 		push	hl
 		ld	l,a
-		ld	h,col_flag/256
+		ld	h,tile_changed/256
 		ld	(hl),0
 		pop	hl
 		inc	hl
 		jp	bdz
-dp2:		ld	a,(vdirty)
-		and	VD_PAT
+dp2:		ld	a,(video_dirty)
+		and	DIRTY_BELT
 		jp	z,dp3
-		ld	a,(vdirty)
-		and	0xFF-VD_PAT
-		ld	(vdirty),a
+		ld	a,(video_dirty)
+		and	0xFF-DIRTY_BELT
+		ld	(video_dirty),a
 		ld	a,(belt_frame)
 		ld	hl,belt_shown
 		cp	(hl)
 		jp	z,dp3
 		ld	(hl),a
 		ld	a,1
-		ld	(col_flag+0xE0),a
-		ld	(col_flag+0xE8),a
-		ld	a,col_flag/256
+		ld	(tile_changed+0xE0),a
+		ld	(tile_changed+0xE8),a
+		ld	a,tile_changed/256
 		call	force_live_t
 		xor	a
-		ld	(col_flag+0xE0),a
-		ld	(col_flag+0xE8),a
+		ld	(tile_changed+0xE0),a
+		ld	(tile_changed+0xE8),a
 dp3:		xor	a
 		ld	(dc_pt),a
-		ld	a,(vdirty)
-		and	VD_COL
+		ld	a,(video_dirty)
+		and	DIRTY_COLOR
 		jp	z,dp4
-		ld	a,(vdirty)
-		and	0xFF-VD_COL
-		ld	(vdirty),a
-		call	col_changed
+		ld	a,(video_dirty)
+		and	0xFF-DIRTY_COLOR
+		ld	(video_dirty),a
+		call	room_color_changes
 dp4:		ld	a,(fm_op)		; отметки «под спрайтом» (force_live_t) — снять
 		cp	2
 		ld	a,0xFD
@@ -276,26 +275,26 @@ room_redraw:
 		ld	(belt_shown),a
 		ld	a,1
 		ld	(spr_force),a
-		ld	hl,col_flag
+		ld	hl,tile_changed
 		ld	bc,256
 		ld	e,0
 		call	memfill_f
-		call	bank_hi			; кадр анимации
-		ld	(tile_hi),a
+		ld	a,(fire_frame)			; кадр анимации
+		ld	(fire_shown),a
 		call	pal_build
 		call	pal_fill
-		call	modes_build
+		call	group_modes_build
 		call	tiles_reset
 		ld	a,3
 		ld	(pal_load),a
 		call	draw_all		; комната — целиком, прямо (спрайты — стёрты: их не восстанавливать)
-		ld	a,(vdirty)
-		and	0xFF-VD_NT-VD_COL
-		ld	(vdirty),a
+		ld	a,(video_dirty)
+		and	0xFF-DIRTY_ROOM-DIRTY_COLOR
+		ld	(video_dirty),a
 		call	live_build
 		xor	a
 		ld	(lv_dirty),a
-		jp	col_snapshot
+		jp	room_color_snapshot
 
 ; Живые клетки (анимированные тайлы anim_set и лента/цепь E0-EF) — по корзинам тайлов: lv_idx[тайл] = корзина
 ; (0..32) или FF; корзина b — элементы с lv_beg[b] по lv_beg[b + 1] - 1: адрес клетки в VNT — младший байт
@@ -693,13 +692,13 @@ fx5:		ld	a,l
 		ret
 
 ; fire_diff: у анимированных тайлов изменился указатель исходной полосы.
-bank_diff:	ld	hl,raw_anim
+fire_changes:	ld	hl,raw_anim
 		ld	de,anim_set
 		ld	b,17
 fd0:		push	bc
 		push	de
 		push	hl
-		ld	a,(tile_hi)
+		ld	a,(fire_shown)
 		add	a,a
 		call	add_hl_a
 		ld	c,(hl)
@@ -707,7 +706,7 @@ fd0:		push	bc
 		ld	b,(hl)
 		pop	hl
 		push	hl
-		ld	a,(bk_new)
+		ld	a,(fire_next)
 		add	a,a
 		call	add_hl_a
 		ld	a,(hl)
@@ -719,7 +718,7 @@ fd0:		push	bc
 		jp	z,fd_next
 fd_mark:	ld	a,(de)
 		ld	l,a
-		ld	h,col_flag/256
+		ld	h,tile_changed/256
 		ld	(hl),1
 fd_next:	pop	hl
 		ld	bc,8
@@ -729,9 +728,6 @@ fd_next:	pop	hl
 		inc	de
 		dec	b
 		jp	nz,fd0
-		ret
-
-bank_hi:	ld	a,(fire_frame)
 		ret
 
 ; draw_all: все клетки на экран прямо по карте (графика — заново только при смене тайла подряд); спрайты —
@@ -884,20 +880,20 @@ ftn:		inc	l
 ft_mark:	call	dl_add			; клетка — к выводу
 		jp	ftn
 
-; col_snapshot: col_shown := VCOL
-col_snapshot:
-		ld	hl,col_shown
-		ld	de,VCOL
+; room_color_snapshot: shown_colors := room_colors
+room_color_snapshot:
+		ld	hl,shown_colors
+		ld	de,room_colors
 		ld	b,32
 		jp	memcpyb
 
-; col_changed: группы с новым цветом -> их клетки к перерисовке (палитра и режимы — при смене комнаты)
-col_changed:
-		call	modes_build
+; room_color_changes: группы с новым цветом -> их клетки к перерисовке (палитра и режимы — при смене комнаты)
+room_color_changes:
+		call	group_modes_build
 		xor	a
-		ld	(col_oth),a
-		ld	hl,VCOL
-		ld	de,col_shown
+		ld	(other_colors),a
+		ld	hl,room_colors
+		ld	de,shown_colors
 		ld	b,0
 		ld	c,0			; изменённых групп
 cg1:		ld	a,(de)
@@ -910,14 +906,14 @@ cg1:		ld	a,(de)
 		cp	0x1C
 		jp	z,cg1a
 		ld	a,1
-		ld	(col_oth),a
-cg1a:		push	hl			; col_flag[8b .. 8b+7] := 1
+		ld	(other_colors),a
+cg1a:		push	hl			; tile_changed[8b .. 8b+7] := 1
 		ld	a,b
 		add	a,a
 		add	a,a
 		add	a,a
 		ld	l,a
-		ld	h,col_flag/256
+		ld	h,tile_changed/256
 		ld	a,1
 		REPT	8
 		ld	(hl),a
@@ -935,15 +931,15 @@ cg2:		inc	hl
 		ld	a,c
 		or	a
 		ret	z
-		ld	a,(col_oth)		; тайлы групп с новым цветом — их клетки к перерисовке: только группы
+		ld	a,(other_colors)		; тайлы групп с новым цветом — их клетки к перерисовке: только группы
 		or	a			; ленты и цепи (1C, 1D: тайлы E0-EF — живые) — по списку живых клеток,
-		ld	a,col_flag/256		; иначе — по карте
+		ld	a,tile_changed/256		; иначе — по карте
 		jp	nz,cgc1
 		call	force_live_t
 		jp	cgc2
 cgc1:		call	force_tiles
 cgc2:
-		ld	hl,col_flag
+		ld	hl,tile_changed
 		ld	bc,256
 		ld	e,0
 		jp	memfill_f
@@ -1172,9 +1168,9 @@ pf9:		inc	b
 		jp	nz,pf0
 		ret
 
-; modes_build: cmodes[байт цвета MSX] = режимы плоскостей 8000/A000/C000 (по 2 бита, 8000 — старшие:
+; group_modes_build: режимы 32 групп для построения образов (по 2 бита; 8000 — старшие:
 ; 0 — 00, 1 — шаблон, 2 — инверсия, 3 — FF) для индексов cmap[точки], cmap[фон] (0 -> 1)
-modes_build:				; mb_d[i], mb_e[i] — вклад индекса cmap[i] (0 -> 1) как цвета точек и фона
+group_modes_build:				; mb_d[i], mb_e[i] — вклад индекса cmap[i] (0 -> 1) как цвета точек и фона
 		ld	b,0
 mb0:		ld	a,b
 		or	a
@@ -1214,7 +1210,7 @@ mb4:		ld	hl,mb_d
 		ld	a,b
 		cp	16
 		jp	nz,mb0
-		ld	de,VCOL
+		ld	de,room_colors
 		ld	hl,group_modes
 		ld	b,32
 mb5:		push	bc

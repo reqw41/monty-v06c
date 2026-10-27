@@ -64,7 +64,7 @@ tile_select:	ld	b,a
 		cp	17
 		ld	a,0
 		jp	nc,tsel_add
-		ld	a,(tile_hi)
+		ld	a,(fire_shown)
 		jp	tsel_add
 tsel_chain:	ld	a,(belt_shown)
 		and	1

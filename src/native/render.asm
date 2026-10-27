@@ -1,54 +1,6 @@
 ; Цвета комнаты, палитра и вывод теневой таблицы имён в 3 плоскости (8000 — бит 2 индекса, A000 — бит 1,
 ; C000 — бит 0; E000 невидима: палитра Вектора парами). Поле MSX 256x192: строка Y -> младший байт 0DFh - Y.
 
-		IFDEF	VIEWER
-; --- col_build: coltab := colors_base, элементы 1..7 := палитра этажа (row_cur), темнота (FLOOR_PALETTE 8EB0)
-col_build:
-		ld	hl,coltab
-		ld	de,colors_base
-		ld	b,32
-		call	memcpyb
-		ld	a,(row_cur)
-		cp	8
-		jp	c,cb1
-		ld	a,8
-cb1:		ld	b,a			; floors + 7 * этаж
-		add	a,a
-		add	a,a
-		add	a,a
-		sub	b
-		ld	e,a
-		ld	d,0
-		ld	hl,floors
-		add	hl,de
-		ex	de,hl
-		ld	hl,coltab+1
-		ld	b,7
-		call	memcpyb
-		ld	a,(lv_cur)		; темнота: ряд >= 9 - уровень
-		ld	b,a
-		ld	a,9
-		sub	b
-		ld	b,a
-		ld	a,(row_cur)
-		cp	b
-		ret	c
-		ld	hl,dark_groups
-cb2:		ld	a,(hl)
-		cp	0xFF
-		ret	z
-		inc	hl
-		ld	e,a
-		ld	d,0
-		push	hl
-		ld	hl,coltab
-		add	hl,de
-		ld	(hl),0
-		pop	hl
-		jp	cb2
-dark_groups:	db	0x00,0x01,0x02,0x10,0x11,0x12,0x13,0x15,0x16,0x17,0x18,0xFF
-
-		ENDIF
 
 ; --- pal_build: какие цвета MSX видны (таблица имён + герой 6, 11 + фон 1), слияние до 8, индексы ----
 pal_build:
@@ -65,8 +17,8 @@ pal_build:
 		ld	hl,used
 		call	add_hl_a
 		ld	(hl),1
-		ld	de,NT			; группы тайлов, что есть в комнате -> col_flag[0..31] (цвета — по группе)
-		ld	h,col_flag/256
+		ld	de,NT			; группы тайлов, что есть в комнате -> tile_changed[0..31] (цвета — по группе)
+		ld	h,tile_changed/256
 pb1:		ld	a,(de)
 		rrca
 		rrca
@@ -79,8 +31,8 @@ pb1:		ld	a,(de)
 		cp	(NT+768)/256
 		jp	nz,pb1
 		ld	b,0
-pb1b:		ld	l,b			; встретилась — её цвета точек и фона — видимые (col_flag — снова 0)
-		ld	h,col_flag/256
+pb1b:		ld	l,b			; встретилась — её цвета точек и фона — видимые (tile_changed — снова 0)
+		ld	h,tile_changed/256
 		ld	a,(hl)
 		or	a
 		jp	z,pb1c
@@ -238,7 +190,7 @@ pb11:		ld	hl,cmap
 		ld	(cmap+0),a
 		ret
 
-; spr_ecolor: A = цвет врагов комнаты — первый видимый спрайт VSAT с цветом 15, 12 или 14 (14 — как 15; иначе 15)
+; spr_ecolor: A = цвет врагов комнаты — первая видимая запись врага игры с цветом 15, 12 или 14 (14 — как 15; иначе 15)
 spr_ecolor:
 		ld	hl,0x7300
 		ld	b,SPR_MAX
@@ -277,7 +229,7 @@ cell_colors:
 		rrca
 		rrca
 		and	0x1F
-		ld	hl,coltab
+		ld	hl,room_colors
 		call	add_hl_a
 		ld	a,(hl)
 		ld	e,a
@@ -294,151 +246,5 @@ cc1:		ld	d,a
 		jp	nz,cc2
 		inc	a
 cc2:		ld	e,a
-		ret
-
-; --- render_all: вся таблица имён в плоскости ---------------------------------------------------------
-		IFDEF	VIEWER
-render_all:
-		xor	a
-		ld	(rr_r),a
-		ld	hl,NT
-		ld	(rr_nt),hl
-ra_row:		xor	a
-		ld	(rr_c),a
-ra_cell:	ld	hl,(rr_nt)
-		ld	a,(hl)
-		inc	hl
-		ld	(rr_nt),hl
-		ld	(rr_t),a
-		call	draw_cell
-		ld	a,(rr_c)
-		inc	a
-		ld	(rr_c),a
-		cp	32
-		jp	nz,ra_cell
-		ld	a,(rr_r)
-		inc	a
-		ld	(rr_r),a
-		cp	24
-		jp	nz,ra_row
-		ret
-		ENDIF
-
-		IFDEF	VIEWER
-; --- draw_cell: тайл rr_t в клетку (rr_r, rr_c) ---------------------------------------------------------
-draw_cell:
-		ld	a,(rr_t)
-		call	cell_colors
-		ld	hl,cmap			; D, E -> индексы Вектора
-		ld	a,d
-		call	add_hl_a
-		ld	d,(hl)
-		ld	hl,cmap
-		ld	a,e
-		call	add_hl_a
-		ld	e,(hl)
-		ld	hl,rr_m			; маски: точки/фон для плоскостей 8000 (бит 2), A000 (1), C000 (0)
-		ld	b,4
-ra_m:		ld	a,d
-		and	b
-		call	msk
-		ld	(hl),a
-		inc	hl
-		ld	a,e
-		and	b
-		call	msk
-		ld	(hl),a
-		inc	hl
-		ld	a,b
-		rrca
-		ld	b,a
-		cp	0x80
-		jp	nz,ra_m
-		ld	a,(rr_t)		; шаблон: банк (tile_hi << 8) + 8 * тайл
-		ld	l,a
-		ld	h,0
-		add	hl,hl
-		add	hl,hl
-		add	hl,hl
-		ld	a,(tile_hi)
-		add	a,h
-		ld	d,a
-		ld	e,l
-		ld	a,(rr_r)		; экран: L = 0DFh - 8 * ряд, H = 80h + столбец
-		add	a,a
-		add	a,a
-		add	a,a
-		ld	b,a
-		ld	a,0xDF
-		sub	b
-		ld	l,a
-		ld	a,(rr_c)
-		add	a,0x80
-		ld	h,a
-		ld	a,8
-		ld	(rr_y),a
-ra_y:		ld	a,(de)
-		inc	de
-		ld	(rr_p),a
-		cpl
-		ld	(rr_np),a
-		ld	a,(rr_m+1)		; 8000
-		call	ra_byte
-		ld	(hl),a
-		ld	a,h
-		add	a,0x20
-		ld	h,a
-		ld	a,(rr_m+3)		; A000
-		ld	b,a
-		ld	a,(rr_m+2)
-		ld	c,a
-		ld	a,(rr_np)
-		and	b
-		ld	b,a
-		ld	a,(rr_p)
-		and	c
-		or	b
-		ld	(hl),a
-		ld	a,h
-		add	a,0x20
-		ld	h,a
-		ld	a,(rr_m+5)		; C000
-		ld	b,a
-		ld	a,(rr_m+4)
-		ld	c,a
-		ld	a,(rr_np)
-		and	b
-		ld	b,a
-		ld	a,(rr_p)
-		and	c
-		or	b
-		ld	(hl),a
-		ld	a,h
-		sub	0x40
-		ld	h,a
-		dec	l
-		ld	a,(rr_y)
-		dec	a
-		ld	(rr_y),a
-		jp	nz,ra_y
-		ret
-
-		ENDIF
-
-; ra_byte: A = маска фона плоскости 8000, (rr_m+0) — маска точек -> A = байт
-ra_byte:	ld	b,a
-		ld	a,(rr_m+0)
-		ld	c,a
-		ld	a,(rr_np)
-		and	b
-		ld	b,a
-		ld	a,(rr_p)
-		and	c
-		or	b
-		ret
-
-msk:		or	a
-		ret	z
-		ld	a,0xFF
 		ret
 

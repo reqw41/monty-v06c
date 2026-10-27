@@ -63,7 +63,7 @@ function runVec() {
       if (CHEAT) m.wr(0x7049, 6);
       for (const [k, d] of plan[tick] || []) { if (k === 'set') { for (const [a, v] of d) m.wr(a, v); continue; } const e = VECK[k]; if (d) m.keyboard.matrix[e[0]] |= e[1]; else m.keyboard.matrix[e[0]] &= ~e[1]; m.wr(sym.kbmat + e[0], m.keyboard.matrix[e[0]]); }   // kbmat — как после опроса в прерывании
       const b = Buffer.alloc(HI - LO); for (let a = LO; a < HI; a++) b[a - LO] = m.rd(a); snaps.push(b);
-      const v = Buffer.alloc(800); for (let a = 0; a < 768; a++) v[a] = m.rd(sym.VNT + a); for (let a = 0; a < 32; a++) v[768 + a] = m.rd(sym.VCOL + a); vsv.push(v);
+      const v = Buffer.alloc(800); for (let a = 0; a < 768; a++) v[a] = m.rd(sym.VNT + a); for (let a = 0; a < 32; a++) v[768 + a] = m.rd((sym.room_colors ?? sym.VCOL) + a); vsv.push(v);
       if (PATS) psv.push(vecPats(m));
     }
   };
@@ -88,6 +88,14 @@ const SKIP = [[0x7210, 0x7240], [0x7340, 0x7380]];   // буфер OS7 ((8006) =
 const skip = (a) => SKIP.some(([l, h]) => a >= l && a < h);
 // вид шаблонов Вектора: банк 0 — E000; банки 1, 2, 5 — различие (dslot/dstore), иначе банк 0; спрайты — VSPR
 function vecPats(m) {
+  if (sym.fire_frame !== undefined) {
+    const ref = require('./bench/video-ref'), out = Buffer.alloc(5 * 0x800);
+    for (let f = 0; f < 4; f++) for (let t = 0; t < 256; t++)
+      Buffer.from(ref.pattern(t, f, m.rd(sym.belt_frame))).copy(out, f*0x800 + t*8);
+    for (let nm = 0; nm < 256; nm += 4) for (let h = 0; h < 2; h++) for (let y = 0; y < 16; y++)
+      out[4*0x800 + nm*8 + h*16 + y] = ref.sprite(nm,h,y);
+    return out;
+  }
   const out = Buffer.alloc(5 * 0x800);
   for (let b = 0; b < 4; b++) for (let t = 0; t < 256; t++) {
     const k = m.rd(sym.dslot + t);
