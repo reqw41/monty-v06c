@@ -377,6 +377,8 @@ PS_MORE		equ	video_raw_end		; после исходных полос — гот�
 		ASSERT	PS_MORE < 0x7000
 		INCLUDE	"gen/spat.asm"			; ORG VSPR — шаблоны спрайтов прямо в образе
 
+		INCLUDE "gen/logic.asm"
+
 		IFDEF STRICT
 		SAVEBIN	"../../build/native_strict/monty.bin", 0, VSPR+0x0800
 		ELSE

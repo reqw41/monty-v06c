@@ -654,16 +654,15 @@ itp_r:		ld	hl,(0x71B0)
 		ld	a,(0x7059)
 		ret
 ; it_is: Z — тайл A — клетка предмета (9430 — ключи, 9418 — прочие); A сохраняется
-it_is:		push	hl
-		push	bc
-		ld	hl,C_9430
-		ld	bc,0x0C
-		call	cpir
-		jp	z,iti_x
-		ld	hl,C_9418
-		ld	bc,0x10
-		call	cpir
-iti_x:		pop	bc
+it_is:		cp	0x40
+		ret	c			; all items are >= 40h; NZ
+		push	hl
+		ld	l,a
+		ld	h,0
+		ld	a,(hl)
+		and	0x20
+		xor	0x20
+		ld	a,l
 		pop	hl
 		ret
 		ENDIF

@@ -1,18 +1,20 @@
 ; Обработчик кадра игры и прямые фазы анимации (по src/model/frame.js).
 ; Значения ОЗУ игры 7085/73F9 сохраняются как у MSX.
 
-; L_A894: Z — A есть среди 8 байт C_943C (стены); HL, BC сохраняются
-L_A894:		push	hl
-		push	bc
-		ld	hl,C_943C
-		ld	b,8
-a89a:		cp	(hl)
-		jp	z,a89x
-		inc	hl
-		dec	b
-		jp	nz,a89a
-		inc	b			; не найден: NZ (A сохраняется)
-a89x:		pop	bc
+; L_A894: Z = wall, A/BC/HL preserved.
+L_A894:		cp	8
+		ret	z
+		cp	0x0B
+		ret	z
+		cp	0x40
+		ret	c			; low tile, NZ
+		push	hl
+		ld	l,a
+		ld	h,0
+		ld	a,(hl)
+		and	0x80
+		xor	0x80			; Z = wall
+		ld	a,l
 		pop	hl
 		ret
 
