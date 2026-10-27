@@ -1,0 +1,23 @@
+// Независимый пиксельный эталон: исходные снимки MSX, а не готовая графика Вектора.
+const fs = require('fs');
+const path = require('path');
+const root = path.resolve(__dirname, '../..');
+const v0 = fs.readFileSync(path.join(root, 'build/native/vram0.bin'));
+const v = fs.readFileSync(path.join(root, 'build/native/vram.bin'));
+const cart = fs.readFileSync(path.join(root, 'build/monty_entry.bin'));
+const animated = new Set([4,5,6,0x38,0xA0,0xA3,0xA4,0xA7,0xB8,0xB9,0xBA,0xD0,0xD1,0xD2,0xD3,0xD4,0xD5]);
+function pattern(t, frame, belt) {
+  if (t === 0xE0) return cart.subarray(0x85BC + 2*belt, 0x85BC + 2*belt + 8);
+  if (t === 0xE8) return cart.subarray(0x85CA + 8*(belt&1), 0x85CA + 8*(belt&1) + 8);
+  const bank = animated.has(t) ? [0,0x800,0x1000,0x2800][frame] : 0;
+  return (bank ? v : v0).subarray(bank + 8*t, bank + 8*t + 8);
+}
+function modes(m, sym, t) {
+  const col = m.rd(sym.VCOL + (t >> 3));
+  const fg = m.rd(sym.cmap + ((col >> 4) || 1));
+  const bg = m.rd(sym.cmap + ((col & 15) || 1));
+  let out = 0;
+  for (let bit = 2; bit >= 0; bit--) out |= (((fg >> bit)&1) | (((bg >> bit)&1) << 1)) << (2*bit);
+  return out;
+}
+module.exports = { animated, pattern, modes, sprite: (nm, half, y) => v[0x3800 + 8*nm + 16*half + y] };

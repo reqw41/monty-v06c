@@ -1,6 +1,7 @@
 // Весь экран против эталона: фон по VNT (огонь 38, D0-D5 — любой кадр банка) + нарисованные спрайты (spr_rec +0, атрибуты +1..+4):
 // враги (цвет не 6/11) — OR в 8000; Джо — тремя плоскостями по индексу cmap[цвет]: бит 2 -> 8000, 1 -> A000, 0 -> C000 (AND/OR), меньший номер сверху.
 // node scrchk.js dir шагов [tp|r19]
+const REF = require('./video-ref');
 const fs = require('fs'); process.chdir('/Users/boris/projects/monty-v06c');
 const E = require('/Users/boris/projects/monty-v06c/tools/vec_emu');
 const dir = process.argv[2] || 'build/native', N = +(process.argv[3] || 2000), MODE = process.argv[4] || '';
@@ -11,18 +12,19 @@ const SPRMAX = 6, REC = sym.spr_rec;
 let steps = 0, fc = 0, checks = 0, bad = 0, skip = 0; const ex = [];
 const keys = (s) => { K(7, 0x80, (s >= 20 && s < 30) || (s > 200 && s % 37 < 4)); const ph = s < 100 ? -1 : Math.floor((s - 100) / 70) % 4; K(0, 0x40, ph === 0); K(0, 0x10, ph === 2); K(0, 0x20, ph === 1 && s % 50 < 20); K(0, 0x80, ph === 3 && s % 50 < 20); };
 const isFire = (t) => t === 0x38 || (t >= 0xD0 && t <= 0xD5);
-function cellBytes(t, f) { const ds = m.rd(sym.dslot + t); let src = 0xE000 + 8 * t; if (f && ds !== 0xFF) src = sym.dstore + 24 * ds + 8 * (f - 1);
-  if (t === 0xE0) src = sym.C_85BC + 2 * m.rd(sym.belt_shown);
-  if (t === 0xE8) src = sym.C_85CA + 8 * (m.rd(sym.belt_shown) & 1);
-  const md = m.rd(sym.cmodes + m.rd(sym.VCOL + (t >> 3))); const o = [];
-  for (let p = 0; p < 3; p++) { const mode = (md >> (4 - 2 * p)) & 3; for (let y = 0; y < 8; y++) { const pat = m.rd(src + y); o.push([0, pat, pat ^ 0xFF, 0xFF][mode]); } } return o; }
+function cellBytes(t, f) {
+  const pat = REF.pattern(t, f, m.rd(sym.belt_shown)), md = REF.modes(m, sym, t), o = [];
+  for (let p = 0; p < 3; p++) { const mode = (md >> (4 - 2*p)) & 3;
+    for (let y = 0; y < 8; y++) o.push([0,pat[y],pat[y]^255,255][mode]); }
+  return o;
+}
 function check() {
   if (m.rd(sym.dl_n) || m.rd(sym.dl_ovf) || m.rd(sym.vdirty) || m.rd(sym.crit_pend) || m.rd(sym.lv_dirty)) { skip++; return; }
   if (!m.rd(sym.video_enabled)) { skip++; return; }
   // фон: 3 плоскости x 256 x 256 (строки экрана 0..191 сверху: адрес 0xFF - y... как у клетки: 0xDF - 8r - y)
   const scr = [new Uint8Array(8192), new Uint8Array(8192), new Uint8Array(8192)], fire = new Uint8Array(768); const th = m.rd(sym.tile_hi);
   const ad = (c, y) => c * 256 + 0xDF - y;   // y = 0..191 сверху
-  for (let r = 0; r < 24; r++) for (let c = 0; c < 32; c++) { const t = m.rd(sym.VNT + r * 32 + c); if (isFire(t) && m.rd(sym.dslot + t) !== 0xFF) fire[r * 32 + c] = 1;
+  for (let r = 0; r < 24; r++) for (let c = 0; c < 32; c++) { const t = m.rd(sym.VNT + r * 32 + c); if (isFire(t) && REF.animated.has(t)) fire[r * 32 + c] = 1;
     const b = cellBytes(t, th); for (let p = 0; p < 3; p++) for (let y = 0; y < 8; y++) scr[p][ad(c, 8 * r + y)] = b[p * 8 + y]; }
   // огонь: принимаем экран как есть, если он равен какому-то кадру
   for (let r = 0; r < 24; r++) for (let c = 0; c < 32; c++) if (fire[r * 32 + c]) { const t = m.rd(sym.VNT + r * 32 + c);
@@ -33,7 +35,7 @@ function check() {
     const Y = m.rd(a + 1), X = m.rd(a + 2), nm = m.rd(a + 3) & 0xFC, col = m.rd(a + 4) & 15; const ci = m.rd(sym.cmap + col);
     const hero = col === 6 || col === 11; const top = Y + 1;
     for (let yy = 0; yy < 16; yy++) { const y = top + yy; if (y >= 192) break;
-      for (let half = 0; half < 2; half++) { const pb = m.rd(sym.VSPR + nm * 8 + half * 16 + yy);
+      for (let half = 0; half < 2; half++) { const pb = REF.sprite(nm, half, yy);
         for (let bx = 0; bx < 8; bx++) { if (!(pb & (0x80 >> bx))) continue; const x = X + half * 8 + bx; if (x > 255) continue;
           const c = x >> 3, bit = 0x80 >> (x & 7), A = ad(c, y); under[(y >> 3) * 32 + c] = 1;
           if (!hero) scr[0][A] |= bit; else for (let p = 0; p < 3; p++) { if ((ci >> (2 - p)) & 1) scr[p][A] |= bit; else scr[p][A] &= ~bit; } } } } }

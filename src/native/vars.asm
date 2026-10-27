@@ -112,6 +112,13 @@ sn_chg:		ds	1
 sn_per:		ds	8
 sn_att:		ds	4
 obj_end:	ds	1
+tile_phase:	ds	1
+tile_i:		ds	1
+tile_frames:	ds	1
+tile_count:	ds	1
+tile_src:	ds	2
+tile_dst:	ds	2
+group_modes:	ds	32
 pvars_end:
 dc_sp:		ds	2
 tabs_end:

@@ -1,128 +1,176 @@
-; Вывод клетки: тайл rr_t в клетку (rr_r, rr_c) — прямо из графики тайла в три плоскости экрана.
-; Графика тайла — 8 байт точек: у анимированных — кадр tile_hi (dstore: 24 байта на тайл, кадры 1-3 по 8),
-; у остальных — E000 + 8 * тайл. Цвет — байт цвета группы (8 тайлов, VCOL): cmodes[цвет] — что писать в
-; плоскости 8000, A000, C000 (биты 5-4, 3-2, 1-0: 0 — 00, 1 — точки, 2 — точки инверсно, 3 — FF).
-; Экран: L = 0DFh - 8 * строка (вниз — dec l), H = 80h + столбец (+20h — следующая плоскость).
-; DCP sh: плоскость по режиму (dc_m >> sh) & 3 — без вызовов (SP занят); dc_pt <> 0 — плоскости 00/FF не писать
-		MACRO	DCP sh
-		ld	a,(dc_m)
-		IF	sh > 0
-		REPT	sh
-		rrca
-		ENDR
-		ENDIF
-		and	3
-		jp	z,.z
-		dec	a
-		jp	z,.p
-		dec	a
-		jp	z,.i
-		ld	a,0xFF
-		jp	.f
-.z:		xor	a
-.f:		ld	b,a			; 00/FF: стек — на строку выше верхней, 4 x PUSH
-		ld	a,(dc_pt)		; сменились только точки (force_live_t) — 00/FF уже на экране
-		or	a
-		jp	nz,.x
-		ld	c,b
-		inc	l
-		ld	sp,hl
-		dec	l
-		REPT	4
-		push	bc
-		ENDR
-		jp	.x
-.p:		ex	de,hl			; точки: стек — на графику, 4 x POP
-		ld	sp,hl
-		ex	de,hl
-		REPT	4
-		pop	bc
-		ld	(hl),c
-		dec	l
-		ld	(hl),b
-		dec	l
-		ENDR
-		jp	.e
-.i:		ex	de,hl			; точки инверсно
-		ld	sp,hl
-		ex	de,hl
-		REPT	4
-		pop	bc
-		ld	a,c
-		cpl
-		ld	(hl),a
-		dec	l
-		ld	a,b
-		cpl
-		ld	(hl),a
-		dec	l
-		ENDR
-.e:		ld	a,l
-		add	a,8
+; Готовая клетка: 24 байта, полосы 8000/A000/C000 по 8 строк сверху вниз.
+; В обычном рисовании нет выбора банков, цветов или режимов плоскостей.
+tile_slots equ 0xF300
+
+tiles_reset:	ld	hl,tile_slots
+		ld	bc,256
+		ld	e,0xFF
+		call	memfill_f
+		xor	a
+		ld	(tile_count),a
+		ret
+
+; Все варианты живого тайла строятся вместе; смена кадра только выбирает образ.
+tile_kind:	ld	a,(rr_t)
+		cp	0xE8
+		ld	c,2
+		ret	z
+		cp	0xE0
+		ld	c,4
+		ret	z
 		ld	l,a
-.x:
-		ENDM
-; dc_tile: rr_t -> C = режимы плоскостей, DE = графика (8 байт)
-dc_tile:
-		ld	a,(rr_t)		; цвет группы -> режимы плоскостей (C)
+		ld	h,lv_idx/256
+		ld	a,(hl)
+		cp	17
+		ret	c
+		ld	c,1
+		ret
+
+tile_ready:	ld	a,(rr_t)
+		ld	l,a
+		ld	h,tile_slots/256
+		ld	a,(hl)
+		cp	0xFF
+		jp	nz,tile_select
+		push	hl
+		call	tile_kind
+		ld	a,c
+		ld	(tile_frames),a
+		ld	a,(tile_count)
+		add	a,c
+		cp	TILE_CAP+1
+		push	bc
+		call	nc,tiles_reset
+		pop	bc
+		ld	a,(tile_count)
+		pop	hl
+		ld	(hl),a
+		push	af
+		add	a,c
+		ld	(tile_count),a
+		pop	af
+		call	tile_build
+		jp	tile_ready
+
+tile_select:	ld	b,a
+		ld	a,(rr_t)
+		cp	0xE0
+		jp	z,tsel_belt
+		cp	0xE8
+		jp	z,tsel_chain
+		ld	l,a
+		ld	h,lv_idx/256
+		ld	a,(hl)
+		cp	17
+		ld	a,0
+		jp	nc,tsel_add
+		ld	a,(tile_hi)
+		jp	tsel_add
+tsel_chain:	ld	a,(belt_shown)
+		and	1
+		jp	tsel_add
+tsel_belt:	ld	a,(belt_shown)
+tsel_add:	add	a,b
+; tile_addr: A = номер образа -> HL = TILE_IMAGES + 24*A
+tile_addr:	ld	l,a
+		ld	h,0
+		add	hl,hl
+		add	hl,hl
+		ld	d,h
+		ld	e,l
+		add	hl,de
+		add	hl,hl
+		add	hl,hl
+		ld	de,TILE_IMAGES
+		add	hl,de
+		ret
+
+; tile_build: A = базовая ячейка; tile_frames — вариантов. Только вход/смена цвета.
+tile_build:	ld	(tile_i),a
+		xor	a
+		ld	(tile_phase),a
+tbuild0:	ld	a,(tile_i)
+		call	tile_addr
+		ld	(tile_dst),hl
+		call	dc_tile
+		call	da_img
+		ld	hl,tile_i
+		inc	(hl)
+		ld	hl,tile_phase
+		inc	(hl)
+		ld	a,(tile_frames)
+		cp	(hl)
+		jp	nz,tbuild0
+		ret
+
+; tile_recolor: L = тайл с новым цветом; сохранить выделенное место и перестроить варианты.
+tile_recolor:	push	af
+		push	bc
+		push	de
+		push	hl
+		ld	a,l
+		ld	(rr_t),a
+		ld	h,tile_slots/256
+		ld	a,(hl)
+		cp	0xFF
+		jp	z,trc_end
+		push	af
+		call	tile_kind
+		ld	a,c
+		ld	(tile_frames),a
+		pop	af
+		call	tile_build
+trc_end:	pop	hl
+		pop	de
+		pop	bc
+		pop	af
+		ret
+
+; dc_tile используется только построителем образов: C = режимы группы, DE = исходная полоса.
+dc_tile:	ld	a,(rr_t)
 		ld	b,a
 		rrca
 		rrca
 		rrca
-		and	0x1F
-		add	a,VCOL&0xFF
-		ld	l,a
-		ld	h,VCOL/256
-		ld	l,(hl)
-		ld	h,cmodes/256
+		and	31
+		ld	hl,group_modes
+		call	add_hl_a
 		ld	c,(hl)
 		ld	a,b
 		cp	0xE0
 		jp	z,dc_belt0
 		cp	0xE8
 		jp	z,dc_belt8
-		ld	a,(tile_hi)		; графика: кадр анимации tile_hi (если у тайла есть кадры) или E000
-		or	a
-		jp	z,dcg0
 		ld	l,b
-		ld	h,dslot/256
+		ld	h,lv_idx/256
 		ld	a,(hl)
-		cp	0xFF
-		jp	z,dcg0
-		ld	e,a			; dstore + 24 * номер + 8 * (кадр - 1)
-		ld	d,0
-		ld	h,d
-		ld	l,e
-		add	hl,hl
-		add	hl,de
-		add	hl,hl
-		add	hl,hl
-		add	hl,hl
-		ld	de,dstore-8
-		add	hl,de
-		ld	a,(tile_hi)
+		cp	17
+		jp	nc,dc_base
 		add	a,a
 		add	a,a
 		add	a,a
+		ld	b,a
+		ld	a,(tile_phase)
+		add	a,a
+		add	a,b
+		ld	hl,raw_anim
 		call	add_hl_a
-		ex	de,hl
-		jp	dcg1
-dcg0:		ld	l,b			; E000 + 8 * тайл
+		jp	dc_source
+dc_base:	ld	a,(rr_t)
+		ld	l,a
 		ld	h,0
 		add	hl,hl
-		add	hl,hl
-		add	hl,hl
-		ld	a,h
-		add	a,0xE0
-		ld	d,a
-		ld	e,l
-dcg1:
+		ld	de,raw_base
+		add	hl,de
+dc_source:	ld	e,(hl)
+		inc	hl
+		ld	d,(hl)
 		ret
-dc_belt0:	ld	a,(belt_shown)
+dc_belt0:	ld	a,(tile_phase)
 		add	a,a
 		ld	hl,C_85BC
 		jp	dc_belt
-dc_belt8:	ld	a,(belt_shown)
+dc_belt8:	ld	a,(tile_phase)
 		and	1
 		add	a,a
 		add	a,a
@@ -131,52 +179,24 @@ dc_belt8:	ld	a,(belt_shown)
 dc_belt:	call	add_hl_a
 		ex	de,hl
 		ret
-; dc_scr: rr_r, rr_c -> HL = экран (плоскость 8000, верхняя строка клетки)
+
+; dc_scr: клетка -> экран (верхняя строка, плоскость 8000).
 dc_scr:		ld	a,(rr_r)
 		add	a,a
 		add	a,a
 		add	a,a
 		cpl
-		add	a,0xE0			; 0DFh - 8 * строка
+		add	a,0xE0
 		ld	l,a
 		ld	a,(rr_c)
 		add	a,0x80
 		ld	h,a
 		ret
-; draw_cell: тайл rr_t в клетку (rr_r, rr_c)
-draw_cell:	call	dc_tile
+
+draw_cell:	call	tile_ready
+		ld	(tile_src),hl
 		call	dc_scr
-; dc_draw: C = режимы, DE = графика, HL = экран — три плоскости. Через стек (прерывания на время запрещены):
-; 00/FF — PUSH (стек сверху столбца вниз), точки — POP из графики, запись в столбец. DE, HL — не меняются
-dc_draw:	ld	a,c
-		ld	(dc_m),a
-		di
-		push	hl			; SP — сохранить
-		ld	hl,2
-		add	hl,sp
-		ld	(dc_sp),hl
-		pop	hl
-		DCP	4
-		ld	a,h
-		add	a,0x20
-		ld	h,a
-		DCP	2
-		ld	a,h
-		add	a,0x20
-		ld	h,a
-		DCP	0
-		ld	a,h
-		sub	0x40
-		ld	h,a
-		ex	de,hl
-		ld	hl,(dc_sp)
-		ld	sp,hl
-		ex	de,hl
-		ld	a,(in_isr)		; из прерывания (короткая часть) — не разрешать
-		or	a
-		ret	nz
-		ei
-		ret
+		jp	da_blit
 
 ; memfill_f: HL = начало, BC = число байт (кратно 16, не меньше 16), E = байт — через стек по 16 байт (~10 тактов
 ; на байт против ~70 у memfill). Прерывания на время запрещены, после — разрешены (только там, где разрешены и так)

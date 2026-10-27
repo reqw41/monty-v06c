@@ -4,7 +4,7 @@
 ;   (cd src/native && ../../tools/sjasmplus --nologo --i8080 --sym=../../build/native/monty.sym game.asm)
 ; Память — src/vec/mem.asm; ОЗУ игры 7000-73FF — как у оригинала (сверка tools/lockstep.js).
 		DEVICE	NOSLOT64K
-		INCLUDE	"../vec/mem.asm"
+		INCLUDE	"mem.asm"
 PND		equ	NTS			; клетка ждёт вывода (1) — по адресу клетки в VNT (выровнена так же)
 VD_PAT		equ	0x01			; отметки для вывода (display.asm)
 VD_COL		equ	0x02
@@ -115,14 +115,12 @@ bclr:		REPT	64
 		ld	sp,0x0100
 		call	vi_off			; ВИ53 молчит, каналы SN — тоже (TURN_OFF_SOUND оригинала)
 		call	snd_off
-		call	pats_init		; шаблоны: банк 0 -> E000, различия -> dslot/dstore, спрайты -> VSPR
 		call	se_init
 		call	rot_init
 		call	trim_build
 		call	ps_build		; готовые сдвиги кадров врагов
 		ld	a,16
 		ld	(cb_st),a
-		call	bd_init
 		call	lv_init
 		ld	a,1
 		ld	(kb_req),a
@@ -131,32 +129,6 @@ bclr:		REPT	64
 		ei
 		jp	game_start		; меню и начало уровня (level.asm)
 
-; pats_init: шаблоны из снимка VRAM (gen/pats.asm)
-pats_init:
-		ld	hl,0xE000		; банк 0 (сжатый)
-		ld	de,pat0_pk
-		call	unpack
-		ld	hl,dslot		; различия: dslot[t] := номер, dstore — 24 байта на тайл
-		ld	bc,256
-		ld	e,0xFF
-		call	memfill
-		ld	hl,anim_set
-		ld	b,0
-pi1:		ld	a,(hl)
-		cp	0xFF
-		jp	z,pi2
-		push	hl
-		ld	l,a
-		ld	h,dslot/256
-		ld	(hl),b
-		pop	hl
-		inc	hl
-		inc	b
-		jp	pi1
-pi2:		ld	hl,dstore
-		ld	de,pdiff
-		ld	bc,24*DMAX
-		jp	copy_de_hl
 ; copy_de_hl: (HL) <- (DE), BC байт
 copy_de_hl:	ld	a,(de)
 		ld	(hl),a
@@ -351,13 +323,12 @@ unit_fw:	push	af			; tools/unit.js: ожидание кадра = обработ
 		INCLUDE	"../vec/gen/pal.asm"
 		INCLUDE	"gen/cart.asm"
 se_tab:		ds	8*24			; адреса входа блоков по числу строк (se_init)
-bd_tab:		ds	48			; переходы банков: какие анимированные тайлы меняются (bd_init)
 ex_bb:		ds	4			; общая рамка отложенных клеток
 lv_tile:	ds	33			; живые клетки: тайл корзины
 lv_beg:		ds	34			; начало корзины в live_list (+ всего)
 lv_pos:		ds	33			; счётчики/позиции при раскладке
 lv_idx		equ	0xF400			; тайл -> корзина (FF — не живой); бывший кэш тайлов в невидимой плоскости
-		INCLUDE	"gen/pats.asm"
+		INCLUDE	"gen/video.asm"
 		INCLUDE	"vars.asm"
 ps_idx:		ds	64			; готовые сдвиги: имя / 4 -> номер (sprites.asm, ps_build)
 ps_tab:		ds	2*8*PS_N
@@ -378,7 +349,6 @@ mb_d:		ds	16			; modes_build: вклад индекса как точек / ка
 mb_e:		ds	16
 mf_v:		ds	1			; memfill_f
 mf_sp:		ds	2
-da_buf:		ds	24			; draw_all: образ клетки (плоскости 8000, A000, C000 по 8 байт)
 ps_heap:					; дальше до PS_TOP — место готовых сдвигов
 		ASSERT	ps_heap < PS_TOP - 0x400
 ; выровненные таблицы — на постоянных адресах под 7000 (рост кода не сдвигает их на страницу)

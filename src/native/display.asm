@@ -285,6 +285,7 @@ room_redraw:
 		call	pal_build
 		call	pal_fill
 		call	modes_build
+		call	tiles_reset
 		ld	a,3
 		ld	(pal_load),a
 		call	draw_all		; комната — целиком, прямо (спрайты — стёрты: их не восстанавливать)
@@ -473,8 +474,17 @@ flt1:		ld	c,(hl)			; корзина (из непустых)
 		jp	z,flt3
 		ld	(fl_n),a
 		push	bc			; C — позиция
-		call	dc_tile			; графика и режимы — одни на всю корзину (тайл один)
-		ld	a,0x15			; плоскости (биты 4, 2, 0 — 8000, A000, C000): все; только точки — режимы 1, 2
+		call	tile_ready
+		ld	(tile_src),hl
+		ld	a,(rr_t)
+		rrca
+		rrca
+		rrca
+		and	31
+		ld	hl,group_modes
+		call	add_hl_a
+		ld	c,(hl)
+		ld	a,0x15
 		ld	b,a
 		ld	a,(dc_pt)
 		or	a
@@ -484,15 +494,12 @@ flt1:		ld	c,(hl)			; корзина (из непустых)
 		rrca
 		xor	c
 		and	b
-flt4:		rlca				; -> биты 7, 5, 3
+flt4:		rlca
 		rlca
 		rlca
 		ld	(fl_pm),a
-		push	af
-		call	da_img
-		pop	af
 		pop	bc
-		or	a			; плоскостей с точками нет — на экране ничего не меняется
+		or	a
 		jp	z,flt3
 		ld	a,(rr_t)		; огонь при смене кадра — по очереди (fl_skm, fl_c по кругу FIRE_K);
 		cp	0x38			; ленты и прочее — целиком (иначе зубцы разъезжаются)
@@ -557,7 +564,10 @@ flt9:		ld	a,e			; HL = экран: L = 0DFh - 8 * строка, 8 * строка
 		add	a,0x80
 		ld	h,a
 		di				; (SP цикла — в dc_sp с начала корзины)
-		ld	sp,da_buf
+		ex	de,hl
+		ld	hl,(tile_src)
+		ld	sp,hl
+		ex	de,hl
 		ld	a,(fl_pm)
 		ld	b,a
 flp0:		ld	a,b			; плоскость: бит 7 маски
@@ -682,162 +692,43 @@ fx5:		ld	a,l
 		jp	nz,fx0
 		ret
 
-; bank_diff: col_flag[t] := 1 для тайлов anim_set, у которых шаблон в банке bk_new не тот, что в tile_hi
-bank_diff:					; по таблице переходов банков (bd_init): col_flag анимированных тайлов
-		ld	a,(tile_hi)
-		add	a,a
-		add	a,a
-		ld	b,a
-		ld	a,(bk_new)
-		add	a,b
-		ld	b,a
-		add	a,a
-		add	a,b			; 3 * (4 * старый + новый)
-		ld	hl,bd_tab
-		call	add_hl_a
+; fire_diff: у анимированных тайлов изменился указатель исходной полосы.
+bank_diff:	ld	hl,raw_anim
 		ld	de,anim_set
-		ld	c,3
-bdt0:		ld	a,(hl)
-		ld	b,8
-bdt1:		rrca
-		push	af
-		jp	nc,bdt2
-		ld	a,(de)
-		cp	0xFF
-		jp	z,bdt3
+		ld	b,17
+fd0:		push	bc
+		push	de
 		push	hl
+		ld	a,(tile_hi)
+		add	a,a
+		call	add_hl_a
+		ld	c,(hl)
+		inc	hl
+		ld	b,(hl)
+		pop	hl
+		push	hl
+		ld	a,(bk_new)
+		add	a,a
+		call	add_hl_a
+		ld	a,(hl)
+		cp	c
+		jp	nz,fd_mark
+		inc	hl
+		ld	a,(hl)
+		cp	b
+		jp	z,fd_next
+fd_mark:	ld	a,(de)
 		ld	l,a
 		ld	h,col_flag/256
 		ld	(hl),1
-		pop	hl
-bdt2:		inc	de
-		pop	af
-		dec	b
-		jp	nz,bdt1
-		inc	hl
-		dec	c
-		jp	nz,bdt0
-		ret
-bdt3:		pop	af
-		ret
-
-; bd_init: таблица bd_tab[4 * старый + новый] — 3 байта, бит i: у anim_set[i] шаблоны банков различаются
-bd_init:	ld	hl,bd_tab
-		xor	a
-		ld	(tile_hi),a
-bi0:		xor	a
-		ld	(bk_new),a
-bi1:		push	hl
-		call	bank_diff_slow
-		pop	hl
-		ld	de,anim_set		; флаги -> 3 байта, флаги сбросить
-		ld	c,3
-bi2:		ld	b,8
-		ld	(hl),0
-bi3:		ld	a,(de)
-		cp	0xFF
-		jp	z,bi4
-		push	hl
-		ld	l,a
-		ld	h,col_flag/256
-		ld	a,(hl)
-		ld	(hl),0
-		pop	hl
-		rrca
-		ld	a,(hl)
-		rra
-		ld	(hl),a
-		inc	de
-		dec	b
-		jp	nz,bi3
-		jp	bi5
-bi4:		ld	a,(hl)
-		or	a
-		rra
-		ld	(hl),a
-		dec	b
-		jp	nz,bi4
-bi5:		inc	hl
-		dec	c
-		jp	nz,bi2
-		ld	a,(bk_new)
-		inc	a
-		ld	(bk_new),a
-		cp	4
-		jp	nz,bi1
-		ld	a,(tile_hi)
-		inc	a
-		ld	(tile_hi),a
-		cp	4
-		jp	nz,bi0
-		xor	a
-		ld	(tile_hi),a
-		ret
-
-bank_diff_slow:
-		ld	hl,anim_set
-bd0:		ld	a,(hl)
-		cp	0xFF
-		jp	z,bd_end
-		push	hl
-		ld	c,a
-		ld	a,(tile_hi)
-bd_cmp:		call	pat_ptr			; прежний
-		push	hl
-		ld	a,(bk_new)
-		call	pat_ptr			; новый
+fd_next:	pop	hl
+		ld	bc,8
+		add	hl,bc
 		pop	de
-		ld	b,8
-bd1:		ld	a,(de)
-		cp	(hl)
-		jp	nz,bd_ch
+		pop	bc
 		inc	de
-		inc	hl
 		dec	b
-		jp	nz,bd1
-		jp	bd9
-bd_ch:		ld	l,c
-		ld	h,col_flag/256
-		ld	(hl),1
-bd9:		pop	hl
-		inc	hl
-		jp	bd0
-bd_end:		ret
-
-; pat_ptr: C = тайл, A = банк (0..3) -> HL = шаблон (8 байт) (C сохраняется)
-pat_ptr:	or	a
-		jp	z,pp_b0
-		dec	a
-		add	a,a
-		add	a,a
-		add	a,a
-		ld	b,a
-		ld	l,c
-		ld	h,dslot/256
-		ld	a,(hl)
-		cp	0xFF
-		jp	z,pp_b0
-		ld	e,a			; dstore + 24 * номер + 8 * (банк - 1)
-		ld	d,0
-		ld	h,d
-		ld	l,e
-		add	hl,hl
-		add	hl,de
-		add	hl,hl
-		add	hl,hl
-		add	hl,hl
-		ld	de,dstore
-		add	hl,de
-		ld	a,b
-		jp	add_hl_a
-pp_b0:		ld	l,c			; банк 0: E000 + 8 * тайл
-		ld	h,0
-		add	hl,hl
-		add	hl,hl
-		add	hl,hl
-		ld	a,h
-		add	a,0xE0
-		ld	h,a
+		jp	nz,fd0
 		ret
 
 bank_hi:	ld	a,(fire_frame)
@@ -871,8 +762,8 @@ dal2:		ld	a,(de)
 		jp	z,dal3
 		ld	(hl),a			; другой тайл — образ заново
 		ld	(rr_t),a
-		call	dc_tile
-		call	da_img
+		call	tile_ready
+		ld	(tile_src),hl
 dal3:		pop	hl
 		call	da_blit
 		pop	de
@@ -893,7 +784,7 @@ dal3:		pop	hl
 		ld	e,0
 		jp	memfill
 ; da_img: C = режимы, DE = графика -> da_buf: 3 плоскости по 8 байт (сверху вниз)
-da_img:		ld	hl,da_buf
+da_img:		ld	hl,(tile_dst)
 		ld	a,c
 		rrca
 		rrca
@@ -944,7 +835,7 @@ da_blit:	di
 		ld	hl,0
 		add	hl,sp
 		ld	(dc_sp),hl
-		ld	hl,da_buf
+		ld	hl,(tile_src)
 		ld	sp,hl
 		ex	de,hl
 		REPT	3
@@ -1002,6 +893,7 @@ col_snapshot:
 
 ; col_changed: группы с новым цветом -> их клетки к перерисовке (палитра и режимы — при смене комнаты)
 col_changed:
+		call	modes_build
 		xor	a
 		ld	(col_oth),a
 		ld	hl,VCOL
@@ -1029,6 +921,7 @@ cg1a:		push	hl			; col_flag[8b .. 8b+7] := 1
 		ld	a,1
 		REPT	8
 		ld	(hl),a
+		call	tile_recolor
 		inc	l
 		ENDR
 		pop	hl
@@ -1321,23 +1214,31 @@ mb4:		ld	hl,mb_d
 		ld	a,b
 		cp	16
 		jp	nz,mb0
-		ld	hl,cmodes		; cmodes[16 h + l] = mb_d[h] | mb_e[l]
-		ld	de,mb_d
-mb5:		ld	a,(de)
-		ld	c,a
-		push	de
-		ld	de,mb_e
-		ld	b,16
-mb6:		ld	a,(de)
+		ld	de,VCOL
+		ld	hl,group_modes
+		ld	b,32
+mb5:		push	bc
+		push	hl
+		ld	a,(de)
+		and	15
+		ld	hl,mb_e
+		call	add_hl_a
+		ld	c,(hl)
+		ld	a,(de)
+		rrca
+		rrca
+		rrca
+		rrca
+		and	15
+		ld	hl,mb_d
+		call	add_hl_a
+		ld	a,(hl)
 		or	c
+		pop	hl
 		ld	(hl),a
+		inc	hl
 		inc	de
-		inc	l
+		pop	bc
 		dec	b
-		jp	nz,mb6
-		pop	de
-		inc	de
-		ld	a,l
-		or	a
 		jp	nz,mb5
 		ret
