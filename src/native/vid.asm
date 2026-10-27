@@ -305,39 +305,6 @@ pp3:
 		ld	(vdirty),a
 		jp	np_x
 
-; sat_copy: A = число — атрибуты 7300 в порядке 72E0 -> VSAT (WR_SPR_NM_TBL). Регистры сохраняются
-sat_copy:	push	af
-		push	bc
-		push	de
-		push	hl
-		ld	b,a
-		ld	de,VSAT
-		ld	hl,0x72E0
-sc1:		push	hl
-		ld	l,(hl)
-		ld	h,0
-		add	hl,hl
-		add	hl,hl
-		push	bc
-		ld	bc,0x7300
-		add	hl,bc
-		REPT	4
-		ld	a,(hl)
-		ld	(de),a
-		inc	hl
-		inc	de
-		ENDR
-		pop	bc
-		pop	hl
-		inc	hl
-		dec	b
-		jp	nz,sc1
-		pop	hl
-		pop	de
-		pop	bc
-		pop	af
-		ret
-
 ; dl_add (mark_row): HL = адрес клетки в VNT -> в список изменённых клеток (dlist, до DL_MAX; больше — dl_ovf,
 ; вывод тогда по всем строкам). Регистры, кроме A, сохраняются
 mark_row:

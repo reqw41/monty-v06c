@@ -1,4 +1,4 @@
-; Программные спрайты 16x16 по таблице атрибутов VSAT (TMS9918: Y, X, имя, цвет | EC) с сохранением фона
+; Объекты игры 7300 в порядке 72E0: постоянные дескрипторы слоёв с сохранением фона
 ; в невидимой плоскости (ячейка SPR_SLOTS + 256 * номер). Кадр: spr_plan (какие перерисовать: изменённые,
 ; под изменёнными клетками, пересекающие их) -> spr_restore (фон назад, 0..) -> вывод клеток -> spr_draw
 ; (отмеченные, с последнего: меньший номер сверху). Неизменённые спрайты не трогаются — не мерцают. Спрайт — до 3 столбцов x 3 плоскости вертикальных полос по 16 строк. Маски столбцов
@@ -20,14 +20,38 @@ SREC		equ	16			; запись: нарисован, Y X имя цвет, r0 r1 c0
 ; spr_plan: новые атрибуты (spr_new) и метки перерисовки в spr_rec: спрайт отмечен, если атрибуты не те
 ; (или spr_force), если под нарисованным клетки ждут вывода (PND) и, до замыкания, если его прямоугольник
 ; пересекает прежний или новый прямоугольник отмеченного. A = число отмеченных.
-spr_plan:					; один проход: атрибуты VSAT против нарисованных (запись +1..+4); изменённым
-		ld	de,VSAT			; (или при spr_force) — метка, новые атрибуты, видимость, место
+; obj_ptr: A = место в порядке объектов -> DE = запись объекта игры (7300).
+; HL и BC сохраняются. Копия таблицы атрибутов не нужна.
+obj_ptr:	push	hl
+		ld	l,a
+		ld	h,0x72
+		ld	a,l
+		add	a,0xE0
+		ld	l,a
+		ld	a,(hl)
+		add	a,a
+		add	a,a
+		ld	e,a
+		ld	d,0x73
+		pop	hl
+		ret
+
+spr_plan:	xor	a
+		ld	(obj_end),a
 		ld	hl,spr_rec+1		; DE -> атрибуты, L = 16 * k + 1
 		ld	b,SPR_MAX
-spl0:		ld	a,(de)
+spl0:		ld	a,SPR_MAX
+		sub	b
+		call	obj_ptr
+		ld	a,(obj_end)
+		or	a
+		jp	nz,spl_end
+		ld	a,(de)
 		cp	0xD0
 		jp	nz,spl_c
-		ld	de,spl_z		; конец таблицы: дальше невидимы, атрибуты D0 0 0 0
+		ld	a,1
+		ld	(obj_end),a
+spl_end:	ld	de,spl_z
 spl_c:		ld	a,(spr_force)
 		or	a
 		jp	nz,spl_ch
@@ -50,7 +74,12 @@ spl_c:		ld	a,(spr_force)
 		ld	(hl),0
 		jp	spl_n
 spl_cp:		pop	de
-spl_ch:		ld	a,l			; изменился: метка 1
+spl_ch:		ld	a,l
+		and	0xF0
+		or	15
+		ld	l,a
+		ld	(hl),1			; дескриптор меняется только вместе с объектом
+		ld	a,l			; изменился: метка 1
 		and	0xF0
 		or	13
 		ld	l,a
@@ -663,12 +692,23 @@ sr_x:		pop	bc
 ; --- spr_prep: для отмеченных видимых — обрезка, маски (в ячейку +C0), место; в spr_new: +9 L, +10 столбец,
 ; +11 строк, +12 пустые столбцы, +13 цвет (индекс), +14 рисовать. Всё долгое — до ожидания кадра.
 spr_prep:
+		ld	a,(spr_rec+15)
+		ld	hl,spr_rec+16+15
+		or	(hl)
+		ld	(hl),a
+		ld	(spr_rec+15),a
 		ld	b,0
 pp0:		ld	a,b
 		ld	(sp_k),a
 		call	rec_ptr
 		ld	de,13
 		add	hl,de
+		ld	a,(hl)
+		or	a
+		jp	z,pp9
+		ld	a,l
+		add	a,2
+		ld	l,a
 		ld	a,(hl)
 		or	a
 		jp	z,pp9
@@ -682,6 +722,16 @@ pp0:		ld	a,b
 		ld	a,(hl)			; виден?
 		or	a
 		jp	z,pp9
+		ld	a,b
+		call	rec_ptr
+		ld	a,l
+		or	15
+		ld	l,a
+		ld	a,(hl)
+		or	a
+		jp	z,pp9
+		ld	a,b
+		call	new_ptr
 		inc	hl
 		push	bc
 		call	spr_one
@@ -1247,8 +1297,14 @@ sy0:		ld	a,b
 		ld	a,(hl)			; не отмечен — рисоваться не будет
 		or	a
 		jp	z,sy9
+		inc	l
+		inc	l
+		ld	a,(hl)
+		or	a
+		jp	z,sy9
+		ld	(hl),0
 		ld	a,l
-		add	a,0x81
+		add	a,0x7F
 		ld	l,a
 		ld	a,(hl)
 		or	a

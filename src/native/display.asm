@@ -23,8 +23,6 @@ disp_prep:
 		ld	a,(vregs+1)
 		and	0x40
 		ret	z
-		ld	a,8			; атрибуты спрайтов 7300 -> VSAT (WR_SPR_NM_TBL обработчика кадра — здесь)
-		call	sat_copy
 		xor	a
 		ld	(drew_any),a
 		ld	a,(vdirty)

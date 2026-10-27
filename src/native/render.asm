@@ -241,7 +241,7 @@ pb11:		ld	hl,cmap
 
 ; spr_ecolor: A = цвет врагов комнаты — первый видимый спрайт VSAT с цветом 15, 12 или 14 (14 — как 15; иначе 15)
 spr_ecolor:
-		ld	hl,VSAT
+		ld	hl,0x7300
 		ld	b,SPR_MAX
 sec1:		ld	a,(hl)
 		cp	0xD0

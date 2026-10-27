@@ -846,21 +846,6 @@ dr_fin:		ld	a,(0x705F)		; интерфейс (кроме вступления н
 		cp	0x0A
 		jp	nz,dr_f2
 dr_f1:		call	L_A548
-dr_f2:		ld	a,(0x707A)		; атрибуты спрайтов за последним врагом — 0 (в копии VSAT до 7F7F)
-		add	a,a
-		add	a,a
-		ld	c,a
-		ld	hl,VSAT+8
-		call	add_hl_a
-		ld	a,0x78
-		sub	c
-		jp	c,dr_f4
-		jp	z,dr_f4
-		ld	b,a
-dr_f3:		ld	(hl),0
-		inc	hl
-		dec	b
-		jp	nz,dr_f3
-dr_f4:		jp	L_AE83
+dr_f2:		jp	L_AE83
 
 dr_tab:		dw	L_A21A, L_A27C, L_A2F0, L_A318, L_A21A, L_A27C, L_A30E, L_A340

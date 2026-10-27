@@ -124,8 +124,6 @@ bclr:		REPT	64
 		ld	(cb_st),a
 		call	bd_init
 		call	lv_init
-		ld	a,0xD0
-		ld	(VSAT),a
 		ld	a,1
 		ld	(kb_req),a
 		call	game_init

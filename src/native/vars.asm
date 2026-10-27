@@ -108,6 +108,7 @@ sn_latch:	ds	1
 sn_chg:		ds	1
 sn_per:		ds	8
 sn_att:		ds	4
+obj_end:	ds	1
 pvars_end:
 dc_sp:		ds	2
 tabs_end:
