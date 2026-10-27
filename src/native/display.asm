@@ -296,6 +296,7 @@ room_redraw:
 ; в live_list, старший — в live_hi (до LIVE_N клеток; в комнатах — до 189).
 LIVE_N		equ	250
 FIRE_K		equ	3			; огонь: при смене кадра — каждая FIRE_K-я клетка (по очереди)
+FIRE_T		equ	0xA0			; ... только у тайлов от FIRE_T (огонь), не у ленты 04-06
 live_hi		equ	0xF100			; (бывшие флаги анимации тайлов — не читались)
 LV_N		equ	33
 ; lv_init: lv_idx и lv_tile (при загрузке)
@@ -476,9 +477,12 @@ flt2:		ld	a,(fl_i)		; DE = клетка в VNT
 		ld	e,(hl)
 		ld	h,live_hi/256
 		ld	d,(hl)
-		ld	a,(fl_skm)		; смена кадра огня: только клетки своей очереди (счётчик fl_c по кругу FIRE_K)
-		or	a
-		jp	z,flt6
+		ld	a,(fl_skm)		; смена кадра огня: только клетки своей очереди (счётчик fl_c по кругу FIRE_K);
+		or	a			; только огонь (тайлы от A0): ленту (04-06) и прочее — целиком, иначе зубцы
+		jp	z,flt6			; разъезжаются
+		ld	a,(rr_t)
+		cp	FIRE_T
+		jp	c,flt6
 		ld	a,(fl_c)
 		ld	b,a
 		inc	a
