@@ -328,43 +328,6 @@ LIVE_N		equ	250
 FIRE_K		equ	3			; огонь: при смене кадра — каждая FIRE_K-я клетка (по очереди)
 live_hi		equ	0xF100			; (бывшие флаги анимации тайлов — не читались)
 LV_N		equ	33
-; lv_init: lv_idx и lv_tile (при загрузке)
-lv_init:	xor	a
-		ld	(lv_nn),a
-		ld	hl,lv_idx
-		ld	bc,256
-		ld	e,0xFF
-		call	memfill
-		ld	de,anim_set
-		ld	bc,lv_tile
-		ld	h,lv_idx/256
-		xor	a
-lvi1:		push	af
-		ld	a,(de)
-		cp	0xFF
-		jp	z,lvi2
-		ld	l,a
-		ld	(bc),a
-		pop	af
-		ld	(hl),a
-		inc	a
-		inc	de
-		inc	bc
-		jp	lvi1
-lvi2:		pop	af
-		ld	e,0xE0			; E0..EF — следующие корзины
-lvi3:		ld	l,e
-		ld	(hl),a
-		push	af
-		ld	a,e
-		ld	(bc),a
-		pop	af
-		inc	bc
-		inc	a
-		inc	e
-		jp	nz,lvi3
-		ret
-
 ; live_build: корзины живых клеток комнаты (два прохода по VNT: подсчёт, раскладка)
 live_build:
 		ld	hl,lv_pos		; счётчики := 0
@@ -508,6 +471,7 @@ flt1:		ld	c,(hl)			; корзина (из непустых)
 		push	bc			; C — позиция
 		call	tile_ready
 		ld	(tile_src),hl
+		ld	(fl_source),hl
 		ld	a,(rr_t)
 		rrca
 		rrca
@@ -733,6 +697,7 @@ fl_sel_one:	ld	hl,fl_fast1
 		jp	fl_sel_done
 fl_sel_generic:	ld	hl,fl_slow
 fl_sel_done:	ld	(fl_write+1),hl
+		call	fl_compile
 		pop	af
 		ret
 
@@ -1379,4 +1344,96 @@ group_mode_color:	push	bc
 		or	c
 		pop	hl
 		pop	bc
+		ret
+
+; Compile one bucket's varying rows directly into MVI M,N / DCR L.
+; The source frames all share the omitted rows: no per-cell phase is assumed.
+; Rebuilt for every animation bucket, so colour/cache resets cannot stale code.
+live_code equ ps_boot_source
+fl_compile:	ld	a,(dc_pt)
+		or	a
+		ret	z
+		ld	a,(fl_n)
+		cp	8
+		ret	c
+		ld	a,(rr_t)
+		ld	c,0xFF
+		cp	0xE8
+		jp	nz,fc_fire
+		ld	c,4
+		jp	fc_rows
+fc_fire:	cp	0x38
+		jp	nz,fc_upper
+		ld	c,0xFE
+		jp	fc_rows
+fc_upper:	cp	0xD0
+		jp	c,fc_rows
+		cp	0xD6
+		jp	nc,fc_rows
+		ld	c,0x7F
+		cp	0xD2
+		jp	nc,fc_rows
+		ld	c,0x6E
+fc_rows:	ld	a,c
+		ld	(fc_rowmask+1),a
+		ld	hl,(fl_source)
+		ex	de,hl
+		ld	hl,live_code
+		ld	(hl),0x45		; MOV B,L: preserve the cell's first row
+		inc	hl
+		ld	a,(fl_pm)
+		ld	b,a
+fc_plane:	ld	a,b
+		add	a,a
+		ld	b,a
+		jp	nc,fc_skip
+		push	bc
+		push	de
+		ld	(hl),0x68		; MOV L,B
+		inc	hl
+fc_rowmask:	ld	c,0xFF
+fc_row:		ld	a,c
+		rrca
+		ld	c,a
+		jp	nc,fc_row_skip
+		ld	(hl),0x36		; MVI M,N
+		inc	hl
+		ld	a,(de)
+		ld	(hl),a
+		inc	hl
+fc_row_skip:	ld	(hl),0x2D		; DCR L
+		inc	hl
+		inc	de
+		ld	a,c
+		and	0x7F
+		ld	c,a
+		jp	nz,fc_row
+		pop	de
+		pop	bc
+fc_skip:	ld	a,e
+		add	a,8
+		ld	e,a
+		jp	nc,fc_next
+		inc	d
+fc_next:	ld	(hl),0x7C		; MOV A,H / ADI 20h / MOV H,A
+		inc	hl
+		ld	(hl),0xC6
+		inc	hl
+		ld	(hl),0x20
+		inc	hl
+		ld	(hl),0x67
+		inc	hl
+		ld	a,b
+		add	a,a
+		ld	b,a
+		jp	nz,fc_plane
+		ld	(hl),0xC3		; JMP flt5
+		inc	hl
+		ld	(hl),flt5&255
+		inc	hl
+		ld	(hl),flt5/256
+		ld	hl,live_code
+		ld	(fl_write+1),hl
+		ld	a,0x80
+		ld	(fl_hbase+1),a
 		ret

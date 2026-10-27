@@ -80,6 +80,7 @@ tile_phase:	ds	1
 tile_i:		ds	1
 tile_frames:	ds	1
 tile_count:	ds	1
+fl_source:	ds	2
 tile_src:	ds	2
 tile_dst:	ds	2
 group_modes:	ds	32

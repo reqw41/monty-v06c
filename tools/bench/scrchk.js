@@ -53,7 +53,7 @@ m.onInstr = (pc) => {
   if (pc === sym.isr0 && justCritical) { justCritical = false; if (steps) check(); }
   if (MODE === 'r19' && pc === sym.L_8DA2 && steps > 60) { const c = m.cpu; c.pc = m.rd(c.sp) | (m.rd(c.sp + 1) << 8); c.sp += 2; return; }
   if (pc === sym.L_A5D1) { if (sym.video_edit !== undefined && m.rd(sym.video_edit)) throw new Error('Изменение карты/цветов не завершилось к шагу логики'); steps++; keys(steps); m.wr(0x7049, 6); check();
-    if (MODE === 'r19') { m.wr(0x707C, m.rd(0x7300)); if (steps === 50) { m.wr(0x705F, m.rd(0x705F) & ~4); m.wr(0x71A7, 1); m.wr(0x71A8, 9); m.wr(0x7079, 9); } }
+    if (MODE === 'r19') { m.wr(0x707C, m.rd(0x7300)); if (steps === 50) { m.wr(0x705F, m.rd(0x705F) & ~4); const [r,c]=(process.env.ROOM||"1,9").split(",").map(Number);m.wr(0x71A7, r); m.wr(0x71A8, c); m.wr(0x7079, 9); } }
     if (MODE === 'tp' && steps >= 300 && steps % 60 === 0) { const [r, c] = ROOMS[(steps / 60 - 5) % ROOMS.length]; m.wr(0x71A7, r); m.wr(0x71A8, c); m.wr(0x7079, 9); } } };
 while (steps < N) { if (fc === 10) K(2, 2, 1); if (fc === 100) K(2, 2, 0); fc++; m.frame(); }
 console.log(dir, MODE, 'проверок', checks, 'пропущено', skip, 'неверных экранов', bad); console.log(ex.join('\n'));

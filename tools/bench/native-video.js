@@ -10,6 +10,8 @@ for (const l of fs.readFileSync(path.join(dir, 'monty.sym'), 'utf8').split('\n')
 }
 const m = E.mk(path.join(dir, 'monty.bin'));
 const protectedBytes = new Uint8Array(65536), old = {}, sourceOld = {}, movement = {};
+const room=(process.env.ROOM||'1,9').split(',').map(Number);
+const lastEnemy=process.env.ROOM==='5,7'||process.env.ROOM==='7,3'?5:4;
 let steps = 0, ready = false, bad = 0, frame0 = 0, fires = 0, belts = 0, lastPC = 0;
 function checkMasks() {
   let count = 0;
@@ -49,9 +51,9 @@ m.onInstr = pc => {
     steps++;
     if (!ready) { checkMasks(); ready = true; }
     m.wr(0x7049, 6); m.wr(0x707C, m.rd(0x7300));
-    if (steps === 50) { m.wr(0x705F, m.rd(0x705F) & ~4); m.wr(0x71A7, 1); m.wr(0x71A8, 9); m.wr(0x7079, 9); }
+    if (steps === 50) { m.wr(0x705F, m.rd(0x705F) & ~4); m.wr(0x71A7, room[0]); m.wr(0x71A8, room[1]); m.wr(0x7079, 9); }
     if (steps === 200) frame0 = m.frames;
-    if (steps > 200) for (let k = 2; k <= 4; k++) {
+    if (steps > 200) for (let k = 2; k <= lastEnemy; k++) {
       const p = 0x7300 + 4*m.rd(0x72E0 + k), x = m.rd(p+1);
       const z = movement[k] ||= {updates: 0, jump: 0, drawnDistance: 0, gameDistance: 0, maxLag: 0};
       if (sourceOld[k] !== undefined) z.gameDistance += Math.abs(x - sourceOld[k]);
@@ -60,7 +62,7 @@ m.onInstr = pc => {
     }
   }
   if (pc === sym.spr_put && steps > 200) {
-    const k = m.rd(sym.sp_k); if (k < 2 || k > 4) return;
+    const k = m.rd(sym.sp_k); if (k < 2 || k > lastEnemy) return;
     const p = sym.spr_new + 16*k, x = m.rd(p+2), z = movement[k];
     if (old[k] !== undefined) {
       const dx = Math.abs(x - old[k]);

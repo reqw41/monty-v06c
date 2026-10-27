@@ -1614,82 +1614,6 @@ smz1:		ld	a,(hl)
 		ret
 
 ; Начальное состояние масок слоёв Джо; таблицы поворота больше не нужны.
-mask_keys_init:	ld	hl,mk_key
-		ld	bc,4*SPR_MAX
-		ld	e,0xFF
-		jp	memfill
-
-; --- обрезка по шаблону: spr_trim[имя/4] = (первая строка, последняя, пустые половины: бит 0 — левая, 1 — правая);
-; строка пуста, если пусты обе половины; всё пусто — первая = FF. Пересчёт — trim_build (при смене комнаты).
-trim_build:
-		ld	de,spr_trim
-		ld	c,64
-tb0:		ld	a,64
-		sub	c
-		add	a,a
-		add	a,a
-		call	sprite_source
-		push	bc
-		ld	b,0			; строка
-		ld	c,0xFF			; первая
-		xor	a
-		ld	(tr_last),a
-		ld	(tr_z0),a		; ИЛИ левых
-		ld	(tr_z2),a		; ИЛИ правых
-tb1:		ld	a,(hl)			; левая
-		push	hl
-		push	af
-		ld	a,16
-		call	add_hl_a
-		ld	a,(hl)			; правая
-		ld	h,a
-		ld	a,(tr_z2)
-		or	h
-		ld	(tr_z2),a
-		pop	af
-		ld	l,a
-		ld	a,(tr_z0)
-		or	l
-		ld	(tr_z0),a
-		ld	a,l
-		or	h
-		pop	hl
-		jp	z,tb2
-		ld	a,b
-		ld	(tr_last),a
-		ld	a,c
-		cp	0xFF
-		jp	nz,tb2
-		ld	c,b
-tb2:		inc	hl
-		inc	b
-		ld	a,b
-		cp	16
-		jp	nz,tb1
-		ld	a,c			; запись
-		ld	(de),a
-		inc	de
-		ld	a,(tr_last)
-		ld	(de),a
-		inc	de
-		ld	b,0
-		ld	a,(tr_z0)
-		or	a
-		jp	nz,tb3
-		inc	b
-tb3:		ld	a,(tr_z2)
-		or	a
-		jp	nz,tb4
-		inc	b
-		inc	b
-tb4:		ld	a,b
-		ld	(de),a
-		inc	de
-		inc	de
-		pop	bc
-		dec	c
-		jp	nz,tb0
-		ret
 
 ; trim_sprite: по spr_trim[имя] — sm_off (первая строка), sv_lo, st_rows (строк — с учётом нижнего края),
 ; sv_zc (столбец 0 пуст — левая половина пуста; 2 — правая пуста или X кратен 8). Z — спрайт пуст.
@@ -2199,6 +2123,158 @@ psf_n:		or	1
 ; Его исходный код после копирования также доступен ps_alloc.
 ps_boot_source:
 		DISP	TILE_IMAGES
+game_init:	ld	hl,0x7000
+		ld	de,ram0_pk
+		call	unpack
+		ld	hl,room_colors
+		ld	de,col0
+		ld	bc,32
+		call	copy_de_hl
+		ld	a,1
+		ld	(video_enabled),a
+		ret
+unpack:		ld	a,(de)
+		inc	de
+		cp	0xFF
+		ret	z
+		cp	0x80
+		jp	nc,upk_r
+		inc	a
+		ld	b,a
+upk_l:		ld	a,(de)
+		ld	(hl),a
+		inc	de
+		inc	hl
+		dec	b
+		jp	nz,upk_l
+		jp	unpack
+upk_r:		and	0x7F
+		add	a,2
+		ld	b,a
+		ld	a,(de)
+		inc	de
+upk_s:		ld	(hl),a
+		inc	hl
+		dec	b
+		jp	nz,upk_s
+		jp	unpack
+
+ram0_pk:	INCBIN	"../../build/native/ram0.pk"
+
+mask_keys_init:	ld	hl,mk_key
+		ld	bc,4*SPR_MAX
+		ld	e,0xFF
+		jp	memfill
+
+; --- обрезка по шаблону: spr_trim[имя/4] = (первая строка, последняя, пустые половины: бит 0 — левая, 1 — правая);
+; строка пуста, если пусты обе половины; всё пусто — первая = FF. Пересчёт — trim_build (при смене комнаты).
+trim_build:
+		ld	de,spr_trim
+		ld	c,64
+tb0:		ld	a,64
+		sub	c
+		add	a,a
+		add	a,a
+		call	sprite_source
+		push	bc
+		ld	b,0			; строка
+		ld	c,0xFF			; первая
+		xor	a
+		ld	(tr_last),a
+		ld	(tr_z0),a		; ИЛИ левых
+		ld	(tr_z2),a		; ИЛИ правых
+tb1:		ld	a,(hl)			; левая
+		push	hl
+		push	af
+		ld	a,16
+		call	add_hl_a
+		ld	a,(hl)			; правая
+		ld	h,a
+		ld	a,(tr_z2)
+		or	h
+		ld	(tr_z2),a
+		pop	af
+		ld	l,a
+		ld	a,(tr_z0)
+		or	l
+		ld	(tr_z0),a
+		ld	a,l
+		or	h
+		pop	hl
+		jp	z,tb2
+		ld	a,b
+		ld	(tr_last),a
+		ld	a,c
+		cp	0xFF
+		jp	nz,tb2
+		ld	c,b
+tb2:		inc	hl
+		inc	b
+		ld	a,b
+		cp	16
+		jp	nz,tb1
+		ld	a,c			; запись
+		ld	(de),a
+		inc	de
+		ld	a,(tr_last)
+		ld	(de),a
+		inc	de
+		ld	b,0
+		ld	a,(tr_z0)
+		or	a
+		jp	nz,tb3
+		inc	b
+tb3:		ld	a,(tr_z2)
+		or	a
+		jp	nz,tb4
+		inc	b
+		inc	b
+tb4:		ld	a,b
+		ld	(de),a
+		inc	de
+		inc	de
+		pop	bc
+		dec	c
+		jp	nz,tb0
+		ret
+
+; lv_init: lv_idx и lv_tile (при загрузке)
+lv_init:	xor	a
+		ld	(lv_nn),a
+		ld	hl,lv_idx
+		ld	bc,256
+		ld	e,0xFF
+		call	memfill
+		ld	de,anim_set
+		ld	bc,lv_tile
+		ld	h,lv_idx/256
+		xor	a
+lvi1:		push	af
+		ld	a,(de)
+		cp	0xFF
+		jp	z,lvi2
+		ld	l,a
+		ld	(bc),a
+		pop	af
+		ld	(hl),a
+		inc	a
+		inc	de
+		inc	bc
+		jp	lvi1
+lvi2:		pop	af
+		ld	e,0xE0			; E0..EF — следующие корзины
+lvi3:		ld	l,e
+		ld	(hl),a
+		push	af
+		ld	a,e
+		ld	(bc),a
+		pop	af
+		inc	bc
+		inc	a
+		inc	e
+		jp	nz,lvi3
+		ret
+
 ps_build:	ld	hl,ps_idx
 		ld	bc,64
 		ld	e,0xFF
@@ -2420,7 +2496,7 @@ ps_nrg:		push	hl
 ps_boot_source_end:
 		ASSERT ps_boot_source_end-ps_boot_source < 24*TILE_CAP
 ; свободные места (начало, конец): невидимая плоскость — бывший кэш тайлов, затем основная память
-ps_rg:		dw	PS_MORE, 0x7000, sprite_sources_end, VNT, TILE_IMAGES+24*TILE_CAP, 0xEC00, 0xEF00, 0xF000, 0xF600, 0xF820, ps_heap, PS_TOP, ps_boot_source, ps_boot_source_end, 0, 0	; 0 — места нет
+ps_rg:		dw	PS_MORE, 0x7000, sprite_sources_end, VNT, TILE_IMAGES+24*TILE_CAP, 0xEC00, 0xEF00, 0xF000, 0xF600, 0xF820, ps_heap, PS_TOP, ps_boot_source+112, ps_boot_source_end, 0, 0	; 0 — места нет
 
 ; Покрытие клеток объектами постоянно хранится в PND, биты 1..6 по слоям.
 ; Меняется только при восстановлении/рисовании объекта; перекрытия сохраняют чужие биты.
