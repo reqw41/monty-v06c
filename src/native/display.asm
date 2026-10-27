@@ -23,6 +23,8 @@ disp_prep:
 		ld	a,(vregs+1)
 		and	0x40
 		ret	z
+		xor	a			; карту мест спрайтов (fl_um) — заново
+		ld	(fl_mok),a
 		ld	a,8			; атрибуты спрайтов 7300 -> VSAT (WR_SPR_NM_TBL обработчика кадра — здесь)
 		call	sat_copy
 		xor	a
@@ -42,7 +44,9 @@ dp1:		ld	a,(lv_dirty)		; в клетки ставились живые тайл�
 		xor	a
 		ld	(lv_dirty),a
 		call	live_build
-dp1a:		ld	a,(vdirty)
+dp1a:		ld	a,1			; до dp3 (банк, шаблоны) у живых клеток меняются только точки
+		ld	(dc_pt),a
+		ld	a,(vdirty)
 		and	VD_REG			; R4 — фаза анимации
 		jp	z,dp2
 		ld	a,(vdirty)
@@ -102,7 +106,9 @@ dp2:		ld	a,(vdirty)
 		ld	bc,256
 		ld	e,0
 		call	memfill_f
-dp3:		ld	a,(vdirty)
+dp3:		xor	a
+		ld	(dc_pt),a
+		ld	a,(vdirty)
 		and	VD_COL
 		jp	z,dp4
 		ld	a,(vdirty)
@@ -435,7 +441,9 @@ force_live_t:
 		ld	a,(lv_nn)
 		or	a
 		ret	z
-		call	fl_bbox			; общая рамка нарисованных спрайтов
+		ld	a,(fl_mok)		; карта мест нарисованных спрайтов (раз за вывод)
+		or	a
+		call	z,fl_bbox
 		ld	a,(lv_nn)
 		ld	b,a
 		ld	hl,lv_pos
@@ -499,32 +507,63 @@ flt6:		ld	a,(de)			; в карте уже другой тайл (взят пре
 		ld	hl,rr_t			; изменение и так в очереди
 		cp	(hl)
 		jp	nz,flt5
-		ld	a,e			; строка, столбец
-		and	31
-		ld	(rr_c),a
-		ld	a,e
-		rlca
-		rlca
-		rlca
+		ld	a,e			; под местом спрайта? fl_um[клетка / 8] & fl_bit[клетка & 7]
 		and	7
+		add	a,fl_bit&0xFF
+		ld	l,a
+		ld	h,fl_bit/256
+		ld	b,(hl)
+		ld	a,e
+		rrca
+		rrca
+		rrca
+		and	0x1F
+		ld	l,a
+		ld	a,d
+		sub	VNT/256
+		rrca
+		rrca
+		rrca
+		or	l
+		add	a,fl_um&0xFF
+		ld	l,a
+		ld	h,fl_um/256
+		ld	a,(hl)
+		and	b
+		jp	nz,flt_q
+		ld	a,(dc_pt)		; только точки — если клетка не ждёт полного вывода (иначе она в списке)
+		or	a
+		jp	z,flt9
+		ld	a,d
+		add	a,(PND-VNT)/256
+		ld	h,a
+		ld	l,e
+		ld	a,(hl)
+		or	a
+		jp	nz,flt5
+flt9:		ld	a,e			; не под спрайтом — сразу на экран: HL = экран (как dc_scr): L = 0DFh - 8 * строка,
+		and	0xE0			; 8 * строка = 40h * (D - VNT/256) + (E & E0h) / 4; H = 80h + столбец
+		rrca
+		rrca
 		ld	b,a
 		ld	a,d
 		sub	VNT/256
-		add	a,a
-		add	a,a
-		add	a,a
+		rrca
+		rrca
 		or	b
-		ld	(rr_r),a
-		call	fl_under
-		jp	c,flt_q
-		push	de			; не под спрайтом — сразу на экран
-		call	dc_scr
-		ld	a,(fl_m)
-		ld	c,a
-		push	hl
+		cpl
+		add	a,0xE0
+		ld	l,a
+		ld	a,e
+		and	31
+		add	a,0x80
+		ld	h,a
+		push	de
+		ex	de,hl
 		ld	hl,(fl_g)
 		ex	de,hl
-		pop	hl
+		ld	a,(fl_m)
+		ld	c,a
 		call	dc_draw
 		pop	de
 		ld	a,d			; выведена
@@ -566,9 +605,13 @@ flt3:		pop	bc
 flt_o:		ld	a,1
 		ld	(dl_ovf),a
 		jp	flt5
-; fl_bbox: fl_bb = общая рамка (r0, r1, c0, c1) мест нарисованных спрайтов (нет — пусто: FF, 0, FF, 0)
-fl_bbox:	ld	de,0xFF00		; D — r0, E — r1, B — c0, C — c1
-		ld	bc,0xFF00
+; fl_bbox: fl_um — карта мест нарисованных спрайтов, бит на клетку: байт (клетка / 8), бит (клетка & 7)
+fl_bbox:	ld	a,1
+		ld	(fl_mok),a
+		ld	hl,fl_um
+		ld	bc,96
+		ld	e,0
+		call	memfill_f
 		ld	hl,spr_rec
 fx0:		ld	a,(hl)
 		or	a
@@ -577,94 +620,52 @@ fx0:		ld	a,(hl)
 		ld	a,l
 		add	a,5
 		ld	l,a
+		ld	d,(hl)			; D = r0 .. E = r1 (до 23), B = c0 .. C = c1 (до 31)
+		inc	l
+		ld	e,(hl)
+		inc	l
+		ld	b,(hl)
+		inc	l
+		ld	c,(hl)
+fx1:		push	bc			; строка D
+fx2:		ld	a,b			; HL = fl_um + 4 * r + c / 8
+		rrca
+		rrca
+		rrca
+		and	3
+		ld	l,a
+		ld	a,d
+		add	a,a
+		add	a,a
+		or	l
+		add	a,fl_um&0xFF
+		ld	l,a
+		ld	h,fl_um/256
+		ld	a,b
+		and	7
+		push	hl
+		ld	hl,fl_bit
+		add	a,l
+		ld	l,a
 		ld	a,(hl)
-		cp	d
-		jp	nc,fx1
-		ld	d,a
-fx1:		inc	l
-		ld	a,(hl)
-		cp	e
-		jp	c,fx2
-		ld	e,a
-fx2:		inc	l
-		ld	a,(hl)
-		cp	b
-		jp	nc,fx3
-		ld	b,a
-fx3:		inc	l
-		ld	a,(hl)
+		pop	hl
+		or	(hl)
+		ld	(hl),a
+		ld	a,b
+		inc	b
 		cp	c
-		jp	c,fx4
-		ld	c,a
-fx4:		pop	hl
+		jp	c,fx2
+		pop	bc
+		ld	a,d
+		inc	d
+		cp	e
+		jp	c,fx1
+		pop	hl
 fx5:		ld	a,l
 		add	a,16
 		ld	l,a
 		cp	16*SPR_MAX
 		jp	nz,fx0
-		ld	hl,fl_bb
-		ld	(hl),d
-		inc	hl
-		ld	(hl),e
-		inc	hl
-		ld	(hl),b
-		inc	hl
-		ld	(hl),c
-		ret
-; fl_under: клетка (rr_r, rr_c) — под местом нарисованного спрайта? CY — да (DE сохраняется)
-fl_under:	ld	a,(rr_r)
-		ld	hl,fl_bb
-		cp	(hl)
-		jp	c,fu_n
-		inc	hl
-		ld	b,(hl)
-		cp	b
-		jp	z,fu1
-		jp	nc,fu_n
-fu1:		ld	a,(rr_c)
-		inc	hl
-		cp	(hl)
-		jp	c,fu_n
-		inc	hl
-		ld	b,(hl)
-		cp	b
-		jp	z,fu2
-		jp	nc,fu_n
-fu2:		ld	hl,spr_rec		; по спрайтам
-fu3:		ld	a,(hl)
-		or	a
-		jp	z,fu4
-		push	hl
-		ld	a,l
-		add	a,5
-		ld	l,a
-		ld	a,(rr_r)		; r0 <= r <= r1, c0 <= c <= c1
-		cp	(hl)
-		jp	c,fu5
-		inc	l
-		ld	b,(hl)
-		cp	b
-		jp	z,fu6
-		jp	nc,fu5
-fu6:		ld	a,(rr_c)
-		inc	l
-		cp	(hl)
-		jp	c,fu5
-		inc	l
-		ld	b,(hl)
-		cp	b
-		jp	z,fu7
-		jp	nc,fu5
-fu7:		pop	hl
-		scf
-		ret
-fu5:		pop	hl
-fu4:		ld	a,l
-		add	a,16
-		ld	l,a
-		cp	16*SPR_MAX
-		jp	nz,fu3
-fu_n:		or	a
 		ret
 
 ; bank_diff: col_flag[t] := 1 для тайлов anim_set, у которых шаблон в банке bk_new не тот, что в tile_hi
