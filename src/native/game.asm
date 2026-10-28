@@ -72,6 +72,9 @@ fl_skm		equ	0x7FBE
 fl_c		equ	0x7FBF
 da_t		equ	0x7FFE			; draw_all: прошлый тайл
 in_isr		equ	0x7FFD			; идёт прерывание (короткая часть в нём): dc_draw не разрешает прерывания
+ IFDEF NES_FULL
+nes_amulet_ticks equ 0x7FF6		; два свободных байта: защита предмета 09 в кадрах игры
+ ENDIF
 GSTACK		equ	0x73C0			; стек игры (как у оригинала)
 ; переменные только нативной сборки — 7FA0-7FFF (за копией цветов; чистятся при загрузке)
 a4_n		equ	0x7FA0

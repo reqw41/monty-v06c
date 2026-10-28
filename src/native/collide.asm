@@ -350,11 +350,33 @@ a56d:		push	hl
 		or	a
 		ret
 ; L_901B: взять предмет A (место — остаток C поиска): в инвентарь, звук 2, стереть 2x2 (набор 0B), 8EB0
-L_901B:		push	bc
+L_901B:
+		IFDEF NES_FULL
+		push	af		; тип предмета нужен после L_A56C
+		ENDIF
+		push	bc
 		ld	c,a
 		call	L_A56C
 		pop	bc
+		IFDEF NES_FULL
+		pop	de		; D = исходный A; флаги L_A56C сохранены
 		ret	c
+		ld	a,d
+		ELSE
+		ret	c
+		ENDIF
+		IFDEF NES_FULL
+		cp	0x53		; NES предмет 09: временная защита от врагов
+		jp	nz,p901_draw
+		ld	a,(nes_amulet_ticks)
+		ld	d,a
+		ld	a,(nes_amulet_ticks+1)
+		or	d
+		jp	nz,p901_draw
+		ld	hl,427		; 2 x 256 кадров при 60 Гц ~= 427 шагов при 50 Гц
+		ld	(nes_amulet_ticks),hl
+p901_draw:
+		ENDIF
 		push	bc
 		ld	a,2
 		call	L_AC1A
@@ -420,6 +442,20 @@ p8f2:		call	L_9156			; огонь/лазер под героем (9428)
 		ld	hl,0x71B0
 		inc	(hl)
 		ld	a,(0x7058)
+		IFDEF NES_FULL
+		cp	0xA0		; только неподвижная змея; огонь остаётся смертелен
+		jp	c,p8f_no_amulet
+		cp	0xA8
+		jp	nc,p8f_no_amulet
+		ld	b,a
+		ld	a,(nes_amulet_ticks)
+		ld	d,a
+		ld	a,(nes_amulet_ticks+1)
+		or	d
+		ld	a,b
+		ret	nz
+p8f_no_amulet:
+		ENDIF
 		cp	0x40
 		jp	c,p8f3
 		ld	l,a
@@ -502,7 +538,11 @@ p8f7:		call	L_9067			; меч
 ; L_91E5 (процесс): таймер факела 704A (мигание цвета группы 14), амулет 8C; столкновение героя с врагом:
 ; меч (91) — враг гибнет, очки 2000/3000; иначе гибель героя (8DA2), на уровнях 1-4 враг тоже снимается
 L_91E5:
-proc_91E5:	ld	a,(0x70AC)
+proc_91E5:
+		IFDEF NES_FULL
+		call	nes_amulet_step
+		ENDIF
+		ld	a,(0x70AC)
 		dec	a
 		jp	nz,p9e5
 		ld	a,1
@@ -530,6 +570,13 @@ p9e8:		call	L_92D1
 		ld	a,(0x704A)
 		or	a
 		ret	nz
+		IFDEF NES_FULL
+		ld	a,(nes_amulet_ticks)
+		ld	b,a
+		ld	a,(nes_amulet_ticks+1)
+		or	b
+		ret	nz
+		ENDIF
 		ld	a,(0x7300)
 		ld	(0x7084),a
 		ld	a,(0x7301)
@@ -588,6 +635,22 @@ p9ey:		pop	hl			; без меча — гибель героя
 		jp	L_8DA2
 p9ex:		pop	hl
 		jp	p9e9
+		IFDEF NES_FULL
+nes_amulet_step:
+		ld	hl,(nes_amulet_ticks)
+		ld	a,h
+		or	l
+		ret	z
+		dec	hl
+		ld	(nes_amulet_ticks),hl
+		ld	a,h
+		or	l
+		ret	nz
+		ld	a,0x53		; время вышло: убрать амулет из инвентаря
+		call	L_908F
+		ret	nz
+		jp	L_909C
+		ENDIF
 
 ; --- кадр героя ---------------------------------------------------------------------------------------------
 ; L_9369: CF := герой смотрит вправо (7078 бит 7 = 0); A сохраняется

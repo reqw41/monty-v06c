@@ -555,11 +555,19 @@ h86c:		pop	bc
 		ld	(0x7300),a
 		ld	a,e
 		ld	(0x7304),a
+		IFDEF NES_FULL
+		xor	a
+		ld	(jn_fire),a	; обычное падение: кувырок, без огненного эффекта
+		ENDIF
 		ld	a,9
 		jp	hs_8AF0
 h86d:		ld	a,1
 		jp	hs_8992
-hs_8A91:	ld	a,5
+hs_8A91:
+		IFDEF NES_FULL
+		call	jn_capture_death	; смертельный огонь/лазер минует L_8DA2
+		ENDIF
+		ld	a,5
 		call	L_AC1A
 		ld	a,0x0A
 hs_8AF0:	push	af

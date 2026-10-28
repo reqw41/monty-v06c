@@ -89,8 +89,12 @@ joe_select:
  cp 8
  jp z,js_death
  cp 9
+ IFDEF NES_FULL
+ jp z,js_fall
+ ELSE
  ld b,18
  jp z,js_b
+ ENDIF
  cp 10
  jp z,js_fall
  xor a
@@ -187,6 +191,34 @@ js_hot:
  ld (jn_fire),a
  ret
 js_fall:
+ IFDEF NES_FULL
+ ld a,(jn_fire)
+ or a
+ jp nz,js_fall_fire
+ ld a,(0x70A9)
+ cp 53                 ; NES death_tumble: two frames, 30 ticks each
+ jp c,js_blank
+ ld b,6
+ cp 83
+ jp c,js_b
+ ld b,5
+ jp js_b
+js_fall_fire:
+ ld a,(0x70A9)       ; NES death_burst: three frames, 9 ticks each
+ cp 86
+ jp c,js_blank
+ ld b,22
+ cp 95
+ jp c,js_b
+ ld b,21
+ cp 104
+ jp c,js_b
+ ld b,20
+ jp js_b
+js_blank:
+ ld b,18
+ jp js_b
+ ELSE
  ld a,(0x70A9)
  rrca
  rrca
@@ -194,6 +226,7 @@ js_fall:
  and 1
  add a,5
  ret
+ ENDIF
 js_b:
  ld a,b
  ret
@@ -1001,6 +1034,16 @@ jn_capture_death:
  jp z,jn_capture_done
  xor a
  ld (jn_fire),a
+ IFDEF NES_FULL
+ ld a,(0x7057)
+ call js_hazard
+ ld a,(0x7059)
+ call js_hazard
+ ld a,(0x705A)
+ call js_hazard
+ ld a,(0x705C)
+ call js_hazard
+ ENDIF
  ld a,(0x7058)
  call js_hazard
  ld a,(0x705B)

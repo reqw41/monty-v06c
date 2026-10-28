@@ -94,6 +94,9 @@ a59d:		ld	a,6
 		ld	(0x72E0),hl
  IFDEF NES_FULL
  xor a
+ ld (nes_amulet_ticks),a
+ ld (nes_amulet_ticks+1),a
+ xor a
  ld (0x71A7),a
  ld (0x7076),a
  ld (0x7077),a
