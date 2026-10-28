@@ -2,7 +2,7 @@
 """Original NES logo with requested Vector-06C credits in NES CHR."""
 from pathlib import Path
 import json
-from PIL import Image
+from PIL import Image, ImageDraw
 from assets import ROM, RGB
 from catalog import decode_rle
 from msx import encode, decode
@@ -24,18 +24,23 @@ def main():
             v=r.tiles[256+nt[ty*32+tx]][y%8][x%8]
             p[x,y]=colors.index(palettes[pi][v] if v else 0x0f)
     # Replace only the original credits; leave the black title layout intact.
-    for y in range(92,128):
+    for y in range(90,128):
         for x in range(256):p[x,y]=0
     alphabet={chr(ord('A')+i):0x6c+i for i in range(26)}
     alphabet.update({str(i):0x62+i for i in range(10)})
-    brackets={'(':[0x18,0x30,0x60,0x60,0x60,0x30,0x18,0],
-              ')':[0x30,0x18,0x0c,0x0c,0x0c,0x18,0x30,0]}
-    credits=['(C) PARKER BROTHER 1984','VECTOR 06C VERSION BY','BORIS LIKHACHEV']
-    for y,line in zip((96,107,118),credits):
-        x0=(256-8*len(line))//2
+    credits=['© PARKER BROTHER 1984','VECTOR 06C VERSION BY','BORIS LIKHACHEV']
+    mark_x=(256-(20+8*len('PARKER BROTHER 1984')))//2
+    mark_y=93
+    ImageDraw.Draw(pixel).ellipse((mark_x,mark_y,mark_x+12,mark_y+12),outline=6,width=1)
+    c_rows=(0x0e,0x11,0x10,0x10,0x10,0x11,0x0e)
+    for yy,bits in enumerate(c_rows):
+        for xx in range(5):
+            if bits&(16>>xx):p[mark_x+4+xx,mark_y+3+yy]=6
+    for y,line in ((96,'PARKER BROTHER 1984'),(107,credits[1]),(118,credits[2])):
+        x0=mark_x+20 if y==96 else (256-8*len(line))//2
         for i,ch in enumerate(line):
             if ch==' ':continue
-            rows=brackets[ch] if ch in brackets else [sum(128>>x for x,v in enumerate(row) if v) for row in r.tiles[256+alphabet[ch]]]
+            rows=[sum(128>>x for x,v in enumerate(row) if v) for row in r.tiles[256+alphabet[ch]]]
             for yy,bits in enumerate(rows):
                 for xx in range(8):
                     if bits&(128>>xx):p[x0+i*8+xx,y+yy]=6
@@ -64,6 +69,7 @@ def main():
     (ROOT/'src/native/gen/font_nes.asm').write_text('\n'.join(font)+'\n')
     out=ROOT/'build/nes_title';out.mkdir(parents=True,exist_ok=True)
     rgb=Image.new('RGB',pixel.size);rgb.putdata([decode(encode(RGB[colors[v]])) for v in pixel.getdata()]);rgb.save(out/'native.png')
+    (out/'native.idx').write_bytes(pixel.tobytes())
     # Independent MAME snapshot confirms both source streams, including HUD-free
     # attribute quadrants. Optional so clean builds need only the local ROM.
     ref=out/'title_90.ppu'
