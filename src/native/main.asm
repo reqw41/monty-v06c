@@ -1,7 +1,9 @@
 ; Four fixed processes: preserve the original order, counters and frame barriers.
 ; A procedure may change its own counter, so reload it after CALL before decrement.
 main_loop:
-L_A5D1:		xor	a
+ call joe_step_gate
+L_A5D1:		call joe_clock
+		xor	a
 		ld	(0x7207),a
 mn_proc0:	ld	a,(0x705F)
 		and	8

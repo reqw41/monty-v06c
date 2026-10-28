@@ -60,3 +60,17 @@
 сценарий. В `nsteps` печатаются распределение кадров и отдельно интервалы с
 полной перерисовкой комнаты и без неё. `INPUT=1` у r19f добавляет ходьбу,
 прыжки и лестницы, `DETAIL=1` — максимальную стоимость вызова.
+
+### Джо NES и переходные кадры
+
+- `FRAMECHECK=1 node tools/bench/scrchk.js build/native 2000 tp` — все клетки после каждого возврата из crit, включая продолжения и вызовы вне IRQ. Фон отслеживается по действительно переданным тайлам/цветам; нет общего пропуска по pending.
+- `FRAMECHECK=1 B=build/native DIR=build/play OUT=nes node tools/bench/play.js 1 0 8` — вместе с FPS пишет sidecar `nes_frames_1_0.json` и `nes_joe_1_0.json`.
+- `B=build/native node tools/bench/scanout.js` — фактические чтения лучом, поиск переходного синего индекса 2. `FROM=420 TO=600 OUT=build/joe_nes/scan` сохраняет выбранные кадры растра без окна.
+- `SCENE=walk|ladder|rope|jump B=build/native node tools/bench/joe-scenes.js` — клавиатурные сценарии; rope начинает на существующем шесте стартовой комнаты, затем работает обычная физика. OUT сохраняет индексированные кадры.
+- `B=build/native node tools/bench/joe-poses.js` — отдельная фикстура вывода всех 23 NES-поз, обоих зеркал и восьми сдвигов (368). Это проверка графики, не замер физики. `PROFILE=1` дополнительно измеряет подготовку, восстановление и вывод всех вариантов. `FORCE80=1` принудительно выбирает полный путь трёх плоскостей, сохраняя тот же ожидаемый растр.
+- `B=build/native ROOM=7,2 OUT=build/joe_nes/room node tools/bench/joe-shot.js` — снимок VRAM с фактической палитрой.
+
+Эталон `joe-ref.js` независимо читает CHR и OAM из NES ROM, не готовый образ F900. Генератор: `python3 tools/nes/joe_native.py --height 19`; натуральная высота — `--height 23`. В итоговой сборке выбран вариант 19 строк по замеру; флаг `NES_JOE_PALETTE` меняет палитру, дополнительный `NES_JOE_3COLOR` включает розовый индекс 2.
+
+`python3 tools/nes/joe_media.py` строит PNG сравнения палитр и GIF из
+индексированных снимков `joe-shot`, `joe-scenes` и фактического растра `scanout`.

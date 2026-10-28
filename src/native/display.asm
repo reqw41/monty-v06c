@@ -33,7 +33,22 @@ dp1a:		xor	a
 		cp	3
 		jp	c,dp_phase
 		ld	(hl),0
-dp_phase:	ld	a,1			; до dp3 (кадры огня и лент) у живых клеток меняются только точки
+dp_phase:
+ ; Moving Joe owns the deadline. Service background animation once per fifteen
+ ; preparations; retain dirty bits on the other steps.
+ call joe_motion_pending
+ jp z,dp_background
+ ld a,(jn_service)
+ inc a
+ cp 15
+ jp c,dp_service_count
+ xor a
+dp_service_count:
+ ld (jn_service),a
+ or a
+ jp nz,dp3
+dp_background:
+ ld a,1			; до dp3 (кадры огня и лент) у живых клеток меняются только точки
 		ld	(dc_pt),a
 		ld	a,(video_dirty)
 		and	DIRTY_COLOR
@@ -158,9 +173,10 @@ dp4:
 dp_no_cells:	call	crit_plan		; группы и порядок — тоже до ожидания
 		ld	hl,cr_list
 		ld	(cr_read),hl
-		ld	a,1			; короткая часть — сразу после прерывания кадра (crit)
-		ld	(crit_pend),a
-		ret
+ ; Publish the atomic list for the top-of-frame IRQ window.
+ ld a,1
+ ld (crit_pend),a
+ ret
 
 ; ex_build: ex_r — прямоугольники (r0, r1, c0, c1) прежних мест нарисованных отмеченных спрайтов, ex_n штук
 ex_build:
@@ -400,22 +416,6 @@ lb5:		ld	e,(hl)
 		ld	d,live_hi/256
 		ld	a,h
 		ld	(de),a
-		push	bc
-		ld	a,l
-		and	0xE0
-		rrca
-		rrca
-		ld	b,a
-		ld	a,h
-		rrca
-		rrca
-		and	0xC0
-		or	b
-		cpl
-		add	a,0xE0
-		ld	d,live_scr_lo/256
-		ld	(de),a
-		pop	bc
 lb6:		pop	hl
 lb7:		inc	hl
 		ld	a,h
@@ -560,9 +560,21 @@ fl_cover:	and	0x7E
 		or	a
 		jp	nz,flt5
 		ld	(hl),0			; выведена
-flt9:		ld	l,c
-		ld	h,live_scr_lo/256
-		ld	b,(hl)
+flt9:
+ ; Screen Y from the map address; F500 now holds the native Joe attribute planner.
+ ld a,e
+ and 0xE0
+ rrca
+ rrca
+ ld b,a
+ ld a,d
+ rrca
+ rrca
+ and 0xC0
+ or b
+ cpl
+ add a,0xE0
+ ld b,a
 		ld	a,e
 		and	31
 fl_hbase:	add	a,0x80

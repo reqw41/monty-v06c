@@ -116,10 +116,8 @@ bclr:		REPT	64
 		call	copy_de_hl
 		call	mask_keys_init
 		call	trim_build
-		call	joe_load		; код вывода — в свободные хвосты ячеек врагов
+		call joe_load
 		call	ps_build		; готовые сдвиги кадров врагов
-		ld	a,16
-		ld	(cb_st),a
 		call	lv_init
 		ld	a,1
 		ld	(kb_req),a
@@ -156,6 +154,7 @@ isr:
 		ld	(kb_req),a
 		call	kb_scan
 isr1:		call	pal_load_isr
+ call joe_latch_y
 		ld	a,(crit_pend)		; вывод подготовлен — спрайты сейчас, пока луч наверху кадра (короткая часть)
 		or	a
 		jp	z,isr0
@@ -200,8 +199,8 @@ isr_event_done:	pop	de
 		ei
 		ret
 
-; frame_wait: подготовка завершённого шага -> кадр -> обработчик логики.
-; Если crit ещё ждёт прерывания, шаг логики идёт сразу без новой подготовки.
+; frame_wait: подготовка -> событие кадра -> обработчик логики.
+; Задержку картинки ограничивает joe_step_gate на границе всего шага, а не внутри процесса.
 frame_wait:
 		push	af
 		push	bc
@@ -211,15 +210,22 @@ frame_wait:
 		add	hl,sp
 		ld	(np_sp),hl
 		ld	sp,DISP_STACK
+		call joe_finish_old
 		ld	a,(crit_pend)
 		or	a
 		call	z,disp_prep
-fw2:		ld	a,(nmi_pend)
+ ld a,1
+ ld (jn_wait),a
+fw2:
+fw_event:
+		ld	a,(nmi_pend)
 		or	a
 		jp	z,fw2
 		ld	hl,nmi_pend
 		dec	(hl)		; one instruction: IRQ increment cannot interleave
-		call	frame_handler
+		xor a
+ ld (jn_wait),a
+ call	frame_handler
 fw_return:	ld	hl,(np_sp)
 		ld	sp,hl
 		pop	hl
@@ -298,36 +304,12 @@ unit_fw:	push	af			; tools/unit.js: ожидание кадра = обработ
 		INCLUDE	"main.asm"
 		INCLUDE	"display.asm"
 		INCLUDE	"sprites.asm"
+		INCLUDE "joe.asm"
 		INCLUDE	"render.asm"
 		INCLUDE	"cell.asm"
 		INCLUDE	"../vec/util.asm"
 		INCLUDE	"../vec/gen/pal.asm"
 		INCLUDE	"gen/cart.asm"
-se_tab:
-		dw	st_sv+4*(SV_MAX-0), st_rs+4*(SV_MAX-0), st_or+5*(16-0), st_and+6*(16-0)
-		dw	st_sv+4*(SV_MAX-1), st_rs+4*(SV_MAX-1), st_or+5*(16-1), st_and+6*(16-1)
-		dw	st_sv+4*(SV_MAX-2), st_rs+4*(SV_MAX-2), st_or+5*(16-2), st_and+6*(16-2)
-		dw	st_sv+4*(SV_MAX-3), st_rs+4*(SV_MAX-3), st_or+5*(16-3), st_and+6*(16-3)
-		dw	st_sv+4*(SV_MAX-4), st_rs+4*(SV_MAX-4), st_or+5*(16-4), st_and+6*(16-4)
-		dw	st_sv+4*(SV_MAX-5), st_rs+4*(SV_MAX-5), st_or+5*(16-5), st_and+6*(16-5)
-		dw	st_sv+4*(SV_MAX-6), st_rs+4*(SV_MAX-6), st_or+5*(16-6), st_and+6*(16-6)
-		dw	st_sv+4*(SV_MAX-7), st_rs+4*(SV_MAX-7), st_or+5*(16-7), st_and+6*(16-7)
-		dw	st_sv+4*(SV_MAX-8), st_rs+4*(SV_MAX-8), st_or+5*(16-8), st_and+6*(16-8)
-		dw	st_sv+4*(SV_MAX-9), st_rs+4*(SV_MAX-9), st_or+5*(16-9), st_and+6*(16-9)
-		dw	st_sv+4*(SV_MAX-10), st_rs+4*(SV_MAX-10), st_or+5*(16-10), st_and+6*(16-10)
-		dw	st_sv+4*(SV_MAX-11), st_rs+4*(SV_MAX-11), st_or+5*(16-11), st_and+6*(16-11)
-		dw	st_sv+4*(SV_MAX-12), st_rs+4*(SV_MAX-12), st_or+5*(16-12), st_and+6*(16-12)
-		dw	st_sv+4*(SV_MAX-13), st_rs+4*(SV_MAX-13), st_or+5*(16-13), st_and+6*(16-13)
-		dw	st_sv+4*(SV_MAX-14), st_rs+4*(SV_MAX-14), st_or+5*(16-14), st_and+6*(16-14)
-		dw	st_sv+4*(SV_MAX-15), st_rs+4*(SV_MAX-15), st_or+5*(16-15), st_and+6*(16-15)
-		dw	st_sv+4*(SV_MAX-16), st_rs+4*(SV_MAX-16), st_or+5*(16-16), st_and+6*(16-16)
-		dw	st_sv+4*(SV_MAX-17), st_rs+4*(SV_MAX-17), st_or+5*(16-17), st_and+6*(16-17)
-		dw	st_sv+4*(SV_MAX-18), st_rs+4*(SV_MAX-18), st_or+5*(16-18), st_and+6*(16-18)
-		dw	st_sv+4*(SV_MAX-19), st_rs+4*(SV_MAX-19), st_or+5*(16-19), st_and+6*(16-19)
-		dw	st_sv+4*(SV_MAX-20), st_rs+4*(SV_MAX-20), st_or+5*(16-20), st_and+6*(16-20)
-		dw	st_sv+4*(SV_MAX-21), st_rs+4*(SV_MAX-21), st_or+5*(16-21), st_and+6*(16-21)
-		dw	st_sv+4*(SV_MAX-22), st_rs+4*(SV_MAX-22), st_or+5*(16-22), st_and+6*(16-22)
-		dw	st_sv+4*(SV_MAX-23), st_rs+4*(SV_MAX-23), st_or+5*(16-23), st_and+6*(16-23)
 
 ex_bb:		ds	4			; общая рамка отложенных клеток
 lv_tile:	ds	33			; живые клетки: тайл корзины
@@ -362,11 +344,6 @@ spr_new:	ds	SREC*SPR_MAX		; новые атрибуты (spr_rec + 80h)
 		ORG	0x6700
 ; таблицы спрайтов — в одной странице (адрес — одной командой)
 sprt:
-svr:		ds	4*SPR_MAX
-rst:		ds	6*SPR_MAX
-pps:		ds	6*SPR_MAX
-pps2:		ds	2*SPR_MAX
-ppd:		ds	11*SPR_MAX
 ubr:		ds	4*SPR_MAX		; рамки спрайтов: прежнее и новое место (ub_build)
 mk_key:		ds	4*SPR_MAX		; маска в ячейке: шаблон, сдвиг, начало, строк (spr_masks)
 grp:		ds	SPR_MAX			; crit_plan: группы
@@ -376,9 +353,16 @@ sprt_end:
 dlist:		ds	256			; список изменённых клеток (адреса в VNT)
 PS_MORE		equ	video_raw_end		; после исходных полос — готовые сдвиги
 		ASSERT	PS_MORE < 0x7000
-		INCLUDE	"gen/spat.asm"			; ORG VSPR — шаблоны спрайтов прямо в образе
+		INCLUDE	"gen/spat_nes.asm"			; ORG VSPR — шаблоны спрайтов прямо в образе
 
-		INCLUDE "joe.asm"
+		INCLUDE "gen/joe_nes.asm"
+		INCLUDE "gen/joe_mirror.asm"
+sprite_sources_end:
+		INCLUDE "joe_attrs.asm"
+		ASSERT $ <= 0x7B00
+ INCLUDE "gen/joe_nibble.asm"
+		INCLUDE "joe_bands.asm"
+ INCLUDE "joe_latch.asm"
 
 		INCLUDE "gen/logic.asm"
 

@@ -1,332 +1,1022 @@
-; Джо: единый образ в F900..F9CE (бывший фон верхнего слоя).
-; N=3*R: маска сохранения N байт, затем N пар (маска, данные A000).
-; 8000: данные 0; C000: данные = ~маска. Цвета 6/11 имеют индексы 3/1.
-; Фон остаётся в FA00..FACE, исходные маски слоёв D0..FF не трогаются.
-; Код работает из свободных хвостов FB30..FECF: фон врага занимает <=48 байт.
-joe_source0:
-		DISP 0xFB30
+ ASSERT 12*joe_nes_rows <= 256
+ ASSERT joe_nes_rows <= 19 ; measured native release size
+ IFDEF NES_JOE_3COLOR
+NES_JOE_COLORS equ 3
+ ELSE
+NES_JOE_COLORS equ 2
+ ENDIF
+; NES Joe, a foot-anchored cell of joe_nes_rows rows; leading empty rows are omitted.
+; One cached M/C/pad/A image in F900 and C/A/80 background in FA00.
+; POP AF ignores the padding byte; C keeps the mask from POP BC.
+; Slot 1 keeps only the original MSX attributes; its unused rectangles hold private scratch.
+; Fields +13/+15 of slot 1 remain planner marks; 66FC..FF is outside band_pairs.
+joe_clock:
+ push af
+ push hl
+ ld hl,jn_epoch
+ inc (hl)
+ ld a,(0x7079)
+ cp 1
+ jp nz,jc_idle
+ ld hl,jn_tick
+ inc (hl)
+ ld a,(hl)
+ cp 6
+ jp c,jc_end
+ ld (hl),0
+ ld hl,jn_walk
+ inc (hl)
+ ld a,(hl)
+ and 3
+ ld (hl),a
+ jp jc_end
+jc_idle:
+ xor a
+ ld (jn_tick),a
+ ld (jn_walk),a
+jc_end:
+ pop hl
+ pop af
+ ret
+joe_select:
+ ld a,(0x7078)
+ and 0x80
+ ld (jn_dir),a
+ ld a,(0x7079)
+ cp 1
+ jp z,js_walk
+ cp 2
+ ld b,7
+ jp z,js_b
+ cp 5
+ jp z,js_b
+ cp 6
+ jp z,js_b
+ cp 7
+ jp z,js_b
+ cp 3
+ jp z,js_chain
+ cp 4
+ jp z,js_ladder
+ cp 8
+ jp z,js_death
+ cp 9
+ ld b,18
+ jp z,js_b
+ cp 10
+ jp z,js_fall
+ xor a
+ ret
+js_walk:
+ ld a,(jn_walk)
+ inc a
+ ret
+js_chain:
+ ; MSX retains the previous pose for the 705F & 40 transient.
+ ld a,(spr_new+3)
+ and 0xFC
+ cp 0x58
+ ld b,19
+ jp z,js_b
+ cp 0x54
+ ld b,10
+ jp z,js_b
+ ld a,(jn_frame)
+ ret
+js_ladder:
+ ld a,(0x7058)
+ cp 0x90
+ ld b,11
+ jp z,js_b
+ cp 0x95
+ jp z,js_b
+ cp 0x98
+ ld b,12
+ jp z,js_b
+ cp 0xD8
+ jp z,js_b
+ cp 8
+ jp nz,js_lad_phase
+ ld a,(0x70AA)
+ and 2
+ ld b,10
+ jp z,js_b
+ ld b,19
+ jp js_b
+js_lad_phase:
+ ld a,(0x70AA)
+ rrca
+ and 1
+ add a,8
+ ret
+js_death:
+js_death_phase:
+ ld a,(0x70A9)
+ ld b,a
+ ld a,112
+ sub b
+ ld b,a
+ ld a,(jn_fire)
+ or a
+ ld a,b
+ ld c,24
+ ld b,13
+ jp z,js_div
+ ld c,40
+ ld b,20
+js_div:
+ cp c
+ jp c,js_b
+ sub c
+ inc b
+ jp js_div
+js_hazard:
+ cp 0x38
+ jp z,js_hot
+ cp 0xD0
+ ret c
+ cp 0xD6
+ jp c,js_hot
+ cp 0xE0
+ ret nz
+js_hot:
+ ld a,1
+ ld (jn_fire),a
+ ret
+js_fall:
+ ld a,(0x70A9)
+ rrca
+ rrca
+ rrca
+ and 1
+ add a,5
+ ret
+js_b:
+ ld a,b
+ ret
+joe_plan:
+ ld a,(jn_hold)
+ or a
+ ret nz
+ call joe_select
+ ld hl,jn_frame
+ cp (hl)
+ ld (hl),a
+ call nz,jn_mark
+ ld a,(jn_dir)
+ ld hl,jn_key+1
+ cp (hl)
+ call nz,jn_mark
+ ld a,(jn_epoch)
+ ld (jn_ready_epoch),a
+ ld a,(spr_rec+29)
+ ld hl,spr_rec+13
+ or (hl)
+ ld (hl),a
+ ld a,(spr_rec+31)
+ ld hl,spr_rec+15
+ or (hl)
+ ld (hl),a
+ xor a
+ ld (spr_rec+29),a
+ ld (spr_rec+31),a
+ ld (spr_new+16),a
+ ld a,(spr_rec+15)
+ or a
+ ret z
+ ld a,(spr_new+1)
+ inc a
+ ld c,a
+ ld a,(spr_new+4)
+ and 0x8F
+ ld b,a
+ ld a,(spr_new+17)
+ inc a
+ ld e,a
+ ld a,(spr_new+20)
+ and 0x8F
+ or b
+ jp z,jn_hidden
+ jp m,jn_hidden
+ ld a,c
+ cp 192
+ jp c,jn_foot0
+ ld c,e
+jn_foot0:
+ ld a,e
+ cp 192
+ jp nc,jn_foot
+ cp c
+ jp c,jn_foot
+ ld c,e
+jn_foot:
+ ld a,c
+ cp 192
+ jp nc,jn_hidden
+ ld a,(jn_frame)
+ ld hl,joe_top_rows
+ call add_hl_a
+ ld e,(hl)
+ ld a,c
+ add a,e
+ sub joe_nes_rows-16
+ ld b,e
+ jp nc,jn_top_ready
+ cpl
+ inc a
+ add a,b
+ ld b,a
+ xor a
+jn_top_ready:
+ cp 192
+ jp nc,jn_hidden
+ ld c,a
+ ld a,b
+ ld (jn_skip),a
+ ld a,joe_nes_rows
+ sub b
+ ld b,a
+ ld a,192
+ sub c
+ cp b
+ jp nc,jn_rows
+ ld b,a
+jn_rows:
+ ld a,b
+ ld (jn_rows_count),a
+ ld hl,spr_new+5
+ ld a,c
+ rrca
+ rrca
+ rrca
+ and 31
+ ld (hl),a
+ inc l
+ ld a,c
+ add a,b
+ dec a
+ rrca
+ rrca
+ rrca
+ and 31
+ ld (hl),a
+ inc l
+ ld a,(spr_new+2)
+ rrca
+ rrca
+ rrca
+ and 31
+ ld (hl),a
+ inc l
+ ld d,a
+ ld a,(spr_new+2)
+ and 7
+ ld a,1
+ jp z,jn_width
+ inc a
+jn_width:
+ add a,d
+ cp 32
+ jp c,jn_right
+ ld a,31
+jn_right:
+ ld (hl),a
+ ld hl,spr_new+9
+ ld a,0xDF
+ sub c
+ ld (hl),a
+ inc l
+ ld a,(spr_new+7)
+ ld (hl),a
+ inc l
+ ld (hl),b
+ inc l
+ ld (hl),0
+ inc l
+ inc l
+ ld (hl),1
+ ld a,1
+ jp jn_visible
+jn_hidden:
+ xor a
+ ld (spr_new+14),a
+jn_visible:
+ ld hl,spr_new
+ cp (hl)
+ ld (hl),a
+ call nz,jn_mark
+ ret
+jn_mark:
+ push af
+ ld a,1
+ ld (spr_rec+13),a
+ ld (spr_rec+15),a
+ pop af
+ ret
+joe_copy_second:
+ ld de,spr_new+17
+ ld hl,spr_rec+17
+ ld b,4
+ jp memcpyb
 joe_prepare:
-		ld a,(joe_changed)
-		or a
-		ret z
-		ld a,(joe_fast)
-		ld (joe_was_fast),a
-		xor a
-		ld (joe_fast),a
-		ld a,(spr_rec)		; прежний верхний слой не должен иметь фона
-		or a
-		jp z,jp_attrs
-		ld a,(spr_rec+14)
-		or a
-		ret nz
-jp_attrs:	ld a,(spr_new+15)
-		dec a
-		ret nz
-		ld a,(spr_new+16+15)
-		or a
-		ret nz
-		ld a,(spr_new+14)
-		or a
-		ret z
-		ld a,(spr_new+16+14)
-		or a
-		ret z
-		ld a,(spr_new+4)
-		ld b,a
-		ld a,(spr_new+16+4)
-		add a,b
-		cp 17
-		ret nz
-		ld a,b
-		cp 6
-		ld a,0x2F		; CMA: 6 снизу, 11 сверху
-		jp nz,jp_color
-		xor a			; NOP: 6 сверху
-jp_color:	ld c,a
-		call joe_cache_test
-		jp z,joe_cached_ready
-		ld a,(joe_rows)
-		add a,3
-		rrca
-		rrca
-		and 0x3F
-		ld (joe_groups),a
-		ld a,(joe_rows)
-		ld b,a
-		add a,a
-		add a,b
-		ld (joe_n),a
-		ld b,a
-		add a,a
-		add a,b
-		ld (jm_end+1),a
-		ld hl,live_code
-		ld de,0xF9D0
-		ld bc,spr_new+9
-		call joe_expand
-		ld hl,0xF900
-		ld de,0xFAD0
-		ld bc,spr_new+16+9
-		call joe_expand
-		jp joe_merge
-jb_done:	ld a,c
-jb_bg_sub:	sub 0
-		ld c,a
-		ld a,(sp_pm)
-		sub 0x20
-		ld (sp_pm),a
-		cp 0x60
-		jp nz,jb_plane
-		ret
-joe_dirty_set:	ld a,1
-		ld (joe_dirty),a
-		ret
-joe_cached_ready:	ld a,1
-		ld (joe_fast),a
-		ret
-		ENT
-joe_end0:
-		ASSERT joe_end0-joe_source0 <= 160
+ ld a,1
+ ld (spr_new+14),a
+ ld hl,jn_key
+ ld c,0
+ ld a,(jn_frame)
+ call mk_cmp
+ ld a,(jn_dir)
+ call mk_cmp
+ ld a,(spr_new+2)
+ and 7
+ call mk_cmp
+ ld a,(jn_skip)
+ call mk_cmp
+ ld a,(jn_rows_count)
+ call mk_cmp
+ ld a,c
+ or a
+ ret z
+ ld a,(spr_new+2)
+ and 7
+ call rotate_select
+ ld b,a
+ add a,a
+ add a,a
+ add a,a
+ add a,a
+ ld (jn_lookup0+1),a
+ ld (jn_lookup1+1),a
+ ld (jn_lookup2+1),a
+ ld (jn_lookup3+1),a
+ ld a,255
+ inc b
+ jp jn_mask_test
+jn_mask_loop:
+ or a
+ rra
+jn_mask_test:
+ dec b
+ jp nz,jn_mask_loop
+ ld (jn_a0_mask+1),a
+ ld (jn_c0_mask+1),a
+ ld (jn_a1_mask+1),a
+ ld (jn_c1_mask+1),a
+ cpl
+ ld (jn_a2_mask+1),a
+ ld (jn_c2_mask+1),a
+ ld a,(jn_frame)
+ add a,a
+ ld hl,joe_nes_frames
+ call add_hl_a
+ ld e,(hl)
+ inc hl
+ ld d,(hl)
+ ld a,(jn_skip)
+ call add_de_a
+ ex de,hl
+ ld (jn_source),hl
+ ex de,hl
+ ld a,(jn_rows_count)
+ add a,a
+ add a,a
+ ld (jn_stride),a
+ ld a,(jn_rows_count)
+ ld (jn_left),a
+ ld hl,0xF900
+ ld (jn_dest),hl
+jn_prep_row:
+ ld hl,(jn_source)
+ ld e,(hl)
+ inc hl
+ ld (jn_source),hl
+ ld a,(jn_dir)
+ or a
+ ld a,e
+ jp z,jn_row_index
+ ld hl,joe_row_mirror
+ call add_hl_a
+ ld a,(hl)
+jn_row_index:
+ ld l,a
+ ld h,0
+ add hl,hl
+ ld de,joe_row_dictionary
+ add hl,de
+ ld d,(hl)
+ inc hl
+ ld e,(hl)
+ ld h,joe_nibble_rotations/256
+ ld a,d
+ rrca
+ rrca
+ rrca
+ rrca
+ and 15
+jn_lookup0:
+ or 0
+ ld l,a
+ ld b,(hl)
+ ld a,d
+ and 15
+jn_lookup1:
+ or 0
+ ld l,a
+ ld c,(hl)
+ ld a,e
+ rrca
+ rrca
+ rrca
+ rrca
+ and 15
+jn_lookup2:
+ or 0
+ ld l,a
+ ld d,(hl)
+ ld a,e
+ and 15
+jn_lookup3:
+ or 0
+ ld l,a
+ ld e,(hl)
+ ld hl,(jn_dest)
+ ld a,b
+jn_a0_mask:
+ and 255
+ inc l
+ inc l
+ inc l
+ ld (hl),a
+ ld a,c
+jn_c0_mask:
+ and 255
+ dec l
+ dec l
+ ld (hl),a
+ IFDEF NES_JOE_3COLOR
+ inc l
+ inc l
+ or (hl)
+ dec l
+ dec l
+ ENDIF
+ cpl
+ dec l
+ ld (hl),a
+ ld a,(jn_stride)
+ add a,l
+ ld l,a
+ ld a,b
+ xor d
+jn_a1_mask:
+ and 255
+ xor b
+ inc l
+ inc l
+ inc l
+ ld (hl),a
+ ld a,c
+ xor e
+jn_c1_mask:
+ and 255
+ xor c
+ dec l
+ dec l
+ ld (hl),a
+ IFDEF NES_JOE_3COLOR
+ inc l
+ inc l
+ or (hl)
+ dec l
+ dec l
+ ENDIF
+ cpl
+ dec l
+ ld (hl),a
+ ld a,(spr_new+2)
+ and 7
+ jp z,jn_row_done
+ ld a,(jn_stride)
+ add a,l
+ ld l,a
+ ld a,d
+jn_a2_mask:
+ and 0
+ inc l
+ inc l
+ inc l
+ ld (hl),a
+ ld a,e
+jn_c2_mask:
+ and 0
+ dec l
+ dec l
+ ld (hl),a
+ IFDEF NES_JOE_3COLOR
+ inc l
+ inc l
+ or (hl)
+ dec l
+ dec l
+ ENDIF
+ cpl
+ dec l
+ ld (hl),a
+jn_row_done:
+ ld hl,(jn_dest)
+ inc l
+ inc l
+ inc l
+ inc l
+ ld (jn_dest),hl
+ ld hl,jn_left
+ dec (hl)
+ jp nz,jn_prep_row
+ ret
+add_de_a:
+ add a,e
+ ld e,a
+ ret nc
+ inc d
+ ret
+joe_put:
+ ld a,(jn_hold)
+ or a
+ jp nz,jn_put_geometry
+ ld a,(jn_ready_epoch)
+ ld (jn_last_epoch),a
+jn_put_geometry:
+ ld hl,spr_rec+9
+ ld de,spr_new+9
+ REPT 4
+ ld a,(de)
+ ld (hl),a
+ inc e
+ inc l
+ ENDR
+ ld a,(jn_frame)
+ ld (jn_shown),a
+ ld a,(jn_dir)
+ ld (jn_shown_dir),a
+ ld a,(jn_skip)
+ ld (jn_shown_skip),a
+ call jn_test80
+jn_put_tested:
+ ld hl,jn_put_full
+ ld de,jn_put_full_second-jn_put_full
+ ld a,(jn_no80)
+ or a
+ jp z,jn_put_select
+ ld hl,jn_put_two
+ ld de,jn_put_two_second-jn_put_two
+jn_put_select:
+ ld (jn_put_repeat+1),hl
+ ld a,(spr_rec+11)
+ and 1
+ jp z,jn_put_initial
+ add hl,de
+jn_put_initial:
+ ld (jn_put_row+1),hl
+ ; IRQ owns the stack until it is restored; no calls or interrupts in the loop.
+ ld hl,0
+ add hl,sp
+ ld (jn_stack),hl
+ ld sp,0xF900
+ ld de,0xFA00
+ ld hl,spr_rec+7
+ ld a,(spr_rec+8)
+ sub (hl)
+ inc a
+ ld (jn_columns),a
+ ld a,(spr_rec+10)
+ add a,0xC0
+ ld h,a
+jn_put_col:
+ ld a,(spr_rec+9)
+ ld l,a
+ ld a,(spr_rec+11)
+ inc a
+ rrca
+ and 0x7F
+ ld (jn_left),a
+jn_put_row:
+ jp jn_put_full
+jn_put_full:
+ ; Every byte commits C, A, 8000 together; cache words are M/C and pad/A.
+ pop bc
+ ld a,(hl)
+ ld (de),a
+ IFDEF NES_JOE_3COLOR
+ and c
+ ENDIF
+ or b
+ ld (hl),a
+ inc e
+ ld a,h
+ sub 0x20
+ ld h,a
+ pop af
+ ld b,a
+ ld a,(hl)
+ ld (de),a
+ and c
+ or b
+ ld (hl),a
+ inc e
+ ld a,h
+ sub 0x20
+ ld h,a
+ ld a,(hl)
+ ld (de),a
+ and c
+ ld (hl),a
+ inc e
+ ld a,h
+ add a,0x40
+ ld h,a
+ dec l
+jn_put_full_second:
+ ; Every byte commits C, A, 8000 together; cache words are M/C and pad/A.
+ pop bc
+ ld a,(hl)
+ ld (de),a
+ IFDEF NES_JOE_3COLOR
+ and c
+ ENDIF
+ or b
+ ld (hl),a
+ inc e
+ ld a,h
+ sub 0x20
+ ld h,a
+ pop af
+ ld b,a
+ ld a,(hl)
+ ld (de),a
+ and c
+ or b
+ ld (hl),a
+ inc e
+ ld a,h
+ sub 0x20
+ ld h,a
+ ld a,(hl)
+ ld (de),a
+ and c
+ ld (hl),a
+ inc e
+ ld a,h
+ add a,0x40
+ ld h,a
+ dec l
+ jp jn_put_count
+jn_put_two:
+ pop bc
+ ld a,(hl)
+ ld (de),a
+ IFDEF NES_JOE_3COLOR
+ and c
+ ENDIF
+ or b
+ ld (hl),a
+ inc e
+ ld a,h
+ sub 0x20
+ ld h,a
+ pop af
+ ld b,a
+ ld a,(hl)
+ ld (de),a
+ and c
+ or b
+ ld (hl),a
+ inc e
+ inc e ; unused 8000 background byte
+ ld a,h
+ add a,0x20
+ ld h,a
+ dec l
+jn_put_two_second:
+ pop bc
+ ld a,(hl)
+ ld (de),a
+ IFDEF NES_JOE_3COLOR
+ and c
+ ENDIF
+ or b
+ ld (hl),a
+ inc e
+ ld a,h
+ sub 0x20
+ ld h,a
+ pop af
+ ld b,a
+ ld a,(hl)
+ ld (de),a
+ and c
+ or b
+ ld (hl),a
+ inc e
+ inc e ; unused 8000 background byte
+ ld a,h
+ add a,0x20
+ ld h,a
+ dec l
+jn_put_count:
+ ld a,(jn_left)
+ dec a
+ ld (jn_left),a
+jn_put_repeat:
+ jp nz,jn_put_full
+ inc h
+ ld a,(jn_columns)
+ dec a
+ ld (jn_columns),a
+ jp nz,jn_put_col
+ ld hl,(jn_stack)
+ ld sp,hl
+ ret
 
-joe_source1:
-		DISP 0xFC30
-; HL — назначение (3*R байт), DE — маски слоя, BC — его геометрия.
-joe_expand:
-		push de
-		push bc
-		push hl
-		ld a,(joe_n)
-		ld b,a
-		xor a
-je_zero:	ld (hl),a
-		inc hl
-		dec b
-		jp nz,je_zero
-		pop de
-		pop hl
-		ld a,(svr+4)
-		sub (hl)
-		call add_de_a
-		inc l
-		inc l
-		ld b,(hl)		; строки исходного слоя
-		inc l
-		ld a,(hl)
-		ld (en_zero),a
-		pop hl			; исходная маска
-		ld a,3
-		ld (cl_n),a
-je_col:	push bc
-		push hl
-		push de
-		ld a,(en_zero)
-		rrca
-		ld (en_zero),a
-		jp c,je_next
-je_row:	ld a,(hl)
-		ld (de),a
-		inc hl
-		inc de
-		dec b
-		jp nz,je_row
-je_next:	pop de
-		ld a,(joe_rows)
-		call add_de_a
-		pop hl
-		ld a,16
-		call add_hl_a
-		pop bc
-		ld a,(cl_n)
-		dec a
-		ld (cl_n),a
-		jp nz,je_col
-		ret
-add_de_a:	add a,e
-		ld e,a
-		ret nc
-		inc d
-		ret
-joe_merge:
-		ld de,live_code
-		ld hl,0xF900
-		ld b,h
-		ld a,(joe_n)
-		ld c,a
-jm_row:	ld a,(de)
-jm_alpha:	cpl
-		ld (jm_bits+1),a
-		ld a,(de)
-		or (hl)
-		cpl
-		ld (hl),a
-		ld (bc),a
-		inc c
-		cpl
-jm_bits:	and 0
-		ld (bc),a
-		inc c
-		inc l
-		inc de
-		ld a,c
-jm_end:	cp 0
-		jp nz,jm_row
-		ld a,1
-		ld (joe_fast),a
-		ret
-joe_cache_test:
-		ld hl,jm_alpha
-		ld a,c
-		cp (hl)
-		ld (hl),a
-		call nz,joe_dirty_set
-		ld a,(svr+6)
-		ld hl,joe_rows
-		cp (hl)
-		ld (hl),a
-		call nz,joe_dirty_set
-		jp joe_cache_rest
-		ENT
-joe_end1:
-		ASSERT joe_end1-joe_source1 <= 160
+joe_restore:
+ push bc
+ ld hl,spr_rec+9
+ call en_load
+ ld a,(jn_no80)
+ or a
+ jp z,jn_restore_three
+ ld a,(st_rows)
+ and 7
+ add a,a
+ ld e,a
+ add a,a
+ add a,a
+ add a,a
+ add a,e ; 18 * (R & 7)
+ ld e,a
+ ld a,jn_restore_two_end & 255
+ sub e
+ ld l,a
+ ld h,jn_restore_two_end / 256
+ ld (jn_restore_partial+1),hl
+ ld hl,jn_restore_two
+ ld (jn_restore_groups+1),hl
+ ld de,0xFA01
+ ld a,0xA0
+ jp jn_restore_ready
+jn_restore_three:
+ ld a,(st_rows)
+ and 7
+ ld hl,jn_restore_end
+ cp 5
+ jp c,jn_restore_tail
+ sub 4
+ ld hl,jn_restore_first_end
+jn_restore_tail:
+ ld e,a
+ add a,a
+ add a,e
+ add a,a
+ add a,a
+ add a,a
+ add a,e ; 25 * (R & 7), at most 175 bytes
+ ld e,a
+ ld a,l
+ sub e
+ ld l,a
+ ld (jn_restore_partial+1),hl
+ ld hl,jn_restore_row
+ ld (jn_restore_groups+1),hl
+ ld de,0xFA02
+ ld a,0x80
+ jp jn_restore_ready
+jn_restore_ready:
+ ld (sp_pm),a
+ ld a,(spr_rec+9)
+ ld c,a
+ ld hl,spr_rec+7
+ ld a,(spr_rec+8)
+ sub (hl)
+ inc a
+ ld (jn_columns),a
+ ld a,(sp_pm)
+ ld h,a
+ ld a,(spr_rec+10)
+ add a,h
+ ld h,a
+jn_restore_col:
+ ld l,c
+ ld a,(st_rows)
+ rrca
+ rrca
+ rrca
+ and 3
+ ld b,a
+jn_restore_partial:
+ call jn_restore_end
+ ld a,b
+ or a
+ jp z,jn_restore_next
+jn_restore_groups:
+ call jn_restore_row
+ dec b
+ jp nz,jn_restore_groups
+jn_restore_next:
+ inc h
+ ld a,(jn_columns)
+ dec a
+ ld (jn_columns),a
+ jp nz,jn_restore_col
+ pop bc
+ ret
+; Skipping an unchanged plane is safe even when other sprites overlap: Joe
+; made no writes there, so his matching restore must also make no writes.
+jn_test80:
+ xor a
+ ld (jn_no80),a
+ ld hl,spr_rec+9
+ call en_load
+ ld hl,spr_rec+7
+ ld a,(spr_rec+8)
+ sub (hl)
+ inc a
+ ld b,a
+ ld a,(sv_col)
+ add a,0x80
+ ld h,a
+ ld a,(sv_lo)
+ ld l,a
+ ld e,a
+ ld a,(st_rows)
+ ld c,a
+ xor a
+jn_scan80_col:
+ ld d,c
+jn_scan80_row:
+ or (hl)
+ ret nz
+ dec l
+ dec d
+ jp nz,jn_scan80_row
+ ld l,e
+ inc h
+ dec b
+ jp nz,jn_scan80_col
+ inc a
+ ld (jn_no80),a
+ ret
+jn_no80 equ spr_rec+30
+jn_stack equ spr_new+23
+jn_tick: db 0
+jn_walk: db 0
+jn_frame: db 255
+jn_dir: db 0
+jn_fire: db 0
+jn_skip: db 0
+jn_rows_count: db 0
+jn_shown: db 0
+jn_shown_dir: db 0
+jn_shown_skip: db 0
+ IF ($ & 255) > 251
+ ALIGN 256
+ ENDIF
+jn_key: db 255,255,255,255,255
+ ASSERT jn_key/256 == (jn_key+4)/256
+jn_left equ spr_new+25
+jn_stride equ spr_new+26
+jn_source equ spr_new+27
+jn_dest equ spr_new+21
+jn_columns equ spr_rec+26
 
-joe_source2:
-		DISP 0xFD30
-joe_blit:
-		ld a,0xC0
-		ld (sp_pm),a
-		call joe_bg_setup
-jb_plane:
-		ld hl,spr_rec+16+9
-		call en_load
-		ld a,(joe_rows)
-		ld (en_stride),a
-		ld hl,jr_and
-		ld a,(sp_pm)
-		cp 0xA0
-		ld a,0
-		jp nz,jb_entry
-		ld a,(en_stride)
-		add a,a
-		ld (en_stride),a
-		ld hl,jr_mix
-		ld a,(joe_n)
-jb_entry:	ld (en_mask),a
-		ld a,(sp_pm)
-		cp 0xC0
-		jp nz,jb_skip
-		ld hl,jr_or
-jb_skip:	ld a,(joe_rows)
-		cpl
-		inc a
-		and 3
-		jp z,jb_address
-		ld e,a
-		add a,a
-		add a,a
-		add a,a
-		ld d,a
-		ld a,(sp_pm)
-		cp 0x80
-		ld a,d
-		jp z,jb_and_offset
-		add a,e
-		jp jb_offset
-jb_and_offset:	sub e
-jb_offset:	call add_hl_a
-jb_address:	ld (jb_call+1),hl
-		ld a,3
-		ld (cl_n),a
-jb_col:	ld a,(en_zero)
-		rrca
-		ld (en_zero),a
-		jp c,jb_next
-		ld a,(sv_col)
-		cp 32
-		jp nc,jb_done
-		ld d,a
-		ld a,(sp_pm)
-		add a,d
-		ld d,a
-		ld a,(sv_lo)
-		ld e,a
-		ld a,(en_mask)
-		ld l,a
-		ld h,0xF9
-		ld a,(joe_groups)
-		ld (jr_ac+1),a
-		ld (jr_mc+1),a
-		ld (jr_oc+1),a
-jb_call:	call jr_and
-		jp jb_next
-		ENT
-joe_end2:
-		ASSERT joe_end2-joe_source2 <= 160
 
-		ORG video_raw_end
-joe_source3:
-		DISP 0xFE30
-jb_next:	ld hl,sv_col
-		inc (hl)
-		ld a,(en_stride)
-		ld hl,en_mask
-		add a,(hl)
-		ld (hl),a
-		ld hl,cl_n
-		dec (hl)
-		jp nz,jb_col
-		jp jb_done
+jn_service equ 0x66FF
+joe_motion_pending:
+ xor a
+ ld hl,spr_rec+1
+ call obj_ptr
+ ld a,(de)
+ cp (hl)
+ ret nz
+ inc de
+ inc hl
+ ld a,(de)
+ cp (hl)
+ ret nz
+ ld a,1
+ ld hl,spr_rec+17
+ call obj_ptr
+ ld a,(de)
+ cp (hl)
+ ret nz
+ inc de
+ inc hl
+ ld a,(de)
+ cp (hl)
+ ret nz
+jn_motion_valid:
+ ld a,(jn_epoch)
+ ld (jn_last_epoch),a
+ ret
+jn_hold equ spr_rec+28
 
-; Один проход: прежний экран -> фон, затем маска и данные -> экран.
-jr_and:
-		REPT 4
-		ld a,(de)
-		ld (bc),a
-		and (hl)
-		ld (de),a
-		inc l
-		inc c
-		dec e
-		ENDR
-jr_ac:		ld a,0
-		dec a
-		ld (jr_ac+1),a
-		jp nz,jr_and
-		ret
-jr_mix:
-		REPT 4
-		ld a,(de)
-		ld (bc),a
-		and (hl)
-		inc l
-		or (hl)
-		ld (de),a
-		inc l
-		inc c
-		dec e
-		ENDR
-jr_mc:		ld a,0
-		dec a
-		ld (jr_mc+1),a
-		jp nz,jr_mix
-		ret
-jr_or:
-		REPT 4
-		ld a,(de)
-		ld (bc),a
-		cpl
-		and (hl)
-		cpl
-		ld (de),a
-		inc l
-		inc c
-		dec e
-		ENDR
-jr_oc:		ld a,0
-		dec a
-		ld (jr_oc+1),a
-		jp nz,jr_or
-		ret
-		ENT
-joe_end3:
-		ASSERT joe_end3-joe_source3 <= 160
-		ASSERT $ <= VNT
+; Capture the collision context before death motion changes the sampled tiles.
+jn_capture_death:
+ push af
+ ld a,(0x7079)
+ cp 8
+ jp z,jn_capture_done
+ xor a
+ ld (jn_fire),a
+ ld a,(0x7058)
+ call js_hazard
+ ld a,(0x705B)
+ call js_hazard
+jn_capture_done:
+ pop af
+ ret
+jn_epoch equ 0x66FC
+jn_last_epoch equ 0x66FD
+jn_ready_epoch equ 0x66FE
+
+; Coalesce pure-Y work earlier when no background cells are pending. Complete deferred cells
+; atomically; otherwise coalesce unpainted enemy positions into the next plan.
+joe_finish_old:
+ ld a,(spr_rec+13)
+ or a
+ ret nz
+ ld a,(crit_pend)
+ or a
+ ret z
+ ld b,2
+ ld a,(ex_any)
+ or a
+ jp nz,jn_old_age
+ ld a,(0x7301)
+ ld hl,spr_rec+2
+ cp (hl)
+ jp nz,jn_old_age
+ dec b
+jn_old_age:
+ ld a,(jn_epoch)
+ ld hl,jn_last_epoch
+ sub (hl)
+ cp b
+ ret c
+ call joe_motion_pending
+ ret z
+ ld a,(ex_any)
+ or a
+ jp nz,jn_finish_pending_cells
+ ; No deferred background remains: coalesce the unpainted enemy positions
+ ; into the next plan, letting the newest Joe enter the very next IRQ.
+ xor a
+ ld (crit_pend),a
+ ret
+jn_finish_pending_cells:
+ xor a
+ ld (crit_pend),a
+ jp crit
+
+
+
+
+jn_wait equ spr_rec+24
+jn_delta equ spr_rec+25
+
+; No frame_handler here: waiting for display must not advance the game clock.
+joe_step_gate:
+ push af
+ push hl
+ ld a,(jn_epoch)
+ ld hl,jn_last_epoch
+ sub (hl)
+ cp 2
+ jp nc,jsg_full
+ ; The picture queued for the next IRQ is also subject to the deadline.
+ ld a,(spr_rec+13)
+ or a
+ jp z,jsg_fast
+ ld a,(jn_epoch)
+ ld hl,jn_ready_epoch
+ sub (hl)
+ cp 2
+ jp c,jsg_fast
+jsg_full:
+ push bc
+ push de
+ ld hl,0
+ add hl,sp
+ ld (np_sp),hl
+ ld sp,DISP_STACK
+ ld a,1
+ ld (jn_wait),a
+ call joe_gate
+ xor a
+ ld (jn_wait),a
+ ld hl,(np_sp)
+ ld sp,hl
+ pop de
+ pop bc
+jsg_fast:
+ pop hl
+ pop af
+ ret

@@ -29,16 +29,34 @@ function checkMasks() {
   if (sym.joe_load !== undefined) {
     const mutable = new Set([sym.jm_alpha,sym.jm_bits+1,sym.jm_end+1,
       sym.jb_call+1,sym.jb_call+2,sym.jb_bg_sub+1,sym.jr_ac+1,sym.jr_mc+1,sym.jr_oc+1]);
-    for (let i=0;i<4;i++) {
-      const source=sym['joe_source'+i], end=sym['joe_end'+i], target=0xFB30+256*i;
-      if (end-source>160) throw Error('Код Джо пересекает маску врага');
+    for (let i=0;sym.joe_source0!==undefined&&i<4;i++) {
+      const source=sym['joe_source'+i], end=sym['joe_end'+i], target=sym['joe_runtime'+i]??(0xFB30+256*i);
+      if(source===undefined)continue;
+      if (target+end-source>(target&0xFF00)+0xD0) throw Error('Код Джо пересекает маску врага');
       for(let j=0;j<end-source;j++) if(!mutable.has(target+j)) {
         if(m.rd(target+j)!==image[source+j]) throw Error('Повреждён код Джо '+(target+j).toString(16));
         protectedBytes[target+j]=1;
       }
     }
+    if(sym.joe_attr_source!==undefined)for(let j=0;j<sym.joe_attr_end-sym.joe_attr_source;j++){
+      if(m.rd(0xF500+j)!==image[sym.joe_attr_source+j])throw Error('Повреждён планировщик Джо');
+      protectedBytes[0xF500+j]=1;
+    }
+    if(sym.joe_latch_source!==undefined)for(let j=0;j<sym.joe_latch_end-sym.joe_latch_source;j++){
+      if(m.rd(0xF600+j)!==image[sym.joe_latch_source+j])throw Error('Повреждено обновление позиции Джо');
+      protectedBytes[0xF600+j]=1;
+    }
     // 7F00..7F3F is the shift index; IRQ has its own 64-byte stack above it.
     protectedBytes.fill(1,sym.ps_idx,sym.ps_idx+64);
+  }
+  if(sym.joe_nibble_rotations!==undefined){
+    for(let i=0;i<128;i++){
+      const shift=i>>4,n=i&15;let v=0;
+      for(let x=0;x<4;x++)if(n&(8>>x))v|=3<<(6-2*x);
+      const want=((v>>>shift)|(v<<(8-shift)))&255;
+      if(m.rd(sym.joe_nibble_rotations+i)!==want)throw Error('Неверный поворот логической строки '+i);
+    }
+    protectedBytes.fill(1,sym.joe_nibble_rotations,sym.joe_nibble_end);
   }
   let count = 0;
   for (let f = 0; f < 12; f++) {
@@ -59,7 +77,8 @@ function checkMasks() {
       }
     }
   }
-  if (count < 58) throw new Error('Готовых сдвигов меньше 58: ' + count);
+  const minimum=sym.jn_shown===undefined?58:72;
+  if (count < minimum) throw new Error('Готовых сдвигов меньше '+minimum+': ' + count);
   console.log('готовых сдвигов', count, 'все соответствуют исходной графике MSX');
 }
 m.onWrite = (a, v) => {

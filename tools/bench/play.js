@@ -25,3 +25,5 @@ fs.writeFileSync(`${process.env.DIR||'build'}/${process.env.OUT||'play'}_${seed}
 fs.writeFileSync(`${process.env.DIR||'build'}/${process.env.OUT||'play'}_joe_${seed}_${part}.json`,JSON.stringify(motion.result()));
 
 if(framecheck){const q=framecheck.result();fs.writeFileSync(`${process.env.DIR||'build'}/${process.env.OUT||'play'}_frames_${seed}_${part}.json`,JSON.stringify(q));if(q.bad||!q.checks)process.exitCode=1;}
+
+if(steps<N){console.error('Сценарий не завершён:',steps,'из',N,'шагов');process.exitCode=1;}

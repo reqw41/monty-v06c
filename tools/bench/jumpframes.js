@@ -10,7 +10,7 @@ const K=(r,b,d)=>{if(d)m.keyboard.matrix[r]|=b;else m.keyboard.matrix[r]&=~b;};
 while(fc<900){if(fc===10)K(2,2,1);if(fc===100)K(2,2,0);
  if(fc>400){const t=fc-400;K(7,0x80,(t%60)<3);}   // прыжки на месте
  fc++;m.frame();motion.frame();
- if(fc>420){log.push([fc,steps,m.rd(0x7079),m.rd(0x7300),m.rd(sym.spr_rec+1),m.rd(sym.spr_rec)]);}}
+ if(fc>420){log.push([fc,steps,m.rd(0x7079),(sym.jn_shown!==undefined?Math.max(m.rd(0x7300),m.rd(0x7304)):m.rd(0x7300)),(sym.jn_shown!==undefined?0xDF-m.rd(sym.spr_rec+9)-m.rd(sym.jn_shown_skip)+sym.joe_nes_rows-17:m.rd(sym.spr_rec+1)),m.rd(sym.spr_rec)]);}}
 // показанная Y — из записи «нарисовано» слоя 0 (spr_rec+1), игровая — 7300
 let s='';for(const r of log.slice(0,90)){s+=`${r[0]}:ш${r[1]} с${r[2]} игр${r[3]} пок${r[4]}${r[5]?'':'(нет)'}  `;}console.log(s);
 const jumps=[];for(let i=1;i<log.length;i++){if(log[i][2]===2||log[i-1][2]===2)jumps.push(Math.abs(log[i][4]-log[i-1][4]));}

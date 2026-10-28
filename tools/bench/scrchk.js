@@ -1,7 +1,7 @@
 // Весь экран против эталона: фон по VNT (D0-D5 — любой кадр банка; 38 — статичный фон) + нарисованные спрайты (spr_rec +0, атрибуты +1..+4):
 // враги (цвет не 6/11) — OR в 8000; Джо — тремя плоскостями по индексу cmap[цвет]: бит 2 -> 8000, 1 -> A000, 0 -> C000 (AND/OR), меньший номер сверху.
 // node scrchk.js dir шагов [tp|r19]
-const REF = require('./video-ref');
+const REF = require('./video-ref'),joeRef=require('./joe-ref');
 const fs = require('fs'); process.chdir(require('path').resolve(__dirname, '../..'));
 const E = require('../vec_emu');
 const dir = process.argv[2] || 'build/native', N = +(process.argv[3] || 2000), MODE = process.argv[4] || '';
@@ -9,7 +9,7 @@ const sym = {}; for (const l of fs.readFileSync(dir + '/monty.sym', 'latin1').sp
 const m = E.mk(dir + '/monty.bin'); const framecheck=process.env.FRAMECHECK==='1'?require('./framecheck')(m,sym):null; const K = (r, b, d) => { if (d) m.keyboard.matrix[r] |= b; else m.keyboard.matrix[r] &= ~b; };
 const ROOMS = []; for (let r = 0; r < 9; r++) for (let c = 8 - r; c <= 10 + r; c++) ROOMS.push([r, c]);
 const SPRMAX = 6, REC = sym.spr_rec;
-let steps = 0, fc = 0, checks = 0, bad = 0, skip = 0, justCritical = false; const ex = [];
+let steps = 0, fc = 0, checks = 0, bad = 0, skip = 0, justCritical = []; const ex = [];
 const keys = (s) => { K(7, 0x80, (s >= 20 && s < 30) || (s > 200 && s % 37 < 4)); const ph = s < 100 ? -1 : Math.floor((s - 100) / 70) % 4; K(0, 0x40, ph === 0); K(0, 0x10, ph === 2); K(0, 0x20, ph === 1 && s % 50 < 20); K(0, 0x80, ph === 3 && s % 50 < 20); };
 const isFire = (t) => t >= 0xD0 && t <= 0xD5;
 function cellBytes(t, f) {
@@ -34,7 +34,9 @@ function check() {
     for (let f = 0; f < 4; f++) { const b = cellBytes(t, f); let ok = true; for (let p = 0; p < 3 && ok; p++) for (let y = 0; y < 8; y++) if (m.rd(0x8000 + 0x2000 * p + ad(c, 8 * r + y)) !== b[p * 8 + y]) { ok = false; break; }
       if (ok) { for (let p = 0; p < 3; p++) for (let y = 0; y < 8; y++) scr[p][ad(c, 8 * r + y)] = b[p * 8 + y]; fire[r * 32 + c] = 0; break; } } }
   const under = new Uint8Array(768);
-  for (let k = SPRMAX - 1; k >= 0; k--) { const a = REC + 16 * k; if (!m.rd(a)) continue;
+  for (let k = SPRMAX - 1; k >= 0; k--) {
+    if(sym.jn_shown!==undefined&&k<2){if(k===0)joeRef(m,sym,(x,y,ci)=>{const c=x>>3,bit=128>>(x&7),A=ad(c,y);under[(y>>3)*32+c]=1;for(let p=0;p<3;p++){if(ci&(4>>p))scr[p][A]|=bit;else scr[p][A]&=~bit;}});continue;}
+    const a = REC + 16 * k; if (!m.rd(a)) continue;
     const Y = m.rd(a + 1), X = m.rd(a + 2), nm = m.rd(a + 3) & 0xFC, col = m.rd(a + 4) & 15; const ci = m.rd(sym.cmap + col);
     const hero = col === 6 || col === 11; const top = (Y + 1) & 255;
     for (let yy = 0; yy < 16; yy++) { const y = top + yy; if (y >= 192) break;
@@ -49,9 +51,10 @@ function check() {
 }
 m.onInstr = (pc) => {
   if(framecheck)framecheck.instruction(pc);
-  if (pc === sym.crit) justCritical = true;
+  for(let i=justCritical.length-1;i>=0;i--){const q=justCritical[i];if(pc===q.pc&&m.cpu.sp===q.sp+2){justCritical.splice(i,1);if(steps)check();}}
+  if(pc===sym.crit){const sp=m.cpu.sp;justCritical.push({sp,pc:m.rd(sp)|(m.rd(sp+1)<<8)});}
   // Меню до первого шага содержит прямой текст вне VNT; исходный стенд начинал проверку с L_A5D1.
-  if (pc === sym.isr0 && justCritical) { justCritical = false; if (steps) check(); }
+
   if (MODE === 'r19' && pc === sym.L_8DA2 && steps > 60) { const c = m.cpu; c.pc = m.rd(c.sp) | (m.rd(c.sp + 1) << 8); c.sp += 2; return; }
   if (pc === sym.L_A5D1) { if (sym.video_edit !== undefined && m.rd(sym.video_edit)) throw new Error('Изменение карты/цветов не завершилось к шагу логики'); steps++; keys(steps); m.wr(0x7049, 6); check();
     if (MODE === 'r19') { m.wr(0x707C, m.rd(0x7300)); if (steps === 50) { m.wr(0x705F, m.rd(0x705F) & ~4); const [r,c]=(process.env.ROOM||"1,9").split(",").map(Number);m.wr(0x71A7, r); m.wr(0x71A8, c); m.wr(0x7079, 9); } }

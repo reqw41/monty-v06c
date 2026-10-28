@@ -122,7 +122,8 @@ L_8DD4:		ld	hl,0x7300
 		ld	(hl),a
 		ret
 ; L_8DA2: гибель героя (если ещё не): звук 5, состояние 8, таймер 70A9 = 70h, кадр D4, жизнь; сдвиг (C, E)
-L_8DA2:		ld	a,(0x7079)
+L_8DA2:		call jn_capture_death
+		ld	a,(0x7079)
 		cp	8
 		jp	z,p8da
 		ld	a,5

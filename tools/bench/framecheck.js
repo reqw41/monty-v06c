@@ -1,14 +1,16 @@
 // Every completed crit, including a deferred remainder. No global pending-work skip.
 // Follow tile/color/phase submission at drawing entry points, independently decode MSX pixels.
 // Every cell is checked, including pending cells against the background actually submitted.
-const REF=require('./video-ref');
-module.exports=function(m,s) {
+const REF=require('./video-ref'),joeRef=require('./joe-ref');
+module.exports=function(m,s,options={}) {
  const oldTile=new Uint8Array(768),oldColor=new Uint8Array(768),oldBelt=new Uint8Array(768);
- let started=false,critical=false,checks=0,bad=0;const examples=[];
+ let started=false,critical=[],checks=0,bad=0;const examples=[];
  const ad=(c,y)=>c*256+0xDF-y;
  function check(){
   const mask=Array.from({length:3},()=>new Uint8Array(8192)),bits=mask.map(()=>new Uint8Array(8192));
-  for(let k=5;k>=0;k--){const a=s.spr_rec+16*k;if(!m.rd(a))continue;
+  for(let k=5;k>=0;k--){
+   if(s.jn_shown!==undefined&&k<2){if(k===0)joeRef(m,s,(x,y,ci)=>{const a=ad(x>>3,y),bit=128>>(x&7);for(let p=0;p<3;p++){mask[p][a]|=bit;if(ci&(4>>p))bits[p][a]|=bit;else bits[p][a]&=~bit;}});continue;}
+   const a=s.spr_rec+16*k;if(!m.rd(a))continue;
    const top=(m.rd(a+1)+1)&255,x0=m.rd(a+2),nm=m.rd(a+3)&252,col=m.rd(a+4)&15,ci=m.rd(s.cmap+col),hero=col===6||col===11;
    for(let y=0;y<16&&top+y<192;y++)for(let half=0;half<2;half++){const b=REF.sprite(nm,half,y);
     for(let bx=0;bx<8;bx++)if(b&(128>>bx)){const x=x0+8*half+bx;if(x>255)continue;const a=ad(x>>3,top+y),bit=128>>(x&7);
@@ -35,10 +37,12 @@ module.exports=function(m,s) {
   checks++;if(errors)bad++;
  }
  return {instruction(pc){
+   if(pc===s.boot){started=false;critical.length=0;oldTile.fill(0);oldColor.fill(0);oldBelt.fill(0);}
    if(pc===s.da_blit||pc===s.fl_write){const hl=m.cpu.hl(),c=(hl>>8)&31,r=(0xDF-(hl&255))/8;
     if(Number.isInteger(r)&&r>=0&&r<24){const i=32*r+c,t=m.rd(s.rr_t);oldTile[i]=t;oldBelt[i]=m.rd(s.belt_shown);
      if(pc===s.da_blit||!m.rd(s.dc_pt))oldColor[i]=m.rd(s.room_colors+(t>>3));}
    }
-   if(pc===s.L_A5D1)started=true;if(pc===s.crit)critical=true;
-   if(pc===s.isr0&&critical){critical=false;if(started)check();}},result(){return {checks,bad,examples};}};
+   if(pc===s.L_A5D1)started=true;
+   for(let i=critical.length-1;i>=0;i--){const q=critical[i];if(pc===q.pc&&m.cpu.sp===q.sp+2){critical.splice(i,1);if(started&&!options.manual)check();}}
+   if(pc===s.crit){const sp=m.cpu.sp;critical.push({sp,pc:m.rd(sp)|(m.rd(sp+1)<<8)});}},checkNow:check,result(){return {checks,bad,examples};}};
 };

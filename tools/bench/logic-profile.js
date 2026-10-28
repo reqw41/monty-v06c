@@ -20,7 +20,7 @@ function profiler(m, s) {
     if (pc === 0x38 && !irq) irq = {sp: m.cpu.sp, pc: m.rd(m.cpu.sp) | m.rd(m.cpu.sp + 1) << 8};
     if (!irq) {
       if (pc === s.disp_prep) display = true;
-      if (pc === s.fw_return || pc === s.fw2) display = false;
+      if (pc === s.fw_return || pc === s.fw2 || pc === s.jsg_fast || pc === s.L_A5D1) display = false;
     }
     previous = irq ? 'I' : display ? 'D' : pc >= s.fw2 && pc < s.fw2 + 7 ? 'W' : 'L';
     return previous;

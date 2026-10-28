@@ -32,10 +32,6 @@ dr_ex:		ds	1
 dr_skip:	ds	1
 ex_n:		ds	1
 ex_r:		ds	4*SPR_MAX
-pm_bot:		ds	1
-rs_h:		ds	2
-rs_n:		ds	1
-pu_lo:		ds	1
 ex_any:		ds	1
 crit_pend:	ds	1
 cr_units:	ds	1
@@ -45,9 +41,6 @@ bk_c:		ds	1
 nf_val:		ds	1
 fire_next:		ds	1
 spr_E:		ds	1
-sp_sp:		ds	1
-pp_h:		ds	2
-pp_m:		ds	2
 cr_ptr:		ds	2
 cr_list:	ds	3*2*SPR_MAX+1
 cr_r:		ds	1
@@ -57,9 +50,7 @@ cr_c1:		ds	1
 sv_lo:		ds	1
 sv_col:		ds	1
 sp_k:		ds	1
-sp_cbits:	ds	1
 st_rows:	ds	1
-st_kind:	ds	1
 sv_zc:		ds	1
 cl_n:		ds	1
 tr_z0:		ds	1
@@ -87,11 +78,6 @@ group_modes:	ds	32
 enemy_turn:	ds	1
 sprite_dirty:	ds	1
 fire_ran:	ds	1
-joe_fast:	ds	1
-joe_changed:	ds	1
-joe_n:		ds	1
-joe_rows:	ds	1
-joe_groups:	ds	1
 en_reuse:	ds	1
 en_zero:	ds	1
 en_stride:	ds	1
