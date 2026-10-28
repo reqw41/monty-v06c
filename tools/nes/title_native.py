@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Original NES title CHR/RLE, without a screenshot or a scaled text substitute."""
+"""Original NES logo with requested Vector-06C credits in NES CHR."""
 from pathlib import Path
 import json
 from PIL import Image
@@ -16,14 +16,29 @@ def main():
     colors=[0x0f,0x27,0x06,0x17,0x1c,0x16,0x10,0x20]
     palettes=[[r.b(a+i) for i in range(4)] for a in (0xd46b,0xd47f,0xd483)]+[[0x0f]*4]
     pixel=Image.new('L',(256,192));p=pixel.load()
-    # Preserve the title and credits exactly. The level selector occupies the
-    # otherwise empty lower portion; the game uses the whole 256x240 separately.
+    # Keep the original logo. The level selector occupies the empty lower part.
     for y in range(128):
         for x in range(256):
             tx,ty=x//8,y//8
             pi=(at[(ty//4)*8+tx//4]>>((ty%4//2)*4+(tx%4//2)*2))&3
             v=r.tiles[256+nt[ty*32+tx]][y%8][x%8]
             p[x,y]=colors.index(palettes[pi][v] if v else 0x0f)
+    # Replace only the original credits; leave the black title layout intact.
+    for y in range(92,128):
+        for x in range(256):p[x,y]=0
+    alphabet={chr(ord('A')+i):0x6c+i for i in range(26)}
+    alphabet.update({str(i):0x62+i for i in range(10)})
+    brackets={'(':[0x18,0x30,0x60,0x60,0x60,0x30,0x18,0],
+              ')':[0x30,0x18,0x0c,0x0c,0x0c,0x18,0x30,0]}
+    credits=['(C) PARKER BROTHER 1984','VECTOR 06C VERSION BY','BORIS LIKHACHEV']
+    for y,line in zip((96,107,118),credits):
+        x0=(256-8*len(line))//2
+        for i,ch in enumerate(line):
+            if ch==' ':continue
+            rows=brackets[ch] if ch in brackets else [sum(128>>x for x,v in enumerate(row) if v) for row in r.tiles[256+alphabet[ch]]]
+            for yy,bits in enumerate(rows):
+                for xx in range(8):
+                    if bits&(128>>xx):p[x0+i*8+xx,y+yy]=6
     asm=['; Original NES title, RLE $D9E9/$DB12 and CHR bank 1.']
     for bit,base in ((4,0x8000),(2,0xa000),(1,0xc000)):
         for c in range(32):
@@ -54,6 +69,6 @@ def main():
     ref=out/'title_90.ppu'
     if ref.exists():
         ppu=ref.read_bytes();assert nt[:512]==ppu[0x2000:0x2200] and at[:32]==ppu[0x23c0:0x23e0]
-    (out/'title.json').write_text(json.dumps(dict(name_rle='D9E9',attribute_rle='DB12',mame_verified=ref.exists(),scaled=False,palette=colors),indent=2)+'\n')
+    (out/'title.json').write_text(json.dumps(dict(name_rle='D9E9',attribute_rle='DB12',mame_verified=ref.exists(),scaled=False,palette=colors,credits=credits),indent=2)+'\n')
 
 if __name__=='__main__':main()

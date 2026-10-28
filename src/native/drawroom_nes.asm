@@ -698,7 +698,23 @@ L_AABB:
  push af
  push bc
  push de
- ld de,0xBA
+ ; The left HUD panel has exactly five two-cell hat slots. Clamp only the
+ ; indicator; the actual life count in 7049 is never changed here.
+ ld de,0x81
+ ld bc,10
+ xor a
+ call nt_fill
+ ld a,(0x7049)
+ cp 2
+ jp c,nfh_hats_done
+ dec a
+ cp 6
+ jp c,nfh_hats_count
+ ld a,5
+nfh_hats_count:
+ ld b,a
+nfh_hats_loop:
+ push bc
  ld a,0x6F
  ld bc,1
  call nt_fill
@@ -706,31 +722,10 @@ L_AABB:
  ld a,0x6E
  call nt_fill
  inc de
- ld a,0x4A
- call nt_fill
- inc de
- ld a,(0x7049)
- dec a
- cp 10
- jp c,nfh_lives_one
- ; Retain the exact life count even above nine, without truncating icons.
- ld c,0
-nfh_tens:
- sub 10
- inc c
- cp 10
- jp nc,nfh_tens
- push af
- ld a,c
- add a,0x40
- ld bc,1
- call nt_fill
- inc de
- pop af
-nfh_lives_one:
- add a,0x40
- ld bc,1
- call nt_fill
+ pop bc
+ dec b
+ jp nz,nfh_hats_loop
+nfh_hats_done:
  pop de
  pop bc
  pop af

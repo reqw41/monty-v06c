@@ -18,4 +18,20 @@ for(let digit=0;digit<10;digit++){
   assert.equal(m.rd(address),plane===1?pattern:0,'digit '+digit+' part '+part+' plane '+plane+' row '+y);bytes++;
  }
 }
-console.log(JSON.stringify({B,digits:10,originalChrTiles:40,comparedBytes:bytes,fireBodyOverlap:false}));
+for(const lives of [0,1,3,6,7,11,12,255]){
+ m.wr(0x7049,lives);call('L_AABB');
+ assert.equal(m.rd(0x7049),lives,'HUD drawing preserves the actual life count');
+ const bottom=Math.min(Math.max(lives-1,0),5);
+ for(let i=0;i<5;i++)for(const [row,count] of [[4,bottom],[0,0]]){
+  const off=row*32+1+2*i;
+  assert.equal(m.rd(s.VNT+off),i<count?0x6f:0,`lives ${lives} hat left ${row},${i}`);
+  assert.equal(m.rd(s.VNT+off+1),i<count?0x6e:0,`lives ${lives} hat right ${row},${i}`);
+ }
+}
+m.wr(0x7049,6);call('L_AABB');call('nf_draw_hud');
+for(let half=0;half<2;half++)for(let plane=0;plane<3;plane++)for(let y=0;y<8;y++){
+ const addr=0x8000+0x2000*plane+256*(1+half)+s.SCREEN_TOP-8*4-y;
+ const source=half?s.style_hat_right:s.style_hat;
+ assert.equal(m.rd(addr),m.rd(source+plane*8+y),`two-colour hat half ${half} plane ${plane} row ${y}`);
+}
+console.log(JSON.stringify({B,digits:10,originalChrTiles:40,comparedBytes:bytes,fireBodyOverlap:false,lifeHatCases:8,lifeHatPixelsCompared:48}));
