@@ -2,7 +2,12 @@
 ; C000 — бит 0; E000 невидима: палитра Вектора парами). Поле MSX 256x192: строка Y -> младший байт 0DFh - Y.
 
 
-; --- pal_build: какие цвета MSX видны (таблица имён + герой 6, 11 + фон 1), слияние до 8, индексы ----
+ IFDEF NES_STYLE
+pal_build:
+ jp style_palette
+ INCLUDE "style.asm"
+ ELSE
+; Original MSX palette allocation.
 pal_build:
 		ld	hl,used
 		ld	bc,64			; used, repl, cmap, pal
@@ -193,7 +198,10 @@ pb11:		ld	hl,cmap
 		ld	(cmap+0),a
 		ret
 
+ ENDIF
+
 ; spr_ecolor: A = цвет врагов комнаты — первая видимая запись врага игры с цветом 15, 12 или 14 (14 — как 15; иначе 15)
+ IFNDEF NES_STYLE
 spr_ecolor:
 		ld	hl,0x7300
 		ld	b,SPR_MAX
@@ -225,6 +233,8 @@ uc1:		add	a,(hl)
 		dec	b
 		jp	nz,uc1
 		ret
+
+ ENDIF
 
 ; cell_colors: A = тайл -> D = цвет точек, E = цвет фона (MSX, 0 -> 1)
 cell_colors:

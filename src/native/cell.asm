@@ -133,8 +133,13 @@ tile_build:	ld	(tile_i),a
 tbuild0:	ld	a,(tile_i)
 		call	tile_addr
 		ld	(tile_dst),hl
+ IFDEF NES_STYLE
+ call style_image
+ jp c,tbuild_styled
+ ENDIF
 		call	dc_tile
 		call	da_img
+tbuild_styled:
 		ld	hl,tile_i
 		inc	(hl)
 		ld	hl,tile_phase
@@ -181,7 +186,14 @@ dc_tile:	ld	a,(rr_t)
 		ld	hl,group_modes
 		call	add_hl_a
 		ld	c,(hl)
-		call	tile_belt_mode
+		call tile_belt_mode
+ IFDEF NES_FULL
+ call full_style_modes
+ ELSE
+ IFDEF NES_STYLE
+ call style_modes
+ ENDIF
+ ENDIF
 		ld	a,b
 		cp	0xE0
 		jp	z,dc_belt0
@@ -192,6 +204,17 @@ dc_tile:	ld	a,(rr_t)
 		ld	a,(hl)
 		cp	17
 		jp	nc,dc_base
+ IFDEF NES_FULL
+ add a,a
+ add a,a
+ ld b,a
+ ld a,(tile_phase)
+ add a,b
+ ld hl,raw_anim
+ call add_hl_a
+ ld a,(hl)
+ jp full_strip
+ ELSE
 		add	a,a
 		add	a,a
 		add	a,a
@@ -202,16 +225,50 @@ dc_tile:	ld	a,(rr_t)
 		ld	hl,raw_anim
 		call	add_hl_a
 		jp	dc_source
-dc_base:	ld	a,(rr_t)
+ ENDIF
+dc_base:
+ IFDEF NES_FULL
+ ld a,(rr_t)
+ ld hl,raw_base
+ call add_hl_a
+ ld a,(hl)
+ jp full_strip
+ ELSE
+	ld	a,(rr_t)
 		ld	l,a
 		ld	h,0
 		add	hl,hl
 		ld	de,raw_base
 		add	hl,de
+ ENDIF
 dc_source:	ld	e,(hl)
 		inc	hl
 		ld	d,(hl)
 		ret
+ IFDEF NES_FULL
+dc_belt0:
+ ld a,(tile_phase)
+ and 3
+ ld hl,full_laser_v
+ jp full_laser
+dc_belt8:
+ ld a,(tile_phase)
+ and 1
+ ld hl,full_laser_h
+full_laser:
+ call add_hl_a
+ ld a,(hl)
+full_strip:
+ ld l,a
+ ld h,0
+ add hl,hl
+ add hl,hl
+ add hl,hl
+ ld de,full_raw
+ add hl,de
+ ex de,hl
+ ret
+ ELSE
 dc_belt0:	ld	a,(tile_phase)
 		and	3
 		add	a,a
@@ -227,6 +284,7 @@ dc_belt:	call	add_hl_a
 		ex	de,hl
 		ret
 
+ ENDIF
 ; Все три цвета лент/лазеров готовы заранее, смена цвета только выбирает образ.
 tile_belt_mode:	ld	a,b
 		cp	0xE0
@@ -257,14 +315,33 @@ dc_scr:		ld	a,(rr_r)
 		add	a,a
 		add	a,a
 		cpl
-		add	a,0xE0
+		add a,(SCREEN_TOP+1)&255
+ IFDEF NES_STYLE
+ IFNDEF NES_FULL
+ ld b,a
+ ld a,(rr_r)
+ cp 3
+ ld a,b
+ jp nc,sts_normal
+ add a,8
+sts_normal:
+ ENDIF
+ ENDIF
 		ld	l,a
 		ld	a,(rr_c)
 		add	a,0x80
 		ld	h,a
 		ret
 
-draw_cell:	call	tile_ready
+draw_cell:
+ IFDEF NES_STYLE
+ IFNDEF NES_FULL
+ ld a,(rr_t)
+ call style_tile
+ ld (rr_t),a
+ ENDIF
+ ENDIF
+ call tile_ready
 		ld	(tile_src),hl
 		call	dc_scr
 		jp	da_blit

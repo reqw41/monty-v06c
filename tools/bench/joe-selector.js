@@ -3,7 +3,7 @@
 'use strict';
 const path=require('path');process.chdir(path.resolve(__dirname,'../..'));
 const E=require('../vec_emu'),{symbols}=require('./logic-profile');
-const B=process.env.B||'build/native',s=symbols(B),m=E.mk(B+'/monty.bin');
+const B=process.env.B||'build/native',s=symbols(B),m=E.mk(B+'/monty.bin'),full=s.SCREEN_HEIGHT===240;
 let cases=0;const poses=new Set();
 function check(state,expected,fields={}) {
   m.wr(0x7079,state);
@@ -24,13 +24,14 @@ for(const direction of [2,254]){
   for(const state of [2,5,6,7])check(state,7);
   // Ladder: include swapped MSX layers and a stale rope/idle pose at entry.
   for(const name of [0x34,0x98,0x54,0xB8,0x58,0xBC])for(const previous of [0,10,19])for(const flags of [0,0x40])for(let phase=0;phase<8;phase++){
-    check(3,8+((phase>>1)&1),{[s.spr_new+3]:name,[s.jn_frame]:previous,0x705F:flags,0x70AA:phase});
+    check(3,8+((phase>>(full?2:1))&1),{[s.jn_tick]:phase,[s.spr_new+3]:name,[s.jn_frame]:previous,0x705F:flags,0x70AA:phase});
   }
   for(let phase=0;phase<8;phase++){
-    check(4,8+((phase>>1)&1),{0x7058:0x88,0x70AA:phase});
-    check(4,phase&2?19:10,{0x7058:8,0x70AA:phase});
+    check(4,8+((phase>>(full?2:1))&1),{[s.jn_tick]:phase,0x7058:0x88,0x70AA:phase});
+    check(4,phase&(full?4:2)?19:10,{[s.jn_tick]:phase,0x7058:8,0x70AA:phase});
   }
-  for(const tile of [0x90,0x95])check(4,11,{0x7058:tile});
+  for(const tile of [0x90,0x95])check(4,full&&tile===0x90?(m.rd(s.jn_tick)&4?19:10):11,{0x7058:tile});
+  if(full){for(let phase=0;phase<8;phase++)check(4,phase&4?19:10,{[s.jn_tick]:phase,0x7058:0x90,0x70AA:phase});check(5,11,{0x7058:0x95});m.wr(0x7058,0);}
   for(const tile of [0x98,0xD8])check(4,12,{0x7058:tile});
   for(let timer=0;timer<=112;timer++){
     check(8,13+Math.floor((112-timer)/24),{0x70A9:timer,[s.jn_fire]:0});

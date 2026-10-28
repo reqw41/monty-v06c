@@ -22,7 +22,7 @@ for(const state of states)for(const f of state.frames){
 module.exports=function(m,s,put){if(!m.rd(s.spr_rec))return;
  const id=m.rd(s.jn_shown),pic=frames[id];if(!pic)throw Error('NES Joe frame '+id);
  const rows=s.joe_nes_rows||23;
- const mirror=m.rd(s.jn_shown_dir),skip=m.rd(s.jn_shown_skip),n=m.rd(s.spr_rec+11),top=0xDF-m.rd(s.spr_rec+9),x0=m.rd(s.spr_rec+2);
+ const mirror=m.rd(s.jn_shown_dir),skip=m.rd(s.jn_shown_skip),n=m.rd(s.spr_rec+11),top=(s.SCREEN_TOP??0xDF)-m.rd(s.spr_rec+9),x0=m.rd(s.spr_rec+2);
  for(let y=0;y<n;y++)for(let x=0;x<16&&x0+x<256;x++){
   const v=pic[Math.min(22,Math.floor((skip+y+.5)*23/rows))][mirror?15-x:x];if(!v)continue;
   const ci=s.NES_JOE_COLORS===3?[0,2,3,1][v]:[0,1,3,1][v];put(x0+x,top+y,ci);

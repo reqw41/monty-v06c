@@ -48,9 +48,17 @@ en_next:	ld	a,(hl)
 		pop	de			; DE = current record; helpers preserve it
 		ld	hl,(en_sp)
 		ld	a,(hl)			; Y < 15h или >= B8h — направление наоборот
-		cp	0x15
+ IFDEF NES_FULL
+ cp HUD_ROWS*8+5
+ ELSE
+ cp 0x15
+ ENDIF
 		jp	c,en_f1
-		cp	0xB8
+ IFDEF NES_FULL
+ cp SCREEN_HEIGHT-8
+ ELSE
+ cp 0xB8
+ ENDIF
 		jp	c,en_f2
 en_f1:		call	en_flip
 en_f2:		ld	h,d

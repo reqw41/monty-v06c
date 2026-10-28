@@ -4,7 +4,7 @@
 ; (отмеченные, с последнего: меньший номер сверху). Неизменённые спрайты не трогаются — не мерцают. Спрайт — до 3 столбцов x 3 плоскости вертикальных полос по 16 строк. Маски столбцов
 ; (sm_or[3][16]) считаются один раз на спрайт; AND-плоскости берут инверсию на лету. Полосы — развёрнутые блоки,
 ; адреса входа (по числу строк) подставляются в команды CALL (самоизменяемый код). Спрайт с тем же (X, Y), что
-; у нарисованного перед ним, фон не сохраняет (слои героя). Y = D0 — конец, цвет 0 — не виден, EC и Y > BF — нет.
+; у нарисованного перед ним, фон не сохраняет (слои героя). В прежнем поле Y=D0 — конец; NES_FULL скрывает свободные слоты цветом 0.
 SM_OFS		equ	0xD0			; маски столбцов в ячейке спрайта (фон — до 3 x 3 x 23 = CF)
 T0_U		equ	3			; единиц (256 тактов) от прерывания до первой группы
 MA_U		equ	3			; запас «до луча»
@@ -56,6 +56,7 @@ spl_limit:
 spl0:		ld	a,SPR_MAX
 		sub	b
 		call	obj_ptr
+ IFNDEF NES_FULL
 		ld	a,(obj_end)
 		or	a
 		jp	nz,spl_end
@@ -65,6 +66,7 @@ spl0:		ld	a,SPR_MAX
 		ld	a,1
 		ld	(obj_end),a
 spl_end:	ld	de,spl_z
+ ENDIF
 spl_c:
 spl_band_y:	ld	a,(spr_force)
 		or	a
@@ -190,8 +192,12 @@ spl_ch:
 		call	rolling_pose
 		ld	a,(de)			; виден: Y + 1 < 192, цвет без EC и не 0
 		inc	a
-		cp	192
-		jp	nc,spl_inv
+		cp SCREEN_HEIGHT
+		jp nc,spl_inv
+ IFDEF NES_FULL
+ cp HUD_ROWS*8-15
+ jp c,spl_inv
+ ENDIF
 		ld	c,a			; C = Y + 1
 		inc	de
 		inc	de
@@ -207,17 +213,23 @@ spl_ch:
 		rrca
 		rrca
 		and	0x1F
-		ld	(hl),a
-		inc	l
-		ld	a,c
-		add	a,15
+ IFDEF NES_FULL
+ cp HUD_ROWS
+ jp nc,spl_full_top
+ ld a,HUD_ROWS
+spl_full_top:
+ ENDIF
+		ld (hl),a
+		inc l
+		ld a,c
+		add a,15
 		rrca
 		rrca
 		rrca
 		and	0x1F
-		cp	24
+		cp	SCREEN_ROWS
 		jp	c,spl2
-		ld	a,23
+		ld	a,SCREEN_ROWS-1
 spl2:		ld	(hl),a
 		inc	l
 		push	hl
@@ -706,7 +718,7 @@ spr_one:
 		ld	(sp_ci),a
 		ld	a,(sp_y)		; строк: min(16, 192 - Y)
 		ld	b,a
-		ld	a,192
+		ld	a,SCREEN_HEIGHT
 		sub	b
 		cp	16
 		jp	c,so0
@@ -714,7 +726,7 @@ spr_one:
 so0:		ld	(st_rows),a
 		ld	a,(sp_y)
 		ld	b,a
-		ld	a,0xDF
+		ld	a,SCREEN_TOP
 		sub	b
 		ld	(sv_lo),a
 		ld	a,(sp_x)
@@ -940,8 +952,21 @@ trim_sprite:
 		ld	a,(hl)			; первая
 		cp	0xFF
 		ret	z
-		ld	(sm_off),a
-		ld	b,a
+ IFDEF NES_FULL
+ ld b,a
+ ld a,(sp_y)
+ ld c,a
+ ld a,HUD_ROWS*8
+ sub c
+ jp c,ts_full_ready
+ cp b
+ jp c,ts_full_ready
+ ld b,a
+ts_full_ready:
+ ld a,b
+ ENDIF
+		ld (sm_off),a
+		ld b,a
 		inc	hl
 		ld	a,(hl)			; последняя
 		sub	b
@@ -1336,7 +1361,17 @@ cells_rect:
 		ld	hl,cr_c0
 		sub	(hl)
 		ld	(cr_c1),a		; (здесь — число столбцов)
-cr0:		ld	a,(cr_r)		; HL = PND + 32 r + c0
+cr0:
+ IFDEF NES_FULL
+ ld a,(cr_c0)
+ ld c,a
+ ld a,(cr_r)
+ call nf_row_addr
+ ld a,h
+ add a,(PND-VNT)/256
+ ld h,a
+ ELSE
+		ld	a,(cr_r)		; HL = PND + 32 r + c0
 		rrca
 		rrca
 		rrca
@@ -1350,6 +1385,7 @@ cr0:		ld	a,(cr_r)		; HL = PND + 32 r + c0
 		ld	a,(cr_c0)
 		or	l
 		ld	l,a
+ ENDIF
 		ld	a,(cr_c1)
 		ld	b,a
 cr1:		ld	a,(hl)			; ждёт вывода
@@ -1389,8 +1425,19 @@ cr2:		inc	l
 ; --- готовые сдвиги кадров врагов: при старте (ps_build) для кадров ps_names — все 8 сдвигов по столбцам
 ; (столбец j — R байт с первой непустой строки, R — строк по обрезке; блок 3R байт — в одной странице);
 ; ps_tab[8 * номер + s] — адрес блока, ps_rr[номер] — R; ps_idx[имя / 4] — номер (FF — нет)
-ps_names:	db	0x0C,0x10,0x14,0x18,0x1C,0x20,0x24,0x28,0x2C,0x30,0x68,0x78,0xFF
-PS_N		equ	12
+ps_names:
+ IFDEF NES_FULL
+ ; The NES start and most rooms use the two spider poses. Cache them before
+ ; the eight rolling-skull poses when the full room pack reduces free RAM.
+ db 0x2C,0x30,0x0C,0x10,0x14,0x18,0x1C,0x20,0x24,0x28,0xFF
+ ELSE
+ db 0x0C,0x10,0x14,0x18,0x1C,0x20,0x24,0x28,0x2C,0x30,0x68,0x78,0xFF
+ ENDIF
+ IFDEF NES_FULL
+PS_N equ 10
+ ELSE
+PS_N equ 12
+ ENDIF
 ; ps_find: для спрайта sp_k — враг (цвет не 6, 11) с готовыми сдвигами: ps_lo/hi/r[k] := блок, R; Z.
 ; Иначе ps_hi[k] := 0, NZ
 ps_find:	ld	a,(sp_k)
@@ -1417,7 +1464,12 @@ ps_find:	ld	a,(sp_k)
 		ld	c,a			; C = номер
 		ld	hl,ps_rr
 		call	add_hl_a
-		ld	b,(hl)			; B = R
+		ld b,(hl)			; B = R
+ IFDEF NES_FULL
+ ld a,(st_rows)
+ cp b
+ jp nz,psf_n
+ ENDIF
 		ld	a,c			; ps_tab + 2 * (8 * номер + s)
 		add	a,a
 		add	a,a
@@ -1464,10 +1516,13 @@ joe_load:
  ld hl,0xF500
  ld bc,joe_attr_end-joe_attr_source
  call copy_de_hl
+ IFDEF STRICT
  ld de,joe_latch_source
  ld hl,0xF600
  ld bc,joe_latch_end-joe_latch_source
  call copy_de_hl
+
+ ENDIF
 
  ld de,joe_source0
  ld hl,joe_runtime0
@@ -1643,10 +1698,12 @@ ps_build:	ld	hl,ps_idx
 		ld	e,0xFF
 		call	memfill
  ; Allocation cursors are temporary; the runtime live list later owns FF80.
+ IFDEF STRICT
  ld de,ps_rg
  ld hl,0xFF80
  ld bc,ps_rg_end-ps_rg
  call copy_de_hl
+ ENDIF
 		ld	hl,ps_names
 		ld	c,0
 pbd0:		ld	a,(hl)
@@ -1804,6 +1861,7 @@ pbd5:		ld	a,(ps_s)
 		inc	c
 		jp	pbd0
 ; ps_alloc: A = байт -> HL = блок в одной странице (из ps_p; конец места — следующее место ps_rg); 0 — нет места
+ IFDEF STRICT
 ps_alloc:	ld	c,a
  ; First fit retains small tails for later, shorter source frames.
  ld hl,0xFF80
@@ -1868,13 +1926,21 @@ ps_nrg:		push	hl
 		pop	de
 		pop	hl
 		ret
+ ELSE
+ps_alloc: jp nes_ps_alloc
+ps_nrg: ret
+ ENDIF
 		ENT
 ps_boot_source_end:
 		ASSERT ps_boot_source_end-ps_boot_source < 24*TILE_CAP
 ; свободные места (начало, конец): невидимая плоскость — бывший кэш тайлов, затем основная память
+ IFDEF STRICT
 ps_rg:		dw	PS_MORE, 0x7000, sprite_sources_end, 0x7B00, 0x7B80, VNT, 0xEB40, 0xEC00, 0xEF00, 0xF000, 0xF600+joe_latch_end-joe_latch_source, 0xF820, ps_heap, PS_TOP, ps_boot_source+125, ps_boot_source_end, sprt_end, 0x6800, 0x6660, 0x6680, JOE_PICTURE+12*joe_nes_rows, JOE_BACKGROUND, JOE_BACKGROUND+9*joe_nes_rows, 0xFB00, joe_runtime0+joe_end0-joe_source0, 0xFBD0, 0xFC30+joe_end1-joe_source1, 0xFCD0, joe_runtime2+joe_end2-joe_source2, 0xFDD0, 0xFE30, 0xFED0, 0, 0	; 0 — места нет
+ ENDIF
 ps_rg_end:
+ IFDEF STRICT
  ASSERT ps_rg_end-ps_rg <= 128
+ ENDIF
 
 
 ; Покрытие клеток объектами постоянно хранится в PND, биты 1..6 по слоям.
@@ -1946,7 +2012,18 @@ cover_mask:	ld	(cover_op+1),a
 		ld	b,(hl)
 		inc	l
 		ld	c,(hl)
-cover_row:	ld	a,d
+cover_row:
+ IFDEF NES_FULL
+ push bc
+ ld c,b
+ ld a,d
+ call nf_row_addr
+ pop bc
+ ld a,h
+ add a,(PND-VNT)/256
+ ld h,a
+ ELSE
+	ld	a,d
 		rrca
 		rrca
 		rrca
@@ -1958,6 +2035,7 @@ cover_row:	ld	a,d
 		and	0xE0
 		or	b
 		ld	l,a
+ ENDIF
 		push	bc
 		ld	a,c
 		sub	b
@@ -2269,7 +2347,7 @@ sc_found:	ld	a,b
 		ld	a,(sp_k)
 		call	ub_ld
 		ld	a,d
-		cp	24
+		cp	SCREEN_ROWS
 		jp	nc,sc_no
 		ld	a,c
 		cp	32
@@ -2280,7 +2358,19 @@ sc_found:	ld	a,b
 		inc	a
 		ld	(cl_n),a
 		ld	c,0
-sc_row:		ld	a,d
+sc_row:
+ IFDEF NES_FULL
+ push bc
+ ld a,(sv_col)
+ ld c,a
+ ld a,d
+ call nf_row_addr
+ pop bc
+ ld a,h
+ add a,(PND-VNT)/256
+ ld h,a
+ ELSE
+		ld	a,d
 		rrca
 		rrca
 		rrca
@@ -2294,6 +2384,7 @@ sc_row:		ld	a,d
 		ld	a,(sv_col)
 		or	b
 		ld	l,a
+ ENDIF
 		ld	a,(cl_n)
 		ld	b,a
 sc_col:		ld	a,(hl)
@@ -2509,7 +2600,11 @@ bm_next:	ld	a,l
 		or	a
 		ret
 
-band_emit:	ld	de,cr_list
+band_emit:
+ IFNDEF STRICT
+ call nes_service
+ ENDIF
+		ld	de,cr_list
 		ld	hl,band_order
 		ld	b,SPR_MAX
 be0:		ld	a,(hl)

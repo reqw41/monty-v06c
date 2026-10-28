@@ -107,7 +107,20 @@ fh1:		ld	a,(0x705F)
 		ld	a,(hl)
 		and	0xEF
 		ld	(hl),a
-		call	L_8EB0
+ IFDEF NES_FULL
+ ld a,(room_colors+1)
+ push af
+ ENDIF
+		call L_8EB0
+ IFDEF NES_FULL
+ pop af
+ ld hl,room_colors+1
+ cp (hl)
+ jp z,fh2
+ ld a,(video_dirty)
+ or DIRTY_ROOM
+ ld (video_dirty),a
+ ENDIF
 fh2:		ld	hl,0x7097
 		inc	(hl)
 		ld	hl,(0x7047)

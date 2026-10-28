@@ -22,4 +22,12 @@ function modes(m, sym, t) {
   for (let bit = 2; bit >= 0; bit--) out |= (((fg >> bit)&1) | (((bg >> bit)&1) << 1)) << (2*bit);
   return out;
 }
-module.exports = { animated, pattern, modes, sprite: (nm, half, y) => v[0x3800 + 8*nm + 16*half + y] };
+function cell(m,s,t,frame,belt,options={}) {
+  if(s.SCREEN_HEIGHT===240)return require('./nes-video-ref').cell(m,s,t,frame,belt,options);
+  const p=pattern(t,frame,belt),color=options.color===undefined?m.rd(s.room_colors+(t>>3)):options.color,
+    fg=m.rd(s.cmap+((color>>4)||1)),bg=m.rd(s.cmap+((color&15)||1)),out=[];
+  for(let bit=2;bit>=0;bit--)for(let y=0;y<8;y++){const mode=((fg>>bit)&1)|(((bg>>bit)&1)<<1);out.push([0,p[y],p[y]^255,255][mode]);}
+  return out;
+}
+function isAnimated(s,t){return s.SCREEN_HEIGHT===240?require('./nes-video-ref').animated.has(t):animated.has(t);}
+module.exports = { animated, pattern, modes, cell, isAnimated, sprite: (nm, half, y) => v[0x3800 + 8*nm + 16*half + y] };

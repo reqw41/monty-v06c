@@ -3,7 +3,7 @@
 C_xxxx на каждый адрес (EQU), слова-указатели в данные -> dw C_xxxx; src/native/gen/video.asm — исходные полосы тайлов и цвета;
 src/native/gen/spat.asm — общие исходные кадры объектов и таблица указателей.
   node tools/vsnap.js && python3 -I tools/mknative.py"""
-import re, os
+import re, os, sys
 ROOT = os.path.join(os.path.dirname(__file__), '..')
 IMG = open(os.path.join(ROOT, 'build/monty_entry.bin'), 'rb').read()
 LO, HI = 0x800C, 0xBFFF
@@ -28,6 +28,9 @@ for i, (k, a) in enumerate(items):
     if k == 'b':
         e = items[i + 1][1] if i + 1 < len(items) else HI + 1
         data.update(range(a, e))
+if '--nes-full' in sys.argv:
+    # Original geometry/room-pointer stream is replaced by the NES room pack.
+    data.difference_update(range(0x9477, 0x9FD2))
 # блоки данных: непрерывные участки (как в разметке); берутся только нужные нативному коду — по меткам C_xxxx
 # в src/native/*.asm и, по цепочке, по словам-указателям внутри взятых блоков
 blocks = []
@@ -43,6 +46,7 @@ def blk_of(x):
 import glob
 need = set()
 for f in glob.glob(os.path.join(ROOT, 'src/native/*.asm')):
+    if os.path.basename(f) in (('drawroom.asm','sound.asm') if '--nes-full' in sys.argv else ('drawroom_nes.asm','sound_nes.asm')): continue
     for m in re.finditer(r'C_([0-9A-F]{4})', open(f).read()): need.add(int(m.group(1), 16))
 take, work = set(), [blk_of(x) for x in need if blk_of(x)]
 while work:
@@ -72,7 +76,7 @@ for (a, b) in sorted(take):
         if len(row) == 16: flush()
     flush()
 data_kept = sum(b - a for a, b in take)
-open(os.path.join(ROOT, 'src/native/gen/cart.asm'), 'w').write('\n'.join(out + [''] + eqs) + '\n')
+open(os.path.join(ROOT, 'src/native/gen/cart_full.asm' if '--nes-full' in sys.argv else 'src/native/gen/cart.asm'), 'w').write('\n'.join(out + [''] + eqs) + '\n')
 print('данных картриджа', data_kept, 'из', len(data), 'байт,', len(take), 'блоков')
 
 # --- шаблоны из снимка VRAM ---

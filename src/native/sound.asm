@@ -1,5 +1,5 @@
 ; Нативно: звуковые эффекты (по src/model/sound.js) — AC1A (запуск), AC6D (шаг раз в кадр), AC77 (конец),
-; snd_off (1FD6). Байты SN76489 -> sn_out: состояние каналов sn_per/sn_att (вывод на ВИ53 — по нему).
+; snd_off (1FD6). STRICT: SN76489 -> sn_out/sn_per/sn_att -> ВИ53. Обычная: события NES и очередь.
 ; Переменные эффекта — 702C-7035 (как у оригинала; 702E — указатель, адрес Вектора).
 
 ; L_AC06: инвентарь 71B2-71B8 := FF (регистры сохраняются)
@@ -36,7 +36,11 @@ L_AC1A:		push	af
 		jp	z,ac1x
 		cp	1
 		jp	z,ac1x
-ac1n:		ld	a,b
+ac1n:
+		IFNDEF STRICT
+		call nes_event
+		ENDIF
+		ld	a,b
 		ld	(0x702D),a
 		ld	a,(0x702C)
 		or	0xA0
@@ -98,6 +102,7 @@ L_AC6D:		ld	a,(0x702C)
 		ld	a,c
 		and	0xDF
 		ld	(0x702C),a
+		IFDEF STRICT
 		ld	hl,(0x702E)
 		ld	a,(hl)
 		and	0x0F
@@ -129,6 +134,12 @@ L_AC6D:		ld	a,(0x702C)
 		ld	a,(0x7035)
 		or	0xE3
 		call	sn_out
+		ELSE
+		ld hl,(0x702E)
+		inc hl
+		inc hl
+		ld (0x702E),hl
+		ENDIF
 ac6n:		ld	a,(0x7031)		; ноты
 		ld	b,a
 		ld	a,(0x7033)
@@ -144,11 +155,14 @@ ac6a:		inc	a
 		ld	a,(hl)
 		or	a
 		jp	z,L_AC77
-		push	af
+		IFDEF STRICT
+		push af
+		ENDIF
 		and	0xFC
 		rrca
 		rrca
 		ld	(0x7034),a
+		IFDEF STRICT
 		pop	af
 		and	3
 		add	a,a
@@ -160,25 +174,40 @@ ac6a:		inc	a
 		rrca
 		rrca
 		or	b
+		ENDIF
 		inc	hl
 		ld	(0x702E),hl
+		IFDEF STRICT
 		call	sn_out
 		ld	a,(0x7034)
 		call	sn_out
+		ENDIF
 		jp	ac6n
 
 ; snd_off (1FD6): все каналы и шум — без звука
 ; snd_quiet: эффект прервать, каналы — без звука (меню)
+		IFDEF STRICT
 snd_quiet:	ld	a,(0x702C)
 		and	0x3F
 		ld	(0x702C),a
-snd_off:	ld	a,1			; из логики — под флагом (звук идёт в прерывании)
+		ENDIF
+snd_off:
+		IFNDEF STRICT
+		xor a
+		ret
+		ELSE
+		ld	a,1			; из логики — под флагом (звук идёт в прерывании)
 		ld	(snd_busy),a
 		call	snd_off0
 		xor	a
 		ld	(snd_busy),a
 		ret
-snd_off0:	ld	a,0x9F
+		ENDIF
+snd_off0:
+		IFNDEF STRICT
+		ret
+		ELSE
+		ld	a,0x9F
 		call	sn_out
 		ld	a,0xBF
 		call	sn_out
@@ -186,10 +215,12 @@ snd_off0:	ld	a,0x9F
 		call	sn_out
 		ld	a,0xFF
 		jp	sn_out
+		ENDIF
 
 ; sn_out: A = байт SN76489. Защёлка (бит 7): канал = биты 6-5, тип = бит 4 (1 — ослабление), данные — биты
 ; 3-0; байт данных — старшие 6 бит периода последнего защёлкнутого канала. sn_per[4] (слова), sn_att[4].
 ; Регистры сохраняются
+		IFDEF STRICT
 sn_out:		push	af
 		push	bc
 		push	hl
@@ -469,3 +500,16 @@ vi_off:		ld	a,0x30
 		ld	(vi_dv+2),hl
 		ld	(vi_dv+4),hl
 		ret
+
+		ELSE
+sn_out equ snd_off0
+		INCLUDE "gen/music_low.asm"
+		INCLUDE "nes_queue.asm"
+vi_off:	ld a,0x30
+	out (0x08),a
+	ld a,0x70
+	out (0x08),a
+	ld a,0xB0
+	out (0x08),a
+	ret
+		ENDIF

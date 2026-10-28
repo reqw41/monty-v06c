@@ -34,6 +34,7 @@ ja_fetch:
  ld a,1
  call obj_ptr
 ja_one:
+ IFNDEF NES_FULL
  ld a,(obj_end)
  or a
  jp nz,ja_end
@@ -44,6 +45,7 @@ ja_one:
  ld (obj_end),a
 ja_end:
  ld de,spl_z
+ ENDIF
 ja_compare:
  push hl
  push de

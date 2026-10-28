@@ -12,7 +12,8 @@ def picture(path, meta=None):
     colors = []
     for v in palette:
         colors += [(v & 7) * 32, ((v >> 3) & 7) * 32, ((v >> 6) & 3) * 64]
-    im = Image.frombytes('P', (256, 192), path.read_bytes())
+    raw = path.read_bytes()
+    im = Image.frombytes('P', (256, len(raw)//256), raw)
     im.putpalette(colors + [0] * (768 - len(colors)))
     return im.convert('RGB')
 
@@ -20,7 +21,8 @@ def animation(paths, output, scale):
     frames = []
     for p in paths:
         meta = p.parent / ('palette_' + p.stem.split('_')[-1] + '.json') if p.stem.startswith('raster_') else None
-        im = picture(p, meta).resize((256 * scale, 192 * scale), Image.Resampling.NEAREST)
+        im = picture(p, meta)
+        im = im.resize((im.width * scale, im.height * scale), Image.Resampling.NEAREST)
         frames.append(im.convert('P', palette=Image.Palette.ADAPTIVE, colors=8))
     if not frames:
         raise ValueError('No frames for ' + str(output))

@@ -204,7 +204,16 @@ p8c1:		ld	a,(0x70B1)
 		jp	p8c1
 ; L_8E0C: смена комнаты (BC — сдвиг героя): ниже 9-го ряда — сокровищница или следующий уровень (после
 ; сокровищницы, состояние 5); иначе — кадр с перерисовкой и точка возрождения
-L_8E0C:		ld	a,(0x71A7)
+L_8E0C:
+ IFDEF NES_FULL
+ ld a,(0x71A7)
+ cp 9
+ jp z,nf_bonus_edge
+ call nf_valid_room
+ jp nc,nf_room_edge
+nf_bonus_edge:
+ ENDIF
+		ld	a,(0x71A7)
 		cp	9
 		jp	c,p8e1
 		ld	a,1
@@ -214,7 +223,11 @@ L_8E0C:		ld	a,(0x71A7)
 		jp	nz,p8e2
 		xor	a			; следующий уровень
 		ld	(0x71A7),a
+		IFDEF NES_FULL
+ ld a,10
+ ELSE
 		ld	a,8
+ ENDIF
 		ld	(0x71A8),a
 		ld	a,(0x705F)
 		and	0xD7
@@ -225,7 +238,11 @@ L_8E0C:		ld	a,(0x71A7)
 		jp	nc,p8e3
 		inc	a
 		ld	(0x71A6),a
-p8e3:		push	bc
+p8e3:
+		IFNDEF STRICT
+		call nes_pyramid
+		ENDIF
+		push	bc
 		ld	hl,0x70C0
 		ld	bc,0xC6
 		call	L_840B
@@ -233,7 +250,13 @@ p8e3:		push	bc
 p8e1:		call	L_8DD4
 		call	L_8C13
 		jp	L_8E7E
-p8e2:		ld	a,(0x705F)		; сокровищница
+p8e2:
+		IFNDEF STRICT
+		ld a,(0x705F)
+		and 0x20
+		call z,nes_treasure
+		ENDIF
+		ld	a,(0x705F)		; сокровищница
 		ld	e,a
 		or	0x28
 		ld	(0x705F),a
@@ -257,18 +280,35 @@ L_8DE8:		ld	a,(0x7076)
 		jp	nc,p8de
 		ld	bc,0			; 8F23: вверх/вниз
 		ld	a,(0x7304)
-		cp	8
-		jp	nc,p8dd
-		ld	c,0xA4
+ IFDEF NES_FULL
+ cp HUD_ROWS*8-17
+ ELSE
+ cp 8
+ ENDIF
+		jp nc,p8dd
+ IFDEF NES_FULL
+ ld c,192
+ ELSE
+ ld c,0xA4
+ ENDIF
 		ld	a,(0x705F)
 		and	0x20
 		jp	nz,L_8E0C
 		ld	hl,0x71A7
 		dec	(hl)
 		jp	L_8E0C
-p8dd:		cp	0xAC
+p8dd:
+ IFDEF NES_FULL
+ cp SCREEN_HEIGHT-17
+ ELSE
+ cp 0xAC
+ ENDIF
 		ret	c
-		ld	c,0x5C
+ IFDEF NES_FULL
+ ld c,64
+ ELSE
+ ld c,0x5C
+ ENDIF
 		ld	a,(0x705F)
 		and	4
 		ld	hl,0x71A7
@@ -767,8 +807,13 @@ go1:		ld	a,1
 		and	0x80
 		jp	z,go1
 		di
+		IFDEF NES_FULL
+ ld sp,GSTACK
+ jp warm_restart
+ ELSE
 		ld	sp,0x0100
 		jp	boot
+ ENDIF
 
 		IFNDEF	STRICT
 ; Допуск у лестниц (отступление от оригинала; сборка с -DSTRICT — как у MSX). Тайлы у героя 7057..7059 —

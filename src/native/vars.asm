@@ -14,10 +14,12 @@ belt_shown:	ds	1
 pal_load:	ds	1
 fire_shown:	ds	1
 kbmat:		ds	8
-row_dirty:	ds	24
+row_dirty:	ds	SCREEN_ROWS
 drew_any:	ds	1
 shown_colors:	ds	32
+ IFNDEF NES_STYLE
 used:		ds	16
+ ENDIF
 repl:		ds	16
 cmap:		ds	16
 pal:		ds	16
@@ -62,10 +64,12 @@ sp_x:		ds	1
 sp_name:	ds	1
 sp_ci:		ds	1
 sp_line:	ds	1
+ IFDEF STRICT
 sn_latch:	ds	1
 sn_chg:		ds	1
 sn_per:		ds	8
 sn_att:		ds	4
+ ENDIF
 obj_end:	ds	1
 tile_phase:	ds	1
 tile_i:		ds	1
@@ -88,6 +92,20 @@ band_valid:	ds	1
 band_ok:	ds	1
 		ALIGN	8
 band_order:	ds	SPR_MAX
+ IFDEF NES_FULL
+hud_dirty: ds 1
+nf_room_row: ds 1
+nf_room_col: ds 1
+nf_visibility: ds 1
+nf_flags: ds 1
+nf_kind: ds 1
+nf_enemy: ds 1
+nf_left: ds 2
+nf_bitbyte: ds 1
+nf_bitcount: ds 1
+nf_distance: ds 2
+nf_dist_hi: ds 1
+ ENDIF
 pvars_end:
 tabs_end:
 ; spr_rec, spr_new — на странице 6600, grp — в странице sprt (game.asm)

@@ -2,11 +2,21 @@
 ; и регистры — состояние оригинала на входе в A59D (tools/vsnap.js: ram0, vram0, vreg0; ОЗУ — сжатым,
 ; tools/pack.py); таблицу имён оригинал перед этим очищает, комнату и строку состояния рисует A067.
 ; Одноразовые game_init/unpack находятся в загрузочном оверлее sprites.asm.
-; game_start: стартовая комната уровня 1 с Джо, поверх — надпись выбора уровня (клавиши 1, 2, 3; звук молчит);
+; game_start: обычная сборка — nes_menu (музыка и выбор 1-3 до построения тайлов);
+; STRICT — стартовая комната уровня 1 с Джо, поверх — выбор уровня без музыки;
 ; выбран — надпись стирается, комната заново для выбранного уровня (от него зависят предметы и строка
 ; состояния), дальше игра
-MENU_POS	equ	0x01E5			; строка 15, столбец 5 — как у оригинала
-game_start:	ld	a,1
+ IFDEF NES_STYLE
+MENU_POS equ 0x0245
+ ELSE
+MENU_POS equ 0x01E5
+ ENDIF
+;			; строка 15, столбец 5 — как у оригинала
+game_start:
+		IFNDEF STRICT
+		jp nes_menu
+		ELSE
+		ld	a,1
 		ld	(0x71A6),a
 		call	a59d
 		call	snd_quiet
@@ -27,7 +37,11 @@ gs1:		ld	a,1
 		inc	b
 		rrca
 		jp	nc,gs1
+		ENDIF
 gs2:
+		IFNDEF STRICT
+		call nes_begin
+		ENDIF
 L_A59D:		ld	a,b			; (метка — для стендов: выбор сделан)
 		ld	(0x71A6),a
 		ld	hl,VNT+MENU_POS		; надпись — стереть: её клетки — заново из карты
@@ -39,7 +53,31 @@ gs3:		call	dl_add
 		xor	a			; состояние героя — как до первого начала (8E7E запоминает его для возрождения)
 		ld	(0x7079),a
 		call	a59d
+		IFNDEF STRICT
+		call nes_pyramid
+		ENDIF
 		jp	mn9			; A5CA: ждать кадра, дальше главный цикл
+ IFDEF NES_FULL
+; Cold bootstrap sources are reused by room tiles and sprite shifts. After
+; GAME OVER reset game state in place, keeping the installed video/audio code.
+warm_restart:
+ ld hl,0x7000
+ ld bc,0x0200
+ ld e,0
+ call memfill
+ ld a,2
+ ld (0x7012),a
+ ld (0x7068),a
+ ld (0x7073),a
+ ld (0x7074),a
+ ld a,6
+ ld (0x7303),a
+ ld a,11
+ ld (0x7307),a
+ ld b,1
+ ei
+ jp L_A59D
+ ENDIF
 ; a59d (A59D): начало уровня
 a59d:		ld	a,6
 		ld	(0x7049),a
@@ -54,9 +92,25 @@ a59d:		ld	a,6
 		ld	(0x70AD),a
 		ld	hl,1
 		ld	(0x72E0),hl
-		ld	a,8
-		ld	(0x71A8),a
-		call	L_A067
+ IFDEF NES_FULL
+ xor a
+ ld (0x71A7),a
+ ld (0x7076),a
+ ld (0x7077),a
+ ld a,10
+ ld (0x71A8),a
+ ld a,31
+ ld (0x7300),a
+ add a,3
+ ld (0x7304),a
+ ld a,120
+ ld (0x7301),a
+ ld (0x7305),a
+ ELSE
+		ld a,8
+		ld (0x71A8),a
+ ENDIF
+		call L_A067
 		call	L_8E7E
 		ld	a,5
 		ld	(0x7079),a
@@ -87,7 +141,7 @@ txt_draw:	ld	a,(cmap+15)
 		add	a,a
 		add	a,a
 		cpl
-		add	a,0xE0
+		add a,(SCREEN_TOP+1)&255
 		ld	(txt_l),a
 		ld	a,e
 		and	0x1F

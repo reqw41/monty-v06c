@@ -17,7 +17,11 @@
 		push	de
 		ld	a,c
 		ld	(bk_c),a
-bk_row:		push	bc
+bk_row:
+		IFNDEF STRICT
+		call nes_service
+		ENDIF
+		push	bc
 		push	hl
 		push	de
 		ld	a,(bk_c)		; 0 тайлов — ничего (как PUT/GET с числом 0)

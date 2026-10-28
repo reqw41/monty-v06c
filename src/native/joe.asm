@@ -16,6 +16,12 @@ joe_clock:
  ld hl,jn_epoch
  inc (hl)
  ld a,(0x7079)
+ IFDEF NES_FULL
+ cp 3
+ jp z,jc_ladder
+ cp 4
+ jp z,jc_ladder
+ ENDIF
  cp 1
  jp nz,jc_idle
  ld hl,jn_tick
@@ -30,6 +36,22 @@ joe_clock:
  and 3
  ld (hl),a
  jp jc_end
+ IFDEF NES_FULL
+jc_ladder:
+ ; NES animation 04 has four ticks per pose. Advance only while moving,
+ ; independently of the MSX two-tick selector; keep its natural two poses.
+ ld a,(0x7077)
+ ld hl,0x7076
+ or (hl)
+ jp z,jc_end
+ ld hl,jn_tick
+ inc (hl)
+ ld a,(hl)
+ cp 8
+ jp c,jc_end
+ ld (hl),0
+ jp jc_end
+ ENDIF
 jc_idle:
  xor a
  ld (jn_tick),a
@@ -49,7 +71,11 @@ joe_select:
  ld b,7
  jp z,js_b
  cp 5
+ IFDEF NES_FULL
+ jp z,js_slide
+ ELSE
  jp z,js_b
+ ENDIF
  cp 6
  jp z,js_b
  cp 7
@@ -73,12 +99,28 @@ js_walk:
  ld a,(jn_walk)
  inc a
  ret
+ IFDEF NES_FULL
+js_slide:
+ ld a,(0x7058)
+ cp 0x95
+ ld b,11
+ jp z,js_b
+ ld b,7
+ jp js_b
+ ENDIF
 js_ladder:
  ld a,(0x7058)
  cp 0x90
+ IFDEF NES_FULL
+ jp z,js_chain_phase
+ ELSE
  ld b,11
  jp z,js_b
+ ENDIF
  cp 0x95
+ IFDEF NES_FULL
+ ld b,11
+ ENDIF
  jp z,js_b
  cp 0x98
  ld b,12
@@ -87,14 +129,25 @@ js_ladder:
  jp z,js_b
  cp 8
  jp nz,js_lad_phase
+js_chain_phase:
+ IFDEF NES_FULL
+ ld a,(jn_tick)
+ rrca
+ ELSE
  ld a,(0x70AA)
+ ENDIF
  and 2
  ld b,10
  jp z,js_b
  ld b,19
  jp js_b
 js_lad_phase:
+ IFDEF NES_FULL
+ ld a,(jn_tick)
+ rrca
+ ELSE
  ld a,(0x70AA)
+ ENDIF
  rrca
  and 1
  add a,8
@@ -189,19 +242,19 @@ joe_plan:
  jp z,jn_hidden
  jp m,jn_hidden
  ld a,c
- cp 192
+ cp SCREEN_HEIGHT
  jp c,jn_foot0
  ld c,e
 jn_foot0:
  ld a,e
- cp 192
+ cp SCREEN_HEIGHT
  jp nc,jn_foot
  cp c
  jp c,jn_foot
  ld c,e
 jn_foot:
  ld a,c
- cp 192
+ cp SCREEN_HEIGHT
  jp nc,jn_hidden
  ld a,(jn_frame)
  ld hl,joe_top_rows
@@ -218,7 +271,20 @@ jn_foot:
  ld b,a
  xor a
 jn_top_ready:
- cp 192
+ IFDEF NES_FULL
+ cp HUD_ROWS*8
+ jp nc,jn_full_field
+ ld c,a
+ ld a,HUD_ROWS*8
+ sub c
+ add a,b
+ cp joe_nes_rows
+ jp nc,jn_hidden
+ ld b,a
+ ld a,HUD_ROWS*8
+jn_full_field:
+ ENDIF
+ cp SCREEN_HEIGHT
  jp nc,jn_hidden
  ld c,a
  ld a,b
@@ -226,7 +292,7 @@ jn_top_ready:
  ld a,joe_nes_rows
  sub b
  ld b,a
- ld a,192
+ ld a,SCREEN_HEIGHT
  sub c
  cp b
  jp nc,jn_rows
@@ -272,7 +338,7 @@ jn_width:
 jn_right:
  ld (hl),a
  ld hl,spr_new+9
- ld a,0xDF
+ ld a,SCREEN_TOP
  sub c
  ld (hl),a
  inc l
@@ -335,6 +401,7 @@ joe_prepare:
  add a,a
  add a,a
  add a,a
+ or joe_nibble_rotations&255
  ld (jn_lookup0+1),a
  ld (jn_lookup1+1),a
  ld (jn_lookup2+1),a

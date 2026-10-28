@@ -66,7 +66,7 @@ L_A60B:		ld	a,(0x705F)
 		ld	(0x705F),a
 		call	video_off
 		ld	de,0
-		ld	bc,0x0300
+		ld bc,NT_CELLS
 		xor	a
 		call	nt_fill
 		ld	a,(0x70AC)
@@ -119,13 +119,26 @@ a60b:		push	bc
 a60c:		ld	a,(0x71A8)		; стены по краям (кроме столбца 10)
 		cp	0x0A
 		jp	z,a60d
+		IFDEF NES_FULL
+ ld de,HUD_ROWS*32
+ ELSE
 		ld	de,0
+ ENDIF
 		ld	hl,C_A9AE
 		cp	0x0B
 		jp	nz,a60e
 		ld	hl,C_A9B0
+		IFDEF NES_FULL
+ ld de,HUD_ROWS*32+0x1D
+ ELSE
 		ld	de,0x1D
+ ENDIF
 a60e:		ld	bc,0x1803
 		call	L_AA96
-a60d:		call	L_AEFE
+a60d:
+ IFDEF NES_FULL
+ call L_A548
+ ELSE
+		call	L_AEFE
+ ENDIF
 		jp	video_on

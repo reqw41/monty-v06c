@@ -3,6 +3,18 @@
 ;   node tools/vsnap.js && python3 -I tools/mknative.py && \
 ;   (cd src/native && ../../tools/sjasmplus --nologo --i8080 --sym=../../build/native/monty.sym game.asm)
 ; Память — src/native/mem.asm; ОЗУ игры 7000-73FF — как у оригинала (сверка tools/lockstep.js).
+ ; The owner's normal build is the complete NES screen. STRICT remains the
+; original MSX geometry/audio reference used by lockstep checks.
+ IFNDEF STRICT
+ IFNDEF LEGACY_MSX
+ IFNDEF NES_STYLE
+ DEFINE NES_STYLE
+ ENDIF
+ IFNDEF NES_FULL
+ DEFINE NES_FULL
+ ENDIF
+ ENDIF
+ ENDIF
 		DEVICE	NOSLOT64K
 		INCLUDE	"mem.asm"
 PND		equ	NTS			; клетка ждёт вывода (1) — по адресу клетки в VNT (выровнена так же)
@@ -88,26 +100,41 @@ boot:
 		ld	e,0
 		call	memfill
 		ld	hl,PS_TOP		; записи и таблицы спрайтов (6600-67FF)
-		ld	bc,0x0200
-		ld	e,0
-		call	memfill
-		ld	hl,0x7000		; ОЗУ игры
+		IFDEF NES_FULL
+ ld bc,0x0180
+ ELSE
+ ld bc,0x0200
+ ENDIF
+		ld e,0
+		call memfill
+		ld hl,0x7000		; ОЗУ игры
 		ld	bc,0x0400
 		ld	e,0
 		call	memfill
-		ld	hl,VNT			; карта и переменные (исходные спрайты 7400-7BFF — из образа)
-		ld	bc,0x0400
+		ld hl,VNT
+		ld bc,0x8000-VNT
 		ld	e,0
 		call	memfill
-		ld	sp,0			; экран и невидимая плоскость (8000-FFFF) — нулями через стек: PUSH по 2 байта
+		IFDEF STRICT
+		ld sp,0
+		ELSE
+		ld sp,0xE000
+		ENDIF
 		ld	hl,0			; (прерывания запрещены)
-		ld	b,0
-bclr:		REPT	64
+		IFDEF STRICT
+		ld b,0
+		ELSE
+		ld b,0xC0
+		ENDIF
+bclr:
+ IFNDEF NES_STYLE
+		REPT 64
 		push	hl
 		ENDR
 		dec	b
-		jp	nz,bclr
-		ld	sp,0x0038
+		jp nz,bclr
+ ENDIF
+		ld sp,0x0038
 		call	vi_off			; ВИ53 молчит, каналы SN — тоже (TURN_OFF_SOUND оригинала)
 		call	snd_off
 		ld	de,ps_boot_source
@@ -116,9 +143,14 @@ bclr:		REPT	64
 		call	copy_de_hl
 		call	mask_keys_init
 		call	trim_build
+		IFNDEF STRICT
+		INCLUDE "gen/music_reloc_early.asm"
+		ENDIF
 		call joe_load
 		call	ps_build		; готовые сдвиги кадров врагов
-		call	lv_init
+		IFDEF STRICT
+		call lv_init
+		ENDIF
 		ld	a,1
 		ld	(kb_req),a
 		call	game_init
@@ -127,6 +159,10 @@ bclr:		REPT	64
 		jp	game_start		; меню и начало уровня (level.asm)
 
 ; copy_de_hl: (HL) <- (DE), BC байт
+ IFNDEF STRICT
+ ASSERT $ <= 0x01E0
+ ORG 0x01E0
+ ENDIF
 copy_de_hl:	ld	a,(de)
 		ld	(hl),a
 		inc	hl
@@ -169,20 +205,7 @@ isr0:		ld	hl,(frames)
 		inc	hl
 		ld	(frames),hl
 		IFNDEF	STRICT
-		ld	a,(snd_busy)		; звук — по прерыванию: эффекты 60 шагов/с (6 на 5 кадров Вектора), ВИ53
-		or	a
-		jp	nz,isr2
-		ld	a,(snd_acc)
-		add	a,6
-is_s:		cp	5
-		jp	c,is_s2
-		sub	5
-		push	af
-		call	L_AC6D
-		pop	af
-		jp	is_s
-is_s2:		ld	(snd_acc),a
-		call	snd_vi53
+		call nes_tick
 isr2:
 		ENDIF
 		ld	hl,nmi_pend
@@ -212,10 +235,19 @@ frame_wait:
 		ld	sp,DISP_STACK
 		ld	a,(crit_pend)
 		or	a
-		call	z,disp_prep
+		IFNDEF STRICT
+ push af
+ call nes_poll
+ pop af
+ ENDIF
+		call z,disp_prep
  ld a,1
  ld (jn_wait),a
 fw2:
+ IFNDEF STRICT
+ call nes_legacy_step
+ call nes_poll
+ ENDIF
 fw_event:
 		ld	a,(nmi_pend)
 		or	a
@@ -293,9 +325,17 @@ unit_fw:	push	af			; tools/unit.js: ожидание кадра = обработ
 		pop	af
 		ret
 		INCLUDE	"level.asm"
-		INCLUDE	"drawroom.asm"
+ IFDEF NES_FULL
+ INCLUDE "drawroom_nes.asm"
+ ELSE
+		INCLUDE "drawroom.asm"
+ ENDIF
 		INCLUDE	"screen.asm"
-		INCLUDE	"sound.asm"
+ IFDEF NES_FULL
+ INCLUDE "sound_nes.asm"
+ ELSE
+ INCLUDE "sound.asm"
+ ENDIF
 		INCLUDE	"frame.asm"
 		INCLUDE	"enemy.asm"
 		INCLUDE	"collide.asm"
@@ -307,15 +347,26 @@ unit_fw:	push	af			; tools/unit.js: ожидание кадра = обработ
 		INCLUDE	"render.asm"
 		INCLUDE	"cell.asm"
 		INCLUDE	"../vec/util.asm"
+ IFNDEF NES_STYLE
 		INCLUDE	"../vec/gen/pal.asm"
-		INCLUDE	"gen/cart.asm"
+ ENDIF
+ IFDEF NES_FULL
+ INCLUDE "gen/cart_full.asm"
+ INCLUDE "gen/rooms_full.asm"
+ ELSE
+ INCLUDE "gen/cart.asm"
+ ENDIF
 
 ex_bb:		ds	4			; общая рамка отложенных клеток
 lv_tile:	ds	33			; живые клетки: тайл корзины
 lv_beg:		ds	34			; начало корзины в live_list (+ всего)
 lv_pos:		ds	33			; счётчики/позиции при раскладке
 lv_idx		equ	0xF400			; тайл -> корзина (FF — не живой); бывший кэш тайлов в невидимой плоскости
-		INCLUDE	"gen/video.asm"
+ IFDEF NES_FULL
+ INCLUDE "gen/video_full.asm"
+ ELSE
+ INCLUDE "gen/video.asm"
+ ENDIF
 		INCLUDE	"vars.asm"
 ps_idx		equ	0x7F00			; 64 байта; выше остаются 64 байта стека IRQ
 ps_tab:		ds	2*8*PS_N
@@ -336,6 +387,13 @@ mb_d equ repl		; цепочки pal_build больше не нужны посл�
 ps_heap:					; дальше до PS_TOP — место готовых сдвигов
 		ASSERT	ps_heap <= PS_TOP
 ; выровненные таблицы — на постоянных адресах под 7000 (рост кода не сдвигает их на страницу)
+ IFDEF NES_FULL
+joe_high_free_end equ VNT
+sprite_table_free_end equ 0x6780
+ ELSE
+joe_high_free_end equ 0x7B00
+sprite_table_free_end equ 0x6800
+ ENDIF
 PS_TOP		equ	0x6600
 		ORG	PS_TOP
 spr_rec:	ds	0x80			; записи спрайтов (SREC x SPR_MAX)
@@ -350,7 +408,12 @@ sprt_end:
 		ASSERT	sprt/256 == (sprt_end-1)/256
 		ORG	0x6800
 dlist:		ds	256			; список изменённых клеток (адреса в VNT)
-PS_MORE		equ	video_raw_end		; после исходных полос — готовые сдвиги
+ IFDEF STRICT
+PS_MORE equ video_raw_end
+ ELSE
+PS_MORE equ joe_latch_end
+ ENDIF
+;		; после исходных полос — готовые сдвиги
 		ASSERT	PS_MORE < 0x7000
 		INCLUDE	"gen/spat_nes.asm"			; ORG VSPR — шаблоны спрайтов прямо в образе
 
@@ -368,5 +431,14 @@ sprite_sources_end:
 		IFDEF STRICT
 		SAVEBIN	"../../build/native_strict/monty.bin", 0, VSPR+0x0800
 		ELSE
-		SAVEBIN	"../../build/native/monty.bin", 0, VSPR+0x0800
+		INCLUDE "gen/music.asm"
+		INCLUDE "nes_sound.asm"
+		INCLUDE "nes_boot.asm"
+		INCLUDE "nes_alloc.asm"
+		INCLUDE "nes_idle.asm"
+		ASSERT copy_de_hl >= 0x01E0
+ IFDEF NES_STYLE
+ INCLUDE "gen/title.asm"
+ ENDIF
+		SAVEBIN "../../build/native/monty.bin", 0, 0xF950
 		ENDIF

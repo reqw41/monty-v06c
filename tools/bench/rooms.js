@@ -6,11 +6,11 @@ process.chdir(path.resolve(__dirname, '../..'));
 const E = require('../vec_emu'), {symbols, profiler} = require('./logic-profile');
 const B = process.env.B || 'build/native', s = symbols(B);
 const samples = +(process.env.N || 128), warmup = +(process.env.WARM || 64);
-const free = process.env.FREE === '1', hiddenJoe = process.env.HIDE_JOE === '1';
+const free=process.env.FREE==='1', hiddenJoe=process.env.HIDE_JOE==='1',bounded=process.env.BOUND_ROOM==='1';
 if (samples < 1 || warmup < 1) throw Error('N and WARM must be positive');
 const rows = [];
 function save(complete) {
-  if(process.env.OUT) fs.writeFileSync(process.env.OUT,JSON.stringify({build:B,samples,warmup,free,hiddenJoe,complete,rows},null,2)+'\n');
+  if(process.env.OUT) fs.writeFileSync(process.env.OUT,JSON.stringify({build:B,samples,warmup,free,hiddenJoe,bounded,immortal:true,complete,rows},null,2)+'\n');
 }
 for (const lv of process.env.LV ? [+process.env.LV] : [1,2,3]) {
   const m = E.mk(B + '/monty.bin'), p = profiler(m,s);
@@ -24,9 +24,20 @@ for (const lv of process.env.LV ? [+process.env.LV] : [1,2,3]) {
   }
   m.onInstr=pc=>{
     p.instruction(pc);
+    // Optional toroidal room fixture: preserve free motion while keeping the
+    // profiled room resident. Both visible/hidden runs use the same boundary rule.
+    if(bounded&&pc===s.L_8E0C&&ri>=0&&ri<rooms.length&&entered){
+      const cpu=m.cpu,dx=cpu.regs[0],dy=cpu.regs[1],[r,c]=rooms[ri];
+      for(const p of [0x7300,0x7304]){m.wr(p,(m.rd(p)+dy)&255);m.wr(p+1,(m.rd(p+1)+dx)&255);}
+      m.wr(0x71A7,r);m.wr(0x71A8,c);m.wr(0x707C,m.rd(0x7300));
+      cpu.pc=m.rd(cpu.sp)|(m.rd(cpu.sp+1)<<8);cpu.sp+=2;return;
+    }
     // Hide at the rendering boundary: hero logic can restore his colors each step.
     if (hiddenJoe && pc===s.spr_plan) {m.wr(0x7303,0);m.wr(0x7307,0);}
     if (pc===s.L_8DA2 && ri>=0 && entered) { const c=m.cpu;c.pc=m.rd(c.sp)|m.rd(c.sp+1)<<8;c.sp+=2;return; }
+    // Fire and fatal falls enter their own handler without L_8DA2. A free
+    // immortal fixture must suppress these deaths too, or measure respawns.
+    if(ri>=0&&entered&&(pc===s.hs_8A91||pc===s.hs_8AF0)){m.cpu.pc=s.hs_8C39;return;}
     if(pc!==s.L_A5D1) return;
     steps++;m.wr(0x7049,6);m.wr(0x707C,m.rd(0x7300));
     if(steps===50) {teleport();return;}

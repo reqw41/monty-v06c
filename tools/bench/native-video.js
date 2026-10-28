@@ -12,12 +12,14 @@ const m = E.mk(path.join(dir, 'monty.bin'));
 const image = fs.readFileSync(path.join(dir, 'monty.bin'));
 const protectedBytes = new Uint8Array(65536), old = {}, sourceOld = {}, movement = {};
 const room=(process.env.ROOM||'1,9').split(',').map(Number);
-const lastEnemy=process.env.ROOM==='5,7'||process.env.ROOM==='7,3'?5:4;
+const full=sym.SCREEN_HEIGHT===240;
+const lastEnemy=full?5:process.env.ROOM==='5,7'||process.env.ROOM==='7,3'?5:4;
+const visible=p=>m.rd(p)<(sym.SCREEN_HEIGHT||192)&&!!(m.rd(p+3)&15)&&![6,11].includes(m.rd(p+3)&15);
 let steps = 0, ready = false, bad = 0, frame0 = 0, fires = 0, belts = 0, lastPC = 0;
 function checkMasks() {
   if (REF.animated.has(0x38) === false) {
     if (m.rd(sym.lv_idx+0x38)!==255) throw Error('Статичный 38 попал в живые клетки');
-    const p=m.rd(sym.raw_base+0x70)|(m.rd(sym.raw_base+0x71)<<8);
+    const p=full?sym.full_raw+8*m.rd(sym.raw_base+0x38):m.rd(sym.raw_base+0x70)|(m.rd(sym.raw_base+0x71)<<8);
     for(let y=0;y<8;y++) if(m.rd(p+y)) throw Error('Шаблон тела огня не 00');
     for(let i=0;m.rd(sym.anim_set+i)!==255;i++)
       if(m.rd(sym.anim_set+i)===0x38) throw Error('38 остался в anim_set');
@@ -42,9 +44,12 @@ function checkMasks() {
       if(m.rd(0xF500+j)!==image[sym.joe_attr_source+j])throw Error('Повреждён планировщик Джо');
       protectedBytes[0xF500+j]=1;
     }
-    if(sym.joe_latch_source!==undefined)for(let j=0;j<sym.joe_latch_end-sym.joe_latch_source;j++){
-      if(m.rd(0xF600+j)!==image[sym.joe_latch_source+j])throw Error('Повреждено обновление позиции Джо');
-      protectedBytes[0xF600+j]=1;
+    if(sym.joe_latch_source!==undefined){
+      const target=sym.joe_latch_y;
+      for(let j=0;j<sym.joe_latch_end-sym.joe_latch_source;j++){
+        if(m.rd(target+j)!==image[sym.joe_latch_source+j])throw Error('Повреждено обновление позиции Джо');
+        protectedBytes[target+j]=1;
+      }
     }
     // 7F00..7F3F is the shift index; IRQ has its own 64-byte stack above it.
     protectedBytes.fill(1,sym.ps_idx,sym.ps_idx+64);
@@ -59,7 +64,7 @@ function checkMasks() {
     protectedBytes.fill(1,sym.joe_nibble_rotations,sym.joe_nibble_end);
   }
   let count = 0;
-  for (let f = 0; f < 12; f++) {
+  for (let f = 0; f < (sym.PS_N||12); f++) {
     const nm = m.rd(sym.ps_names + f), R = m.rd(sym.ps_rr + f);
     let first = 16, last = -1;
     for (let y = 0; y < 16; y++) if (REF.sprite(nm, 0, y) | REF.sprite(nm, 1, y)) {
@@ -77,7 +82,9 @@ function checkMasks() {
       }
     }
   }
-  const minimum=sym.jn_shown===undefined?58:72;
+  // The full NES room pack and audio consume the old sprite cache arena.
+  // Verify every retained shift exactly; performance is measured separately.
+  const minimum=full?52:sym.jn_shown===undefined?58:72;
   if (count < minimum) throw new Error('Готовых сдвигов меньше '+minimum+': ' + count);
   console.log('готовых сдвигов', count, 'все соответствуют исходной графике MSX');
 }
@@ -100,6 +107,7 @@ m.onInstr = pc => {
     if (steps === 200) frame0 = m.frames;
     if (steps > 200) for (let k = 2; k <= lastEnemy; k++) {
       const p = 0x7300 + 4*m.rd(0x72E0 + k), x = m.rd(p+1);
+      if(!visible(p))continue;
       const z = movement[k] ||= {updates: 0, jump: 0, drawnDistance: 0, gameDistance: 0, maxLag: 0};
       if (sourceOld[k] !== undefined) z.gameDistance += Math.abs(x - sourceOld[k]);
       sourceOld[k] = x;
@@ -109,6 +117,7 @@ m.onInstr = pc => {
   if (pc === sym.spr_put && steps > 200) {
     const k = m.rd(sym.sp_k); if (k < 2 || k > lastEnemy) return;
     const p = sym.spr_new + 16*k, x = m.rd(p+2), z = movement[k];
+    if(!z||!visible(0x7300+4*m.rd(0x72E0+k)))return;
     if (old[k] !== undefined) {
       const dx = Math.abs(x - old[k]);
       z.jump = Math.max(z.jump, dx); z.drawnDistance += dx;

@@ -9,7 +9,8 @@ const irq=require('./irq-watch')(m,s);
 const start=400,end=+(process.env.N||1100),enemies={},states={},background={fire:{writes:0,changes:0,maxGap:0,last:start},belt:{writes:0,changes:0,maxGap:0,last:start}};
 let steps=0,down=true,right=true,measuredSteps=0,firstStep=null,lastStepFrame=null;const intervals={};
 const object=k=>0x7300+4*m.rd(0x72E0+k),key=r=>[m.rd(r+1),m.rd(r+2)].join(',');
-const visible=p=>m.rd(p)<192&&!!(m.rd(p+3)&15)&&![6,11].includes(m.rd(p+3)&15);
+const height=s.SCREEN_HEIGHT||192,top=s.SCREEN_TOP??0xDF,full=height===240;
+const visible=p=>m.rd(p)<height&&!!(m.rd(p+3)&15)&&![6,11].includes(m.rd(p+3)&15);
 function enemy(k){return enemies[k]||(enemies[k]={puts:0,gameDistance:0,drawnDistance:0,jump:0,maxLag:0,maxPendingFrames:0,pending:0,source:null,shown:null});}
 m.onWrite=(a,v)=>{if(m.frames<start)return;for(const name of ['fire','belt'])if(a===s[name+'_shown']&&v!==m.rd(a)){const q=background[name];q.changes++;q.maxGap=Math.max(q.maxGap,m.frames-q.last);q.last=m.frames;}};
 m.onInstr=pc=>{
@@ -29,7 +30,7 @@ for(let f=0;f<end;f++){
  if(f===10)m.keyboard.matrix[2]|=2;if(f===100)m.keyboard.matrix[2]&=~2;
  if(f>=start){
   m.keyboard.matrix[0]&=~0xF0;m.keyboard.matrix[7]&=~0x80;
-  if(scene==='ladder'){const y=Math.max(m.rd(0x7300),m.rd(0x7304));if(y>=106)down=false;if(y<=64)down=true;m.keyboard.matrix[0]|=down?0x80:0x20;}
+  if(scene==='ladder'){const y=Math.max(m.rd(0x7300),m.rd(0x7304));if(y>=(full?144:106))down=false;if(y<=(full?112:64))down=true;m.keyboard.matrix[0]|=down?0x80:0x20;}
   if(scene==='walk'){const x=m.rd(0x7301);if(x>=126)right=false;if(x<=120)right=true;m.keyboard.matrix[0]|=right?0x40:0x10;}
   if(scene==='jump'&&(f-start)%60<3)m.keyboard.matrix[7]|=0x80;
  }
@@ -42,7 +43,7 @@ for(let f=0;f<end;f++){
   q.maxLag=Math.max(q.maxLag,Math.abs(x-m.rd(r+2)));
   q.pending=source!==shown&&shown===q.shown?q.pending+1:0;q.maxPendingFrames=Math.max(q.maxPendingFrames,q.pending);q.source=source;q.shown=shown;
  }
- if(out&&f<start+300){const pixels=new Uint8Array(256*192);for(let y=0;y<192;y++)for(let x=0;x<256;x++){const a=(x>>3)*256+0xDF-y,b=128>>(x&7);pixels[y*256+x]=((m.rd(0x8000+a)&b)?4:0)|((m.rd(0xA000+a)&b)?2:0)|((m.rd(0xC000+a)&b)?1:0);}fs.writeFileSync(`${out}/${scene}_${f}.idx`,pixels);fs.writeFileSync(`${out}/${scene}_${f}.json`,JSON.stringify({palette:[...Array(8)].map((_,i)=>m.rd(s.pal+2*i))}));}
+ if(out&&f<start+300){const pixels=new Uint8Array(256*height);for(let y=0;y<height;y++)for(let x=0;x<256;x++){const a=(x>>3)*256+top-y,b=128>>(x&7);pixels[y*256+x]=((m.rd(0x8000+a)&b)?4:0)|((m.rd(0xA000+a)&b)?2:0)|((m.rd(0xC000+a)&b)?1:0);}fs.writeFileSync(`${out}/${scene}_${f}.idx`,pixels);fs.writeFileSync(`${out}/${scene}_${f}.json`,JSON.stringify({palette:[...Array(8)].map((_,i)=>m.rd(s.pal+2*i))}));}
 }
 for(const q of Object.values(background))q.maxGap=Math.max(q.maxGap,end-q.last);
 const check=checker.result(),joe=motion.result(),irqTiming=irq.result(),failures=[];

@@ -2,7 +2,9 @@
 ; picture and both cell bounds stay identical, so the prepared atomic groups
 ; and pending background cells remain valid. Never sample half-finished logic.
 joe_latch_source:
+ IFDEF STRICT
  DISP 0xF600
+ ENDIF
 joe_latch_y:
  ld a,(jn_wait)
  or a
@@ -42,7 +44,7 @@ joe_latch_y:
  ld hl,jn_delta
  sub (hl)
  ld e,a
- ld a,0xDF
+ ld a,SCREEN_TOP
  sub e
  ld c,a
  rrca
@@ -118,7 +120,9 @@ joe_gate:
  ld a,1
  ld (jn_wait),a
  jp joe_gate
+ IFDEF STRICT
  ENT
+ ENDIF
 joe_latch_end:
  ASSERT joe_latch_end-joe_latch_source <= 256
  ASSERT $ <= 0x7000

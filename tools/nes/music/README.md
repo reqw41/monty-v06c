@@ -1,7 +1,8 @@
 # Музыка и эффекты Montezuma NES
 
 Три музыкальные программы и девять SFX из локального `orig/nes/monty.nes`.
-`src/native` не используется и не изменяется. Автор музыки не установлен;
+Само извлечение не использует `src/native`. Отдельный конвертер ВИ53 и
+нативный проигрыватель описаны ниже. Автор музыки не установлен;
 названия дорожек описывают места вызова в игре.
 
 ## Готовый результат
@@ -75,4 +76,33 @@ JS моделирует два pulse, triangle и noise с фильтрами и
 
 Подробный разбор адресов и формата: `docs/NES_MUSIC.md` в репозитории,
 либо `NES_MUSIC.md` в готовом архиве. Полученные игровые данные остаются
-в игнорируемом `build/nes/music`; исходники не содержат ROM или музыкальных байтов.
+в игнорируемом `build/nes/music`; извлекатель и браузерный плеер не содержат ROM.
+Данные отдельного конвертера ВИ53 сохраняются в `src/native/gen/music*.asm`.
+
+## ВИ53: нативная сборка Вектора
+
+После обычной подготовки входных файлов нативной сборки (`build/native/ram0.pk`)
+и извлечения `music.json`:
+
+```sh
+sh tools/nes/music/build_vi53.sh
+```
+
+Команда воспроизводит `src/native/gen/music*.asm`, собирает обычную и STRICT
+версии, проверяет все 72 пути выдачи регистров, создаёт WAV реального IRQ
+эмулятора Вектора и обновляет оба образа `rom/Monty-v06c-native.*`.
+Конвертер отдельно: `python3 tools/nes/music/to_vi53.py [music.json]`.
+Только повторный WAV-рендер: `node tools/nes/music/render_vi53.js build/nes/music/vi53`.
+Для него нужен тот же локальный `vector06js`, который используют остальные стенды.
+
+В `build/nes/music/vi53/`: WAV, записи портов `*.ports.json`,
+`conversion.json`, `verification.json`, `emitter-verification.json`.
+`check_native.js` добавляет контроль очереди и сохранности звуковой памяти
+к существующему стенду, не меняя его эталоны и пороги:
+
+```sh
+node tools/nes/music/check_native.js tools/bench/nsteps.js build/native
+N=1 WARM=12 node tools/nes/music/check_native.js tools/bench/rooms.js
+```
+
+Каналы, память, события, ограничения тембра и результаты: `docs/VI53_MUSIC.md`.

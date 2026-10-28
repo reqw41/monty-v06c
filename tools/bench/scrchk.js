@@ -6,48 +6,45 @@ const fs = require('fs'); process.chdir(require('path').resolve(__dirname, '../.
 const E = require('../vec_emu');
 const dir = process.argv[2] || 'build/native', N = +(process.argv[3] || 2000), MODE = process.argv[4] || '';
 const sym = {}; for (const l of fs.readFileSync(dir + '/monty.sym', 'latin1').split('\n')) { const q = l.match(/^(\w+):\s+EQU\s+0x([0-9A-F]+)/i); if (q) sym[q[1]] = parseInt(q[2], 16); }
+const ROWS=sym.SCREEN_ROWS||24, HEIGHT=sym.SCREEN_HEIGHT||192, CELLS=sym.NT_CELLS||768, TOP=sym.SCREEN_TOP??0xDF;
 const m = E.mk(dir + '/monty.bin'); const framecheck=process.env.FRAMECHECK==='1'?require('./framecheck')(m,sym):null; const K = (r, b, d) => { if (d) m.keyboard.matrix[r] |= b; else m.keyboard.matrix[r] &= ~b; };
 const ROOMS = []; for (let r = 0; r < 9; r++) for (let c = 8 - r; c <= 10 + r; c++) ROOMS.push([r, c]);
 const SPRMAX = 6, REC = sym.spr_rec;
 let steps = 0, fc = 0, checks = 0, bad = 0, skip = 0, justCritical = []; const ex = [];
 const keys = (s) => { K(7, 0x80, (s >= 20 && s < 30) || (s > 200 && s % 37 < 4)); const ph = s < 100 ? -1 : Math.floor((s - 100) / 70) % 4; K(0, 0x40, ph === 0); K(0, 0x10, ph === 2); K(0, 0x20, ph === 1 && s % 50 < 20); K(0, 0x80, ph === 3 && s % 50 < 20); };
 const isFire = (t) => t >= 0xD0 && t <= 0xD5;
-function cellBytes(t, f) {
-  const pat = REF.pattern(t, f, m.rd(sym.belt_shown)), md = REF.modes(m, sym, t), o = [];
-  for (let p = 0; p < 3; p++) { const mode = (md >> (4 - 2*p)) & 3;
-    for (let y = 0; y < 8; y++) o.push([0,pat[y],pat[y]^255,255][mode]); }
-  return o;
-}
+function cellBytes(t,f){return REF.cell(m,sym,t,f,m.rd(sym.belt_shown));}
 function check() {
   // IRQ может попасть между записью карты/цвета и её уведомлением; сравниваем завершённые изменения.
   if (sym.video_edit !== undefined && m.rd(sym.video_edit)) { skip++; return; }
-  if ((m.rd(sym.dl_n) || m.rd(sym.dl_ovf)) && Array.from({length:768}, (_,i)=>m.rd(sym.PND+i)&1).some(Boolean)) { skip++; return; }
+  if (sym.hud_dirty !== undefined && m.rd(sym.hud_dirty)) { skip++; return; }
+  if ((m.rd(sym.dl_n) || m.rd(sym.dl_ovf)) && Array.from({length:CELLS}, (_,i)=>(HEIGHT===240&&i<192?0:m.rd(sym.PND+i))&1).some(Boolean)) { skip++; return; }
   if ((m.rd(sym.video_dirty) & (sym.DIRTY_ROOM | sym.DIRTY_COLOR)) || m.rd(sym.crit_pend) || m.rd(sym.lv_dirty)) { skip++; return; }
   if (!m.rd(sym.video_enabled)) { skip++; return; }
   // фон: 3 плоскости x 256 x 256 (строки экрана 0..191 сверху: адрес 0xFF - y... как у клетки: 0xDF - 8r - y)
-  const scr = [new Uint8Array(8192), new Uint8Array(8192), new Uint8Array(8192)], fire = new Uint8Array(768); const th = m.rd(sym.fire_shown);
-  const ad = (c, y) => c * 256 + 0xDF - y;   // y = 0..191 сверху
-  for (let r = 0; r < 24; r++) for (let c = 0; c < 32; c++) { const t = m.rd(sym.VNT + r * 32 + c); if (isFire(t) && REF.animated.has(t)) fire[r * 32 + c] = 1;
+  const scr = [new Uint8Array(8192), new Uint8Array(8192), new Uint8Array(8192)], fire = new Uint8Array(CELLS); const th = m.rd(sym.fire_shown);
+  const ad = (c, y) => c * 256 + TOP - y;   // y = 0..191 сверху
+  for (let r = 0; r < ROWS; r++) for (let c = 0; c < 32; c++) { const t = m.rd(sym.VNT + r * 32 + c); if (isFire(t) && REF.isAnimated(sym,t)) fire[r * 32 + c] = 1;
     const b = cellBytes(t, th); for (let p = 0; p < 3; p++) for (let y = 0; y < 8; y++) scr[p][ad(c, 8 * r + y)] = b[p * 8 + y]; }
   // огонь: принимаем экран как есть, если он равен какому-то кадру
-  for (let r = 0; r < 24; r++) for (let c = 0; c < 32; c++) if (fire[r * 32 + c]) { const t = m.rd(sym.VNT + r * 32 + c);
+  for (let r = 0; r < ROWS; r++) for (let c = 0; c < 32; c++) if (fire[r * 32 + c]) { const t = m.rd(sym.VNT + r * 32 + c);
     for (let f = 0; f < 4; f++) { const b = cellBytes(t, f); let ok = true; for (let p = 0; p < 3 && ok; p++) for (let y = 0; y < 8; y++) if (m.rd(0x8000 + 0x2000 * p + ad(c, 8 * r + y)) !== b[p * 8 + y]) { ok = false; break; }
       if (ok) { for (let p = 0; p < 3; p++) for (let y = 0; y < 8; y++) scr[p][ad(c, 8 * r + y)] = b[p * 8 + y]; fire[r * 32 + c] = 0; break; } } }
-  const under = new Uint8Array(768);
+  const under = new Uint8Array(CELLS);
   for (let k = SPRMAX - 1; k >= 0; k--) {
     if(sym.jn_shown!==undefined&&k<2){if(k===0)joeRef(m,sym,(x,y,ci)=>{const c=x>>3,bit=128>>(x&7),A=ad(c,y);under[(y>>3)*32+c]=1;for(let p=0;p<3;p++){if(ci&(4>>p))scr[p][A]|=bit;else scr[p][A]&=~bit;}});continue;}
     const a = REC + 16 * k; if (!m.rd(a)) continue;
     const Y = m.rd(a + 1), X = m.rd(a + 2), nm = m.rd(a + 3) & 0xFC, col = m.rd(a + 4) & 15; const ci = m.rd(sym.cmap + col);
     const hero = col === 6 || col === 11; const top = (Y + 1) & 255;
-    for (let yy = 0; yy < 16; yy++) { const y = top + yy; if (y >= 192) break;
+    for (let yy = 0; yy < 16; yy++) { const y = top + yy; if (y >= HEIGHT) break;if(HEIGHT===240&&y<48)continue;
       for (let half = 0; half < 2; half++) { const pb = REF.sprite(nm, half, yy);
         for (let bx = 0; bx < 8; bx++) { if (!(pb & (0x80 >> bx))) continue; const x = X + half * 8 + bx; if (x > 255) continue;
           const c = x >> 3, bit = 0x80 >> (x & 7), A = ad(c, y); under[(y >> 3) * 32 + c] = 1;
           if (!hero) scr[0][A] |= bit; else for (let p = 0; p < 3; p++) { if ((ci >> (2 - p)) & 1) scr[p][A] |= bit; else scr[p][A] &= ~bit; } } } } }
-  checks++; let nb = 0; for (let i = 0; i < 768; i++) if (fire[i]) under[i] = 0;
-  for (let p = 0; p < 3; p++) for (let c = 0; c < 32; c++) for (let y = 0; y < 192; y++) { const cell = (y >> 3) * 32 + c; if (fire[cell] && !under[cell]) continue;
+  checks++; let nb = 0; for (let i = 0; i < CELLS; i++) if (fire[i]) under[i] = 0;
+  for (let p = 0; p < 3; p++) for (let c = 0; c < 32; c++) for (let y = 0; y < HEIGHT; y++) { const cell = (y >> 3) * 32 + c; if (fire[cell] && !under[cell]) continue;
     const A = ad(c, y), got = m.rd(0x8000 + 0x2000 * p + A); if (got !== scr[p][A]) { nb++; if (ex.length < 8) ex.push(`шаг ${steps} пл ${p} кл ${y >> 3},${c} стр ${y & 7}: ${got.toString(16)} != ${scr[p][A].toString(16)}${fire[cell] ? ' (огонь под спрайтом)' : ''}${under[cell] ? ' (под спрайтом)' : ''}`); } }
-  if (nb) bad++;
+  if (nb) { bad++; if(ex.length<12)ex.push(JSON.stringify({pc:m.cpu.pc,enabled:m.rd(sym.video_enabled),dirty:m.rd(sym.video_dirty),hud:m.rd(sym.hud_dirty),room:[m.rd(0x71A7),m.rd(0x71A8)],vnt:m.rd(sym.VNT+78),level:m.rd(0x71A6)})); }
 }
 m.onInstr = (pc) => {
   if(framecheck)framecheck.instruction(pc);

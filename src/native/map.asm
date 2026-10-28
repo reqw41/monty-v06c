@@ -21,7 +21,11 @@ vo_done:	pop	af
 
 ; nt_put: HL = источник, DE = клетка, C = число (B не используется) — в VNT, строки к перерисовке.
 ; HL, DE, BC сохраняются
-nt_put:	call	map_edit_begin
+nt_put:
+		IFNDEF STRICT
+		call nes_service
+		ENDIF
+		call	map_edit_begin
 		call	nt_put_inner
 		jp	map_edit_end
 nt_put_inner:		push	hl
@@ -30,9 +34,15 @@ nt_put_inner:		push	hl
 		ld	a,c
 		or	a
 		jp	z,np_x
-np1:		ld	a,d			; клетка < 300h?
-		cp	3
-		jp	nc,np_s
+np1:
+		IFNDEF STRICT
+		ld a,c
+		and 63
+		call z,nes_service
+		ENDIF
+		ld	a,d			; клетка < 300h?
+		call nt_index_valid
+		jp nc,np_s
 		push	hl
 		ld	hl,VNT
 		add	hl,de
@@ -61,14 +71,20 @@ nt_get:		push	hl
 ng1:		xor	a
 		ld	b,a
 		ld	a,d
-		cp	3
-		jp	nc,ng2
+		call nt_index_valid
+		jp nc,ng2
 		push	hl
 		ld	hl,VNT
 		add	hl,de
+ IFDEF NES_FULL
+ call nf_read_tile
+ ld b,a
+ ELSE
 		ld	b,(hl)
+ ENDIF
 		pop	hl
-ng2:		ld	(hl),b
+ng2:
+		ld (hl),b
 		inc	hl
 		inc	de
 		dec	c
@@ -107,8 +123,8 @@ nf1:		ld	a,b
 		or	c
 		jp	z,nf9
 		ld	a,d
-		cp	3
-		jp	nc,nf2
+		call nt_index_valid
+		jp nc,nf2
 		ld	hl,VNT
 		add	hl,de
 		ld	a,(video_dirty)		; комната будет нарисована целиком — без отметок, быстро
@@ -121,10 +137,10 @@ nf2:		inc	de
 		dec	bc
 		jp	nf1
 nf3:		push	hl			; BC := min(BC, конец таблицы - HL)
-		ld	a,(VNT+768)&0xFF
+		ld	a,(VNT+NT_CELLS)&0xFF
 		sub	l
 		ld	e,a
-		ld	a,(VNT+768)/256
+		ld	a,(VNT+NT_CELLS)/256
 		sbc	a,h
 		ld	d,a			; DE = до конца
 		ld	a,e
@@ -168,7 +184,7 @@ nf4:		ld	(hl),a
 		dec	bc
 		ld	e,a
 		ld	a,h
-		cp	(VNT+768)/256
+		cp	(VNT+NT_CELLS)/256
 		ld	a,e
 		jp	z,nf9
 		ld	a,b
@@ -181,25 +197,40 @@ nf9:		pop	hl
 		pop	af
 		ret
 
-; vnt_row: HL = адрес в VNT -> A = строка (до 23); регистры сохраняются
-vnt_row:	push	de
-		ld	a,l
-		rlca
-		rlca
-		rlca
-		and	7
-		ld	e,a
-		ld	a,h
-		sub	VNT/256
-		add	a,a
-		add	a,a
-		add	a,a
-		or	e
-		pop	de
-		cp	24
-		ret	c
-		ld	a,23
-		ret
+vnt_row:
+ push hl
+ push de
+ ld a,l
+ sub VNT&255
+ ld l,a
+ ld a,h
+ sbc a,VNT/256
+ ld h,a
+ ld a,l
+ rlca
+ rlca
+ rlca
+ and 7
+ ld e,a
+ ld a,h
+ add a,a
+ add a,a
+ add a,a
+ or e
+ pop de
+ pop hl
+ cp SCREEN_ROWS
+ ret c
+ ld a,SCREEN_ROWS-1
+ ret
+nt_index_valid:
+ ld a,d
+ cp NT_CELLS/256
+ ret c
+ ret nz
+ ld a,e
+ cp NT_CELLS&255
+ ret
 
 ; room_color_write: HL = источник, E = группа, C = число — в room_colors (DIRTY_COLOR). HL, DE, BC сохраняются
 room_color_write:	call	map_edit_begin
@@ -246,7 +277,17 @@ cf1:		ld	(hl),b
 ; dl_add (mark_row): HL = адрес клетки в VNT -> в список изменённых клеток (dlist, до DL_MAX; больше — dl_ovf,
 ; вывод тогда по всем строкам). Регистры, кроме A, сохраняются
 mark_row:
-dl_add:		ld	a,(video_dirty)		; комната будет нарисована целиком — клетки не отмечать
+dl_add:
+ IFDEF NES_FULL
+ ld a,h
+ cp FIELD_VNT/256
+ jp nc,nf_mark_field
+ ld a,1
+ ld (hud_dirty),a
+ ret
+nf_mark_field:
+ ENDIF
+		ld a,(video_dirty)		; комната будет нарисована целиком — клетки не отмечать
 		and	DIRTY_ROOM
 		ret	nz
 		push	de
@@ -292,13 +333,19 @@ dla_x:		pop	de
 
 ; Составное изменение карты/цветов: снимок экрана в середине операции ещё не соответствует VNT.
 ; Регистры сохранены; поле предназначено для наблюдения завершённых изменений, не для ОЗУ игры.
-map_edit_begin:	push	af
-		ld	a,1
-		ld	(video_edit),a
-		pop	af
-		ret
-map_edit_end:	push	af
-		xor	a
-		ld	(video_edit),a
-		pop	af
-		ret
+map_edit_begin:
+ push af
+ push hl
+ ld hl,video_edit
+ inc (hl)
+ pop hl
+ pop af
+ ret
+map_edit_end:
+ push af
+ push hl
+ ld hl,video_edit
+ dec (hl)
+ pop hl
+ pop af
+ ret

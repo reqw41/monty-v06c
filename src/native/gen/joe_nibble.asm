@@ -1,5 +1,9 @@
 ; Rotated doubled-pixel nibbles. Fixed aligned page, shared by all poses.
+ IFDEF NES_FULL
+ ORG 0x6780
+ ELSE
  ORG 0x7B00
+ ENDIF
 joe_nibble_rotations:
  db 0,3,12,15,48,51,60,63,192,195,204,207,240,243,252,255
  db 0,129,6,135,24,153,30,159,96,225,102,231,120,249,126,255
@@ -10,5 +14,10 @@ joe_nibble_rotations:
  db 0,12,48,60,192,204,240,252,3,15,51,63,195,207,243,255
  db 0,6,24,30,96,102,120,126,129,135,153,159,225,231,249,255
 joe_nibble_end:
+ IFDEF NES_FULL
+ ASSERT joe_nibble_rotations == 0x6780
+ ASSERT $ == 0x6800
+ ELSE
  ASSERT joe_nibble_rotations == 0x7B00
  ASSERT $ == 0x7B80
+ ENDIF

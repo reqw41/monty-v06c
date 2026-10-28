@@ -77,14 +77,14 @@ def main():
    return [(nibble(out[0])<<4)|nibble(out[1]),(nibble(out[2])<<4)|nibble(out[3])]
   asm += [' IFDEF NES_JOE_3COLOR',' db '+','.join(map(str,planes(True))),' ELSE',' db '+','.join(map(str,planes(False))),' ENDIF']
  asm += ['joe_nes_end:']
- table=['; Rotated doubled-pixel nibbles. Fixed aligned page, shared by all poses.', ' ORG 0x7B00', 'joe_nibble_rotations:']
+ table=['; Rotated doubled-pixel nibbles. Fixed aligned page, shared by all poses.', ' IFDEF NES_FULL', ' ORG 0x6780', ' ELSE', ' ORG 0x7B00', ' ENDIF', 'joe_nibble_rotations:']
  for shift in range(8):
   values=[]
   for n in range(16):
    v=sum(3<<(6-2*x) for x in range(4) if n&(8>>x))
    values.append(((v>>shift)|(v<<(8-shift)))&255)
   table.append(' db '+','.join(map(str,values)))
- table += ['joe_nibble_end:', ' ASSERT joe_nibble_rotations == 0x7B00', ' ASSERT $ == 0x7B80']
+ table += ['joe_nibble_end:', ' IFDEF NES_FULL', ' ASSERT joe_nibble_rotations == 0x6780', ' ASSERT $ == 0x6800', ' ELSE', ' ASSERT joe_nibble_rotations == 0x7B00', ' ASSERT $ == 0x7B80', ' ENDIF']
  (ROOT/'src/native/gen/joe_nibble.asm').write_text('\n'.join(table)+'\n')
  (ROOT/'src/native/gen/joe_nes.asm').write_text('\n'.join(asm)+'\n')
  (ROOT/'src/native/gen/joe_mirror.asm').write_text('; Visual row dictionary mirrors.\njoe_row_mirror:\n'+'\n'.join(' db '+','.join(str(unique.index(row[::-1])) for row in unique[i:min(i+64,normal)]) for i in range(0,normal,64))+'\n')

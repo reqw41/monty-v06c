@@ -8,6 +8,9 @@ disp_prep:
 		ld	a,(video_enabled)
 		or	a
 		ret	z
+ IFNDEF STRICT
+ call nes_service
+ ENDIF
 		xor	a
 		ld	(drew_any),a
 		ld	a,(video_dirty)
@@ -19,7 +22,13 @@ disp_prep:
 		cp	2
 		ret	c
 		call	room_redraw
-dp1:		ld	a,(lv_dirty)		; в клетки ставились живые тайлы — список живых клеток заново
+dp1:
+ IFDEF NES_FULL
+ ld a,(hud_dirty)
+ or a
+ call nz,nf_draw_hud
+ ENDIF
+		ld a,(lv_dirty)		; в клетки ставились живые тайлы — список живых клеток заново
 		or	a
 		jp	z,dp1a
 		xor	a
@@ -151,6 +160,9 @@ dp3:		xor	a
 		ld	(video_dirty),a
 		call	room_color_changes
 dp4:
+ IFNDEF STRICT
+ call nes_service
+ ENDIF
 		call	spr_plan		; какие спрайты перерисовать (A — сколько)
 		ld	c,a
 		ld	a,(dl_n)		; изменённые клетки есть?
@@ -333,7 +345,9 @@ room_redraw:
 		ld	a,(fire_frame)			; кадр анимации
 		ld	(fire_shown),a
 		call	pal_build
+ IFNDEF NES_STYLE
 		call	pal_fill
+ ENDIF
 		call	group_modes_build
 		call	tiles_reset
 		ld	a,3
@@ -363,7 +377,11 @@ lbz:		ld	(hl),a
 		inc	hl
 		dec	b
 		jp	nz,lbz
+ IFDEF NES_FULL
+ ld hl,FIELD_VNT
+ ELSE
 		ld	hl,VNT
+ ENDIF
 		ld	d,lv_idx/256
 lb1:		ld	e,(hl)
 		ld	a,(de)
@@ -376,7 +394,7 @@ lb1:		ld	e,(hl)
 		pop	hl
 lb2:		inc	hl
 		ld	a,h
-		cp	(VNT+768)/256
+		cp	(VNT+NT_CELLS)/256
 		jp	nz,lb1
 		ld	hl,lv_pos		; начала: lv_beg[b] = сумма (не больше LIVE_N), lv_pos := lv_beg
 		ld	de,lv_beg
@@ -397,7 +415,11 @@ lb4:		ld	c,a
 		jp	nz,lb3
 		ld	a,c
 		ld	(de),a			; lv_beg[LV_N] — всего
-		ld	hl,VNT			; раскладка
+ IFDEF NES_FULL
+ ld hl,FIELD_VNT
+ ELSE
+		ld	hl,VNT
+ ENDIF			; раскладка
 lb5:		ld	e,(hl)
 		ld	d,lv_idx/256
 		ld	a,(de)
@@ -427,7 +449,7 @@ lb5:		ld	e,(hl)
 lb6:		pop	hl
 lb7:		inc	hl
 		ld	a,h
-		cp	(VNT+768)/256
+		cp	(VNT+NT_CELLS)/256
 		jp	nz,lb5
 		ld	hl,lv_beg		; непустые корзины -> lv_pos (номера), lv_nn — сколько
 		ld	de,lv_pos
@@ -489,8 +511,13 @@ flt1:		ld	c,(hl)			; корзина (из непустых)
 		and	31
 		ld	hl,group_modes
 		call	add_hl_a
-		ld	c,(hl)
-		ld	a,0x15
+		ld c,(hl)
+ IFDEF NES_FULL
+ ld a,(rr_t)
+ ld b,a
+ call full_style_modes
+ ENDIF
+		ld a,0x15
 		ld	b,a
 		ld	a,(dc_pt)
 		or	a
@@ -570,6 +597,27 @@ fl_cover:	and	0x7E
 		ld	(hl),0			; выведена
 flt9:
  ; Screen Y from the map address; F500 now holds the native Joe attribute planner.
+ IFDEF NES_FULL
+ ld a,e
+ sub VNT&255
+ ld l,a
+ ld a,d
+ sbc a,VNT/256
+ ld h,a
+ ld a,l
+ and 0xE0
+ rrca
+ rrca
+ ld b,a
+ ld a,h
+ rrca
+ rrca
+ and 0xC0
+ or b
+ cpl
+ add a,(SCREEN_TOP+1)&255
+ ld b,a
+ ELSE
  ld a,e
  and 0xE0
  rrca
@@ -583,6 +631,7 @@ flt9:
  cpl
  add a,0xE0
  ld b,a
+ ENDIF
 		ld	a,e
 		and	31
 fl_hbase:	add	a,0x80
@@ -815,15 +864,42 @@ dal0:		ld	(hl),0
 		ld	(dl_n),a
 		ld	(dl_ovf),a
 		ld	(sprite_dirty),a
-		ld	hl,PND
-		ld	bc,768
+ IFDEF NES_FULL
+ ld hl,0xEC00
+ ld bc,768
+ xor a
+ ld (hud_dirty),a
+ ELSE
+		ld hl,PND
+		ld bc,768
+ ENDIF
 		ld	e,0
 		call	memfill_f
 		ld	a,0xFF
 		ld	(da_t),a
 		ld	de,VNT			; DE — клетка карты, HL — экран (столбец 0, верх строки 0)
-		ld	hl,0x80DF
+ xor a
+ ld (rr_r),a
+ ld (rr_c),a
+ IFDEF NES_FULL
+ ld hl,0x80FF
+ ELSE
+ IFDEF NES_STYLE
+ ld hl,0x80E7
+ ELSE
+ ld hl,0x80DF
+ ENDIF
+ ENDIF
 dal2:		ld	a,(de)
+ IFDEF NES_STYLE
+ IFNDEF NES_FULL
+ push de
+ push hl
+ call style_tile
+ pop hl
+ pop de
+ ENDIF
+ ENDIF
 		push	de
 		push	hl
 		ld	hl,da_t
@@ -838,18 +914,46 @@ dal3:		pop	hl
 		pop	de
 		inc	de
 		inc	h
+ IFDEF NES_STYLE
+ ld a,h
+ and 31
+ ld (rr_c),a
+ ENDIF
 		ld	a,h
 		cp	0xA0
 		jp	nz,dal2
-		ld	h,0x80			; следующая строка
+ IFNDEF STRICT
+ call nes_service
+ ENDIF
+		ld h,0x80			; следующая строка
+ IFDEF NES_STYLE
+ push hl
+ ld hl,rr_r
+ inc (hl)
+ ld a,(hl)
+ cp 3
+ pop hl
+ IFNDEF NES_FULL
+ jp nz,dal_style_row
+ ld a,l
+ sub 8
+ ld l,a
+dal_style_row:
+ ENDIF
+ ENDIF
 		ld	a,l
 		sub	8
 		ld	l,a
 		ld	a,d
-		cp	(VNT+768)/256
+		cp	(VNT+NT_CELLS)/256
 		jp	nz,dal2
+ IFDEF NES_STYLE
+ IFNDEF NES_FULL
+ call style_gap
+ ENDIF
+ ENDIF
 		ld	hl,row_dirty
-		ld	bc,24
+		ld bc,SCREEN_ROWS
 		ld	e,0
 		jp	memfill
 ; da_img: C = режимы, DE = графика -> (tile_dst): 3 плоскости по 8 байт (сверху вниз)
@@ -925,7 +1029,11 @@ da_blit:	push	hl
 ; force_tiles: A = старший байт таблицы флагов (256 байт по тайлам) — клетки с отмеченными тайлами к перерисовке
 force_tiles:
 		ld	d,a
+ IFDEF NES_FULL
+ ld hl,FIELD_VNT
+ ELSE
 		ld	hl,VNT
+ ENDIF
 ftl:		ld	e,(hl)
 		ld	a,(de)
 		or	a
@@ -934,7 +1042,7 @@ ftn:		inc	l
 		jp	nz,ftl
 		inc	h
 		ld	a,h
-		cp	(VNT+768)/256
+		cp	(VNT+NT_CELLS)/256
 		jp	nz,ftl
 		ret
 ft_mark:	call	dl_add			; клетка — к выводу
@@ -1078,7 +1186,13 @@ draw_list:
 		xor	a
 		ld	(dl_k),a
 		ld	hl,dlist
-dl1:		ld	e,(hl)
+dl1:
+ IFNDEF STRICT
+ ld a,l
+ and 63
+ call z,nes_service
+ ENDIF
+		ld e,(hl)
 		inc	l
 		ld	d,(hl)
 		inc	l
@@ -1095,18 +1209,7 @@ dl1:		ld	e,(hl)
 		and	31
 		ld	(rr_c),a
 		ld	c,a
-		ld	a,l
-		rlca
-		rlca
-		rlca
-		and	7
-		ld	b,a
-		ld	a,h
-		sub	VNT/256
-		add	a,a
-		add	a,a
-		add	a,a
-		or	b
+		call vnt_row
 		ld	(rr_r),a
 		ld	a,(dr_ex)
 		or	a
@@ -1151,11 +1254,11 @@ dl8:		pop	hl
 		or	a
 		ret	nz
 		ld	hl,row_dirty		; список пуст — и строки
-		ld	bc,24
+		ld bc,SCREEN_ROWS
 		ld	e,0
 		jp	memfill
 dl_full:	ld	hl,row_dirty		; переполнение: все строки (вывод — где PND = 1)
-		ld	bc,24
+		ld bc,SCREEN_ROWS
 		ld	e,1
 		call	memfill
 		call	draw_rows
@@ -1166,16 +1269,35 @@ dl_full:	ld	hl,row_dirty		; переполнение: все строки (вы�
 
 ; draw_rows: в отмеченных строках перерисовать клетки, ждущие вывода (PND; выровнена так же, как VNT)
 draw_rows:
-		xor	a
-		ld	(rr_r),a
-		ld	hl,row_dirty
-dr0:		ld	a,(hl)
+ IFDEF NES_FULL
+ ld a,HUD_ROWS
+ ld (rr_r),a
+ ld hl,row_dirty+HUD_ROWS
+ ELSE
+		xor a
+		ld (rr_r),a
+		ld hl,row_dirty
+ ENDIF
+dr0:
+ IFNDEF STRICT
+ call nes_service
+ ENDIF
+		ld a,(hl)
 		or	a
 		jp	z,dr9
 		ld	(hl),0
 		xor	a
 		ld	(dr_skip),a
 		push	hl
+ IFDEF NES_FULL
+ ld c,0
+ ld a,(rr_r)
+ call nf_row_addr
+ ld a,h
+ add a,(PND-VNT)/256
+ ld d,a
+ ld e,l
+ ELSE
 		ld	a,(rr_r)		; HL = VNT + 32 * r, DE = PND + 32 * r
 		ld	l,a
 		ld	h,0
@@ -1191,6 +1313,7 @@ dr0:		ld	a,(hl)
 		ld	a,h
 		add	a,VNT/256
 		ld	h,a
+ ENDIF
 		ld	b,32
 dr1:		ld	a,(de)
 		and	1
@@ -1208,7 +1331,7 @@ dr9:		inc	hl
 		ld	a,(rr_r)
 		inc	a
 		ld	(rr_r),a
-		cp	24
+		cp SCREEN_ROWS
 		jp	nz,dr0
 		ret
 dr_draw:	ld	a,(dr_ex)
@@ -1250,6 +1373,7 @@ dr_go:		ld	a,(de)
 
 
 ; pal_fill: цвета MSX вне палитры -> индекс ближайшего из палитры (по merge_pairs)
+ IFNDEF NES_STYLE
 pal_fill:
 		ld	b,2
 pf0:		ld	hl,used
@@ -1290,6 +1414,8 @@ pf9:		inc	b
 		cp	16
 		jp	nz,pf0
 		ret
+
+ ENDIF
 
 ; group_modes_build: режимы 32 групп для построения образов (по 2 бита; 8000 — старшие:
 ; 0 — 00, 1 — шаблон, 2 — инверсия, 3 — FF) для индексов cmap[точки], cmap[фон] (0 -> 1)
@@ -1370,6 +1496,31 @@ fl_compile:	ld	a,(dc_pt)
 		ld	a,(fl_n)
 		cp	8
 		ret	c
+ IFDEF NES_FULL
+ ld a,(rr_t)
+ cp 0xE0
+ jp z,fc_nes_vertical
+ cp 0xE8
+ jp z,fc_nes_horizontal
+ ld l,a
+ ld h,lv_idx/256
+ ld a,(hl)
+ cp 17
+ ld c,255
+ jp nc,fc_rows
+ ld hl,full_anim_rowmask
+ call add_hl_a
+ ld c,(hl)
+ jp fc_rows
+fc_nes_vertical:
+ ld a,(full_laser_rowmask)
+ ld c,a
+ jp fc_rows
+fc_nes_horizontal:
+ ld a,(full_laser_rowmask+1)
+ ld c,a
+ jp fc_rows
+ ELSE
 		ld	a,(rr_t)
 		ld	c,0xFF
 		cp	0xE8
@@ -1384,6 +1535,7 @@ fc_upper:	cp	0xD0
 		cp	0xD2
 		jp	nc,fc_rows
 		ld	c,0x6E
+ ENDIF
 fc_rows:	ld	a,c
 		ld	(fc_rowmask+1),a
 		ld	hl,(fl_source)
