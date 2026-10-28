@@ -2,7 +2,8 @@
 const fs=require('fs'),path=require('path'),root=path.resolve(__dirname,'../..');
 const rom=fs.readFileSync(path.join(root,'orig/nes/monty.nes'));
 const data=JSON.parse(fs.readFileSync(path.join(root,'build/nes_full/graphics.json'))),chars=data.chars;
-const joeHat=JSON.parse(fs.readFileSync(path.join(root,'build/joe_nes/frames.json'))).frames[0].pixels.slice(3,11);
+const descent=JSON.parse(fs.readFileSync(path.join(root,'build/joe_nes/frames.json'))).frames.find(f=>f.state===5&&f.phase===0);
+const joeHat=[3,4,5,6,8,9,10,11].map(y=>descent.pixels[y]);
 const meta=JSON.parse(fs.readFileSync(path.join(root,'build/nes/data/metasprites.json'))).groups.snake.states[0].frames;
 const animated=new Set(data.animations),fg=[6,2,6,2,2,2,2,2,2,2,0,0,2,2,1,6,6,6,1,2,6,2,6,2,1,6,2,2,2,2,1,6];
 const chr=(t,x,y)=>((rom[32784+16*t+y]>>(7-x))&1)|(((rom[32784+16*t+y+8]>>(7-x))&1)<<1);

@@ -4,13 +4,15 @@
 const fs=require('fs'),assert=require('assert/strict'),path=require('path');process.chdir(path.resolve(__dirname,'../..'));
 const E=require('../vec_emu'),{symbols}=require('./logic-profile'),B=process.env.B||'build/native',s=symbols(B),m=E.mk(B+'/monty.bin');
 const rom=fs.readFileSync('orig/nes/monty.nes'),chr=rom.subarray(32784);
-const joe=JSON.parse(fs.readFileSync('build/joe_nes/frames.json','utf8')).frames[0];
+const joe=JSON.parse(fs.readFileSync('build/joe_nes/frames.json','utf8')).frames.find(f=>f.state===5&&f.phase===0);
+assert(joe,'NES descent pose exists');
 assert.equal(joe.rows,23);
-assert(joe.pixels.slice(3,11).some(row=>row.includes(1)),'hat includes Joe green edge');
+const hatRows=[3,4,5,6,8,9,10,11];
+assert(joe.pixels[11].includes(1),'descent hat includes Joe green lower edge');
 const inks=B.includes('3color')?[0,2,3,1]:[0,1,3,1];
 for(let half=0;half<2;half++)for(let plane=0;plane<3;plane++)for(let y=0;y<8;y++){
  let expected=0;
- for(let x=0;x<8;x++)if(inks[Number(joe.pixels[y+3][(half*8+x)>>1])]&(4>>plane))expected|=128>>x;
+ for(let x=0;x<8;x++)if(inks[Number(joe.pixels[hatRows[y]][(half*8+x)>>1])]&(4>>plane))expected|=128>>x;
  assert.equal(m.rd((half?s.style_hat_right:s.style_hat)+plane*8+y),expected,`Joe hat source half ${half} plane ${plane} row ${y}`);
 }
 for(let f=0;f<320;f++){if(f===10)m.keyboard.matrix[2]|=2;if(f===100)m.keyboard.matrix[2]&=~2;m.frame();}

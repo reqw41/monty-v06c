@@ -82,10 +82,12 @@ def main():
  sty=['; Full-size NES bricks, patterned ladder cap and Joe-derived 16x8 life hat.',
       'style_bricks:',' db '+','.join(map(str,image(0x100,[0,3,2,6])+image(0x101,[0,3,2,6]))),
       'style_vase:',' db '+','.join(map(str,b''.join(image(t,[0,3,2,6]) for t in range(0x113,0x117))))]
- # Joe's idle frame supplies the brim and crown, so HUD hats match his sprite.
- joe=json.loads((ROOT/'build/joe_nes/frames.json').read_text())['frames'][0]
- assert joe['state']==0 and joe['phase']==0 and joe['rows']==23
- hat=joe['pixels'][3:11]
+ # Use Joe's front-facing descent pose (NES state 5, phase 0), not the side-on idle hat.
+ joe=next(f for f in json.loads((ROOT/'build/joe_nes/frames.json').read_text())['frames']
+          if f['state']==5 and f['phase']==0)
+ assert joe['rows']==23
+ # Omit the duplicate solid-red brim row 7; retain the green edge at row 11.
+ hat=[joe['pixels'][i] for i in (3,4,5,6,8,9,10,11)]
  def hat_half(half,inks):
   return [sum(128>>x for x in range(8) if inks[hat[y][(half*8+x)//2]]&bit)
           for bit in (4,2,1) for y in range(8)]
