@@ -140,6 +140,29 @@ stm_cyan:
 style_image:
  ld a,(rr_t)
  IFDEF NES_FULL
+ cp 0xC8
+ jp c,sti_no_vase
+ cp 0xCC
+ jp nc,sti_no_vase
+ ld a,(room_colors+1)
+ cp 0x11
+ ret z
+ ld a,(rr_t)
+ sub 0xC8
+ ld l,a
+ ld h,0
+ add hl,hl
+ add hl,hl
+ ld d,h
+ ld e,l
+ add hl,hl
+ add hl,de
+ add hl,hl
+ ld de,style_vase
+ add hl,de
+ ex de,hl
+ jp sti_copy
+sti_no_vase:
  cp 0x6E
  ld de,style_hat_right
  jp z,sti_copy

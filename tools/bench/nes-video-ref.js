@@ -23,7 +23,7 @@ function cell(m,s,t,phase,belt,options={}){const p=pixels(t,phase,belt),indices=
  const terrain=t<0x18||t===0x38||(t>=0x88&&t<=0x95)||(t>=0xc8&&t<=0xcd)||(t>=0xd2&&t<=0xd7);
  if(t===0xca||t===0xcb)ink=2;if(t===0xcc||t===0xcd)ink=1;if(t===0xd6||t===0xd7)ink=6;
  if(t===0xe0||t===0xe8)ink=col===0?0:col===0x40?m.rd(s.cmap+4):m.rd(s.cmap+10);
- for(let y=0;y<8;y++)for(let x=0;x<8;x++)indices[y][x]=dark&&terrain?0:(t===8||t===11||t===0x6e||t===0x6f)?[0,3,2,6][p[y][x]]:t===0x38?2:p[y][x]?ink:0;
+ for(let y=0;y<8;y++)for(let x=0;x<8;x++)indices[y][x]=dark&&terrain?0:(t===8||t===11||t===0x6e||t===0x6f||(t>=0xc8&&t<=0xcb))?[0,3,2,6][p[y][x]]:t===0x38?2:p[y][x]?ink:0;
  const out=[];for(const bit of [4,2,1])for(let y=0;y<8;y++)out.push(indices[y].reduce((a,v,x)=>a|((v&bit)?128>>x:0),0));return out;
 }
 module.exports={cell,animated,pixels};

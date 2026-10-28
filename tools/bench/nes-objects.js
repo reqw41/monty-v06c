@@ -6,7 +6,7 @@ function call(name,{a=0,hl=0}={}){const c=m.cpu;c.iff=false;c.iff_pending=0;c.sp
 const word=(a,v)=>{m.wr(a,v&255);m.wr(a+1,v>>8);};const readword=a=>m.rd(a)|(m.rd(a+1)<<8);
 const sets={5:0x62,6:0x58,7:0x5d,9:0x53,10:0x4e,11:0x44,12:0x49},deco={17:8,18:11,19:0xe0,20:0x88,21:0x89,22:0x10,23:0x11,24:0};
 const closed={14:[0xc0,0xc7],15:[0xb0,0xb7],16:[0xbb,0x9c]},open={14:[0xc1,0xc2,0xc3,0xc5],15:[0xb1,0xb2,0xb3,0xb4],16:[0xbc,0xbd,0xbe,0xbf]};
-let cases=0,doors=0,npcs=0;
+let cases=0,doors=0,npcs=0,lookups=0;
 for(const level of [1,2,3,9])for(const taken of [false,true])for(const room of rooms){
  const expected=room.native.slice(),row=Math.floor(Math.sqrt(room.index+1))-1,col=room.index-row*(row+2)+8-row;
  m.wr(0x71A6,level);m.wr(0x71A7,row);m.wr(0x71A8,col);m.wr(0x7049,6);m.wr(0x70B3,0);m.wr(s.nes_q_idle,1);
@@ -33,10 +33,17 @@ for(const level of [1,2,3,9])for(const taken of [false,true])for(const room of r
  assert.equal(m.rd(0x707a),enemy,'enemy count');
  for(let k=2+enemy;k<6;k++)assert.equal(m.rd(0x7303+4*k),0,'stale actor colour');
  for(const [number,pos] of positions)assert.equal(readword(0x72c0+2*number),pos,`object ${number}, room ${room.index}`);
+ // A moving enemy marker may share the low position byte with an item.
+ // Every static object's full coordinate must still find its own flag slot.
+ if(!taken&&level<=3)for(const [number,pos] of positions)if(pos<0xff00){
+  word(0x71b0,pos);call('L_90C8');
+  assert.equal(m.rd(0x71a2),number,`object lookup ${number}, room ${room.index}, level ${level}`);
+  lookups++;
+ }
  let k=0;
  for(const rec of room.objects)if(!taken&&[2,3,4].includes(rec[0])&&(rec.at(-1)&15)<=level-1&&level-1<(rec.at(-1)>>4)){
   k++;const p=0x7304+4*k;assert.equal(m.rd(p),rec[2]*8-1,'enemy Y');assert.equal(m.rd(p+1),rec[1]*8,'enemy X');npcs++;
  }
  cases++;
 }
-console.log(JSON.stringify({B,rooms:cases,npcCoordinates:npcs,doorStates:doors,objectOrder:'preserved',fieldCells:cases*768}));
+console.log(JSON.stringify({B,rooms:cases,npcCoordinates:npcs,doorStates:doors,objectLookups:lookups,objectOrder:'preserved',fieldCells:cases*768}));

@@ -28,6 +28,9 @@ mkdir -p "$B"
 cp build/native/monty.bin build/native/monty.sym "$B/"
 B="$B" node tools/bench/nes-full.js
 B="$B" node tools/bench/nes-objects.js
+B="$B" node tools/bench/nes-key-persistence.js
+B="$B" node tools/bench/nes-msx-sword.js
+B="$B" node tools/bench/nes-vase.js
 B="$B" node tools/bench/nes-hud.js
 B="$B" node tools/bench/nes-restart.js
 B="$B" node tools/nes/music/test_vi53.js build/nes_full/vi53
@@ -44,6 +47,8 @@ if test "${BUILD_NES3:-0}" = 1; then
   mkdir -p "$B3"
   cp build/native/monty.bin build/native/monty.sym "$B3/"
   B="$B3" node tools/bench/nes-hud.js
+  B="$B3" node tools/bench/nes-key-persistence.js
+  B="$B3" node tools/bench/nes-vase.js
   B="$B3" node tools/bench/joe-selector.js
   B="$B3" node tools/bench/joe-poses.js
   cp "$B3/monty.bin" rom/Monty-v06c-native-nes3.r0m
