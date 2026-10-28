@@ -38,6 +38,7 @@ B="$B" node tools/bench/nes-death-paths.js
 B="$B" node tools/bench/nes-death-video.js
 B="$B" node tools/bench/nes-vase.js
 B="$B" node tools/bench/nes-hud.js
+B="$B" node tools/bench/nes-title-font.js
 B="$B" node tools/bench/nes-restart.js
 B="$B" node tools/nes/music/test_vi53.js build/nes_full/vi53
 cp "$B/monty.bin" rom/Monty-v06c-native.r0m
@@ -53,6 +54,7 @@ if test "${BUILD_NES3:-0}" = 1; then
   mkdir -p "$B3"
   cp build/native/monty.bin build/native/monty.sym "$B3/"
   B="$B3" node tools/bench/nes-hud.js
+  B="$B3" node tools/bench/nes-title-font.js
   B="$B3" node tools/bench/nes-key-persistence.js
   B="$B3" node tools/bench/nes-amulet-snake.js
   B="$B3" node tools/bench/nes-snake-video.js

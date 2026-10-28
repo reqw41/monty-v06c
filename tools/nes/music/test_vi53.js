@@ -7,9 +7,10 @@ process.chdir(path.resolve(__dirname,'../../..'));
 const E=require('../../vec_emu'),{symbols}=require('../../bench/logic-profile');
 const {invoke,Timer,render}=require('./render_vi53');
 const B=process.env.B||'build/native',s=symbols(B),m=E.mk(B+'/monty.bin');for(let f=0;f<200;f++)m.frame();
-assert.equal(m.rd(s.pal+14),255);assert.equal(m.rd(s.pal+15),255);
-assert.equal(m.palette()[14],E.palColor(255));assert.equal(m.palette()[15],E.palColor(255));
-for(const base of [0x8000,0xA000,0xC000])assert.equal(m.rd(base+(s.MENU_POS%32)*256+(s.SCREEN_TOP??0xDF)-Math.floor(s.MENU_POS/32)*8),0x70,'menu glyph S');
+const menuInk=s.NES_TITLE_CREDITS_INK;
+assert.equal(m.rd(s.pal+14),menuInk);assert.equal(m.rd(s.pal+15),menuInk);
+assert.equal(m.palette()[14],E.palColor(menuInk));assert.equal(m.palette()[15],E.palColor(menuInk));
+for(const base of [0x8000,0xA000,0xC000])assert.equal(m.rd(base+(s.MENU_POS%32)*256+(s.SCREEN_TOP??0xDF)-Math.floor(s.MENU_POS/32)*8),0x7E,'NES menu glyph S');
 let max=0,cases=0;
 for(const wrap of [false,true])for(const a of ['hold','mute','tone'])for(const b of ['hold','mute','tone'])for(const c of ['hold','mute','tone','click']){
   const start=s.nes_queue+(wrap?36:0),expected=[];

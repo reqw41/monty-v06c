@@ -33,6 +33,20 @@ def main():
     # Palette bytes live in the source image and are copied before title display.
     asm+=[' ORG 0xF900','title_palette: db '+','.join(str(encode(RGB[v])) for v in colors for _ in range(2))]
     (ROOT/'src/native/gen/title.asm').write_text('\n'.join(asm)+'\n')
+    # The selector is an added menu line; draw it with the exact 7x7 glyphs
+    # used by the NES credits above. Comma extends the NES period by one row.
+    glyphs=[('S',0x7e),('E',0x70),('L',0x77),('C',0x6e),('T',0x7f),('V',0x81),
+            ('1',0x63),('2',0x64),('3',0x65),('.',0x86)]
+    def rows(tile):
+        return [sum(128>>x for x,v in enumerate(row) if v) for row in r.tiles[256+tile]]
+    font=['; NES title-credit CHR glyphs for the level selector.',
+          f'NES_TITLE_CREDITS_INK equ {encode(RGB[palettes[2][2]])}','font_tab:']
+    for char,tile in glyphs:
+        font.append(' db "'+char+'",'+','.join(map(str,rows(tile))))
+    comma=rows(0x86);comma[7]=0x80
+    font.append(' db ",",'+','.join(map(str,comma)))
+    font.append(' db 0,0,0,0,0,0,0,0,0')
+    (ROOT/'src/native/gen/font_nes.asm').write_text('\n'.join(font)+'\n')
     out=ROOT/'build/nes_title';out.mkdir(parents=True,exist_ok=True)
     rgb=Image.new('RGB',pixel.size);rgb.putdata([decode(encode(RGB[colors[v]])) for v in pixel.getdata()]);rgb.save(out/'native.png')
     # Independent MAME snapshot confirms both source streams, including HUD-free

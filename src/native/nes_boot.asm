@@ -33,7 +33,7 @@ nes_menu:
 	ld bc,16
 	call copy_de_hl
 	ENDIF
-	ld a,0xFF
+	ld a,NES_TITLE_CREDITS_INK
 	ld (pal+14),a
 	ld (pal+15),a
 	ld a,1
