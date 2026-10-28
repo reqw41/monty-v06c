@@ -210,7 +210,6 @@ frame_wait:
 		add	hl,sp
 		ld	(np_sp),hl
 		ld	sp,DISP_STACK
-		call joe_finish_old
 		ld	a,(crit_pend)
 		or	a
 		call	z,disp_prep

@@ -109,7 +109,8 @@ joe_gate:
 
  xor a
  ld (jn_wait),a
- call joe_finish_old
+ ; The published list includes enemies after Joe. Let the next IRQ finish it;
+ ; cancelling its tail here would starve them during continuous hero motion.
  ld a,(crit_pend)
  or a
  jp nz,joe_gate

@@ -34,18 +34,21 @@ dp1a:		xor	a
 		jp	c,dp_phase
 		ld	(hl),0
 dp_phase:
- ; Moving Joe owns the deadline. Service background animation once per fifteen
- ; preparations; retain dirty bits on the other steps.
+ ; Finish every published sprite queue before the next preparation. While Joe
+ ; moves, defer background by at most two preparations, retaining dirty bits.
+ ld a,(bg_turn)
+ inc a
+ cp 6
+ jp c,dp_turn_ready
+ xor a
+dp_turn_ready:
+ ld (bg_turn),a
  call joe_motion_pending
  jp z,dp_background
- ld a,(jn_service)
- inc a
- cp 15
- jp c,dp_service_count
- xor a
-dp_service_count:
- ld (jn_service),a
+ ld a,(bg_turn)
  or a
+ jp z,dp_background
+ cp 3
  jp nz,dp3
 dp_background:
  ld a,1			; до dp3 (кадры огня и лент) у живых клеток меняются только точки
@@ -53,6 +56,11 @@ dp_background:
 		ld	a,(video_dirty)
 		and	DIRTY_COLOR
 		jp	nz,dp_color_first
+ ; Alternate the preferred job: a constantly dirty belt must not prevent fire
+ ; from ever running when animation work is deferred on moving-Joe steps.
+ ld a,(bg_turn)
+ and 2
+ jp nz,dp_fire_new
 		ld	a,(video_dirty)
 		and	DIRTY_BELT
 		jp	z,dp_fire_new

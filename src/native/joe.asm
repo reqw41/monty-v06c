@@ -896,7 +896,7 @@ jn_dest equ spr_new+21
 jn_columns equ spr_rec+26
 
 
-jn_service equ 0x66FF
+bg_turn equ 0x66FF
 joe_motion_pending:
  xor a
  ld hl,spr_rec+1
@@ -944,48 +944,6 @@ jn_capture_done:
 jn_epoch equ 0x66FC
 jn_last_epoch equ 0x66FD
 jn_ready_epoch equ 0x66FE
-
-; Coalesce pure-Y work earlier when no background cells are pending. Complete deferred cells
-; atomically; otherwise coalesce unpainted enemy positions into the next plan.
-joe_finish_old:
- ld a,(spr_rec+13)
- or a
- ret nz
- ld a,(crit_pend)
- or a
- ret z
- ld b,2
- ld a,(ex_any)
- or a
- jp nz,jn_old_age
- ld a,(0x7301)
- ld hl,spr_rec+2
- cp (hl)
- jp nz,jn_old_age
- dec b
-jn_old_age:
- ld a,(jn_epoch)
- ld hl,jn_last_epoch
- sub (hl)
- cp b
- ret c
- call joe_motion_pending
- ret z
- ld a,(ex_any)
- or a
- jp nz,jn_finish_pending_cells
- ; No deferred background remains: coalesce the unpainted enemy positions
- ; into the next plan, letting the newest Joe enter the very next IRQ.
- xor a
- ld (crit_pend),a
- ret
-jn_finish_pending_cells:
- xor a
- ld (crit_pend),a
- jp crit
-
-
-
 
 jn_wait equ spr_rec+24
 jn_delta equ spr_rec+25
