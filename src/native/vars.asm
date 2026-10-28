@@ -13,6 +13,11 @@ belt_frame:	ds	1
 belt_shown:	ds	1
 pal_load:	ds	1
 fire_shown:	ds	1
+ IFDEF NES_FULL
+snake_frame:	ds	1
+snake_shown:	ds	1
+snake_tick:	ds	1
+ ENDIF
 kbmat:		ds	8
 row_dirty:	ds	SCREEN_ROWS
 drew_any:	ds	1
@@ -100,6 +105,8 @@ nf_visibility: ds 1
 nf_flags: ds 1
 nf_kind: ds 1
 nf_enemy: ds 1
+nf_snake_count: ds 1
+nf_snake_offsets: ds 8		; four 2x2 snakes, VNT offsets
 nf_left: ds 2
 nf_bitbyte: ds 1
 nf_bitcount: ds 1

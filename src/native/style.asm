@@ -20,7 +20,11 @@ stp_row:
  ld a,(hl)
  ld (pal+4),a
  ld (pal+5),a
+ IFDEF NES_FULL
+ jp nes_snake_palette
+ ELSE
  ret
+ ENDIF
 copy_de_hl_swap:
  ex de,hl
  jp copy_de_hl
@@ -258,6 +262,13 @@ fsm_lit:
  cp 0xF0
  ret c
 fsm_regular:
+ cp 0xA0
+ jp c,fsm_not_snake
+ cp 0xA8
+ jp nc,fsm_not_snake
+ ld c,0x11		; snake ink = private palette index 5
+ ret
+fsm_not_snake:
  cp 0x38
  ld c,8
  ret z

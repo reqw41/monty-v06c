@@ -22,6 +22,7 @@ DIRTY_BELT		equ	0x01			; отметки для вывода (display.asm)
 DIRTY_COLOR		equ	0x02
 DIRTY_ROOM		equ	0x04
 DIRTY_FIRE		equ	0x08
+DIRTY_SNAKE		equ	0x10			; two NES snake poses, independent of fire
 		DEFINE	NATIVE
 SPR_MAX		equ	6
 DL_MAX		equ	127			; список изменённых клеток (dlist, по 2 байта)
@@ -104,7 +105,7 @@ boot:
 		call	memfill
 		ld	hl,PS_TOP		; записи и таблицы спрайтов (6600-67FF)
 		IFDEF NES_FULL
- ld bc,0x0180
+ ld bc,sprt_end-PS_TOP	; preserve snake helpers after the sprite table
  ELSE
  ld bc,0x0200
  ENDIF
@@ -361,9 +362,9 @@ unit_fw:	push	af			; tools/unit.js: ожидание кадра = обработ
  ENDIF
 
 ex_bb:		ds	4			; общая рамка отложенных клеток
-lv_tile:	ds	33			; живые клетки: тайл корзины
-lv_beg:		ds	34			; начало корзины в live_list (+ всего)
-lv_pos:		ds	33			; счётчики/позиции при раскладке
+lv_tile:	ds	LV_N			; живые клетки: тайл корзины
+lv_beg:		ds	LV_N+1			; начало корзины в live_list (+ всего)
+lv_pos:		ds	LV_N			; счётчики/позиции при раскладке
 lv_idx		equ	0xF400			; тайл -> корзина (FF — не живой); бывший кэш тайлов в невидимой плоскости
  IFDEF NES_FULL
  INCLUDE "gen/video_full.asm"
@@ -391,7 +392,7 @@ ps_heap:					; дальше до PS_TOP — место готовых сдвиг
 		ASSERT	ps_heap <= PS_TOP
 ; выровненные таблицы — на постоянных адресах под 7000 (рост кода не сдвигает их на страницу)
  IFDEF NES_FULL
-joe_high_free_end equ VNT
+joe_high_free_end equ VNT-0x44
 sprite_table_free_end equ 0x6780
  ELSE
 joe_high_free_end equ 0x7B00
@@ -414,7 +415,11 @@ dlist:		ds	256			; список изменённых клеток (адреса 
  IFDEF STRICT
 PS_MORE equ video_raw_end
  ELSE
+ IFDEF NES_FULL
+PS_MORE equ nes_snake_end
+ ELSE
 PS_MORE equ joe_latch_end
+ ENDIF
  ENDIF
 ;		; после исходных полос — готовые сдвиги
 		ASSERT	PS_MORE < 0x7000
@@ -428,6 +433,11 @@ sprite_sources_end:
  INCLUDE "gen/joe_nibble.asm"
 		INCLUDE "joe_bands.asm"
  INCLUDE "joe_latch.asm"
+		IFDEF NES_FULL
+		INCLUDE "nes_chain_exit.asm"
+		INCLUDE "nes_snake_aux.asm"
+		INCLUDE "nes_snake.asm"
+		ENDIF
 
 		INCLUDE "gen/logic.asm"
 

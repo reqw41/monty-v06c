@@ -687,7 +687,11 @@ hs_8C87:	ld	a,(0x705B)
 		jp	z,hs_8CD1
 		ld	bc,1
 		jp	hs_8C39
-hs_8C9C:	ld	a,(0x705F)
+hs_8C9C:
+		IFDEF NES_FULL
+		call nes_chain_exit
+		ENDIF
+		ld	a,(0x705F)
 		and	0x20
 		jp	z,h8c9
 		ld	a,(0x73EE)

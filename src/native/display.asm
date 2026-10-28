@@ -160,6 +160,9 @@ dp3:		xor	a
 		ld	(video_dirty),a
 		call	room_color_changes
 dp4:
+ IFDEF NES_FULL
+ call nes_snake_render
+ ENDIF
  IFNDEF STRICT
  call nes_service
  ENDIF
@@ -344,6 +347,10 @@ room_redraw:
 		call	memfill_f
 		ld	a,(fire_frame)			; кадр анимации
 		ld	(fire_shown),a
+ IFDEF NES_FULL
+ ld a,(snake_frame)
+ ld (snake_shown),a
+ ENDIF
 		call	pal_build
  IFNDEF NES_STYLE
 		call	pal_fill
@@ -354,7 +361,11 @@ room_redraw:
 		ld	(pal_load),a
 		call	draw_all		; комната — целиком, прямо (спрайты — стёрты: их не восстанавливать)
 		ld	a,(video_dirty)
+		IFDEF NES_FULL
+		and 0xFF-DIRTY_ROOM-DIRTY_COLOR-DIRTY_SNAKE
+		ELSE
 		and	0xFF-DIRTY_ROOM-DIRTY_COLOR
+		ENDIF
 		ld	(video_dirty),a
 		call	live_build
 		xor	a
@@ -367,7 +378,11 @@ room_redraw:
 LIVE_N		equ	250
 FIRE_K		equ	3			; огонь: при смене кадра — каждая FIRE_K-я клетка (по очереди)
 live_hi		equ	0xF100			; (бывшие флаги анимации тайлов — не читались)
+ IFDEF NES_FULL
+LV_N		equ	36
+ ELSE
 LV_N		equ	33
+ ENDIF
 ; live_build: корзины живых клеток комнаты (два прохода по VNT: подсчёт, раскладка)
 live_build:
 		ld	hl,lv_pos		; счётчики := 0
@@ -1505,7 +1520,7 @@ fl_compile:	ld	a,(dc_pt)
  ld l,a
  ld h,lv_idx/256
  ld a,(hl)
- cp 17
+ cp FULL_ANIM_N
  ld c,255
  jp nc,fc_rows
  ld hl,full_anim_rowmask

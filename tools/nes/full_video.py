@@ -23,26 +23,33 @@ def main():
  chars.update({0x6f:0x154,0x6e:0x155,0xf8:0x122,0xf9:0x1cd,0xfa:0x120,0xfb:0x121,0xfc:0x1ce,0xfd:0x1cf})
  masks={t:bytes(sum(128>>x for x in range(8) if r.tiles[chrid][y][x]) for y in range(8)) for t,chrid in chars.items()}
  masks[0x38]=bytes(8)
- # Both directions of the stationary snake, kept as a four-cell native hazard.
- meta=json.loads((ROOT/'build/nes/data/metasprites.json').read_text())['groups']['snake']['states'][0]['frames'][0]
- for direction,tiles in [(1,[0xa0,0xa1,0xa2,0xa3]),(2,[0xa5,0xa4,0xa7,0xa6])]:
-  parts=r.meta(int(meta['rom'][1:],16),direction);x0=min(p['x'] for p in parts);y0=min(p['y'] for p in parts)
-  pic=[[0]*16 for _ in range(16)]
-  for p in parts[::-1]:
-   for y in range(8):
-    for x in range(8):
-     xx=p['x']-x0+x;yy=p['y']-y0+y
-     if 0<=xx<16 and 0<=yy<16:
-      v=r.tiles[p['tile']][7-y if p['flip_y'] else y][7-x if p['flip_x'] else x]
-      if v:pic[yy][xx]=v
-  for part,t in enumerate(tiles):masks[t]=bytes(sum(128>>x for x in range(8) if pic[(part//2)*8+y][(part%2)*8+x]) for y in range(8))
+ # Preserve both NES poses and both facings; the map tile IDs remain hazards.
+ snake_frames={}
+ snake_metas=json.loads((ROOT/'build/nes/data/metasprites.json').read_text())['groups']['snake']['states'][0]['frames']
+ for phase,meta in enumerate(snake_metas):
+  for direction,tiles in [(1,[0xa0,0xa1,0xa2,0xa3]),(2,[0xa5,0xa4,0xa7,0xa6])]:
+   parts=r.meta(int(meta['rom'][1:],16),direction);x0=min(p['x'] for p in parts);y0=min(p['y'] for p in parts)
+   pic=[[0]*16 for _ in range(16)]
+   for p in parts[::-1]:
+    for y in range(8):
+     for x in range(8):
+      xx=p['x']-x0+x;yy=p['y']-y0+y
+      if 0<=xx<16 and 0<=yy<16:
+       v=r.tiles[p['tile']][7-y if p['flip_y'] else y][7-x if p['flip_x'] else x]
+       if v:pic[yy][xx]=v
+   for part,t in enumerate(tiles):snake_frames[t,phase]=bytes(sum(128>>x for x in range(8) if pic[(part//2)*8+y][(part%2)*8+x]) for y in range(8))
+ masks.update({t:bits for (t,phase),bits in snake_frames.items() if phase==0})
  strips={}
  def ptr(b):return strips.setdefault(b,len(strips))
  base=[ptr(masks.get(t,bytes(8))) for t in range(256)]
  anim=[4,5,6,0xa8,0xae,0xd2,0xd3,0xd4,0xd5,0xb8,0xb9,0xba]
+ fire_anim_count=len(anim)
+ anim+=list(range(0xa0,0xa8))
  frames=[]
  for t in anim:
   for phase in range(4):
+   if 0xa0<=t<=0xa7:
+    frames.append(ptr(snake_frames[t,phase&1]));continue
    if t in (4,5,6):chrid=0x13c+3*phase+t-4
    elif t in (0xb8,0xb9,0xba):chrid=0x13c+3*((-phase)%4)+t-0xb8
    elif t in (0xa8,0xae):chrid=0x123+2*phase+(t==0xae)
@@ -51,16 +58,16 @@ def main():
    frames.append(ptr(bytes(sum(128>>x for x in range(8) if r.tiles[chrid][y][x]) for y in range(8))))
  # Full NES laser masks replace the old MSX strip tables.
  lasers=[]
- for ids in ([0x12d,0x12f,0x131,0x133],[0x135,0x137]):
+ for ids in ([0x12d,0x12f,0x131,0x133],[0x135,0x136,0x137,0x138]):
   lasers.append([ptr(bytes(sum(128>>x for x in range(8) if r.tiles[n][y][x]) for y in range(8))) for n in ids])
  assert len(strips)<256
- out=['; Generated NES CHR masks for the full 256x240 field.','anim_set: db '+','.join(map(str,anim))+',255','col0: db '+','.join(map(str,v0[0x2000:0x2020])),'raw_base:']
+ out=['; Generated NES CHR masks for the full 256x240 field.',f'FULL_ANIM_N equ {len(anim)}','anim_set: db '+','.join(map(str,anim))+',255','col0: db '+','.join(map(str,v0[0x2000:0x2020])),'raw_base:']
  for i in range(0,256,32):out.append(' db '+','.join(map(str,base[i:i+32])))
  out+=['raw_anim: db '+','.join(map(str,frames)),'full_laser_v: db '+','.join(map(str,lasers[0])),'full_laser_h: db '+','.join(map(str,lasers[1]))]
  transitions={};names=[]
  for old in range(4):
   for new in range(4):
-   changed=tuple(t for i,t in enumerate(anim) if frames[4*i+old]!=frames[4*i+new]);names.append(transitions.setdefault(changed,f'nf_delta_{len(transitions)}'))
+   changed=tuple(t for i,t in enumerate(anim[:fire_anim_count]) if frames[4*i+old]!=frames[4*i+new]);names.append(transitions.setdefault(changed,f'nf_delta_{len(transitions)}'))
  inverse=list(strips)
  rowmask=lambda ids:sum(1<<y for y in range(8) if len({inverse[i][y] for i in ids})>1)
  out+=['full_anim_rowmask: db '+','.join(str(rowmask(frames[4*i:4*i+4])) for i in range(len(anim))), 'full_laser_rowmask: db '+','.join(str(rowmask(ids)) for ids in lasers)]

@@ -349,143 +349,73 @@
 	ENDIF
 	ENDIF
 	ENDIF
-	IF (((sprt_end)&0xFF00)+0) < (sprite_table_free_end)
-	IF ((((sprt_end)&0xFF00)+0)+256) > (sprt_end)
-	IF (((sprt_end)&0xFF00)+0) < (sprt_end)
-	dw sprt_end
+	IF (((nes_snake_aux_end)&0xFF00)+0) < (sprite_table_free_end)
+	IF ((((nes_snake_aux_end)&0xFF00)+0)+256) > (nes_snake_aux_end)
+	IF (((nes_snake_aux_end)&0xFF00)+0) < (nes_snake_aux_end)
+	dw nes_snake_aux_end
 	ELSE
-	dw (((sprt_end)&0xFF00)+0)
+	dw (((nes_snake_aux_end)&0xFF00)+0)
 	ENDIF
-	IF ((((sprt_end)&0xFF00)+0)+256) > (sprite_table_free_end)
+	IF ((((nes_snake_aux_end)&0xFF00)+0)+256) > (sprite_table_free_end)
 	dw sprite_table_free_end
 	ELSE
-	dw ((((sprt_end)&0xFF00)+0)+256)
+	dw ((((nes_snake_aux_end)&0xFF00)+0)+256)
 	ENDIF
 	ENDIF
 	ENDIF
-	IF (((sprt_end)&0xFF00)+256) < (sprite_table_free_end)
-	IF ((((sprt_end)&0xFF00)+256)+256) > (sprt_end)
-	IF (((sprt_end)&0xFF00)+256) < (sprt_end)
-	dw sprt_end
+	IF (((nes_snake_aux_end)&0xFF00)+256) < (sprite_table_free_end)
+	IF ((((nes_snake_aux_end)&0xFF00)+256)+256) > (nes_snake_aux_end)
+	IF (((nes_snake_aux_end)&0xFF00)+256) < (nes_snake_aux_end)
+	dw nes_snake_aux_end
 	ELSE
-	dw (((sprt_end)&0xFF00)+256)
+	dw (((nes_snake_aux_end)&0xFF00)+256)
 	ENDIF
-	IF ((((sprt_end)&0xFF00)+256)+256) > (sprite_table_free_end)
+	IF ((((nes_snake_aux_end)&0xFF00)+256)+256) > (sprite_table_free_end)
 	dw sprite_table_free_end
 	ELSE
-	dw ((((sprt_end)&0xFF00)+256)+256)
+	dw ((((nes_snake_aux_end)&0xFF00)+256)+256)
 	ENDIF
 	ENDIF
 	ENDIF
-	IF (((sprt_end)&0xFF00)+512) < (sprite_table_free_end)
-	IF ((((sprt_end)&0xFF00)+512)+256) > (sprt_end)
-	IF (((sprt_end)&0xFF00)+512) < (sprt_end)
-	dw sprt_end
+	IF (((nes_snake_aux_end)&0xFF00)+512) < (sprite_table_free_end)
+	IF ((((nes_snake_aux_end)&0xFF00)+512)+256) > (nes_snake_aux_end)
+	IF (((nes_snake_aux_end)&0xFF00)+512) < (nes_snake_aux_end)
+	dw nes_snake_aux_end
 	ELSE
-	dw (((sprt_end)&0xFF00)+512)
+	dw (((nes_snake_aux_end)&0xFF00)+512)
 	ENDIF
-	IF ((((sprt_end)&0xFF00)+512)+256) > (sprite_table_free_end)
+	IF ((((nes_snake_aux_end)&0xFF00)+512)+256) > (sprite_table_free_end)
 	dw sprite_table_free_end
 	ELSE
-	dw ((((sprt_end)&0xFF00)+512)+256)
+	dw ((((nes_snake_aux_end)&0xFF00)+512)+256)
 	ENDIF
 	ENDIF
 	ENDIF
-	IF (((sprt_end)&0xFF00)+768) < (sprite_table_free_end)
-	IF ((((sprt_end)&0xFF00)+768)+256) > (sprt_end)
-	IF (((sprt_end)&0xFF00)+768) < (sprt_end)
-	dw sprt_end
+	IF (((nes_snake_aux_end)&0xFF00)+768) < (sprite_table_free_end)
+	IF ((((nes_snake_aux_end)&0xFF00)+768)+256) > (nes_snake_aux_end)
+	IF (((nes_snake_aux_end)&0xFF00)+768) < (nes_snake_aux_end)
+	dw nes_snake_aux_end
 	ELSE
-	dw (((sprt_end)&0xFF00)+768)
+	dw (((nes_snake_aux_end)&0xFF00)+768)
 	ENDIF
-	IF ((((sprt_end)&0xFF00)+768)+256) > (sprite_table_free_end)
+	IF ((((nes_snake_aux_end)&0xFF00)+768)+256) > (sprite_table_free_end)
 	dw sprite_table_free_end
 	ELSE
-	dw ((((sprt_end)&0xFF00)+768)+256)
+	dw ((((nes_snake_aux_end)&0xFF00)+768)+256)
 	ENDIF
 	ENDIF
 	ENDIF
-	IF (((sprt_end)&0xFF00)+1024) < (sprite_table_free_end)
-	IF ((((sprt_end)&0xFF00)+1024)+256) > (sprt_end)
-	IF (((sprt_end)&0xFF00)+1024) < (sprt_end)
-	dw sprt_end
+	IF (((nes_snake_aux_end)&0xFF00)+1024) < (sprite_table_free_end)
+	IF ((((nes_snake_aux_end)&0xFF00)+1024)+256) > (nes_snake_aux_end)
+	IF (((nes_snake_aux_end)&0xFF00)+1024) < (nes_snake_aux_end)
+	dw nes_snake_aux_end
 	ELSE
-	dw (((sprt_end)&0xFF00)+1024)
+	dw (((nes_snake_aux_end)&0xFF00)+1024)
 	ENDIF
-	IF ((((sprt_end)&0xFF00)+1024)+256) > (sprite_table_free_end)
+	IF ((((nes_snake_aux_end)&0xFF00)+1024)+256) > (sprite_table_free_end)
 	dw sprite_table_free_end
 	ELSE
-	dw ((((sprt_end)&0xFF00)+1024)+256)
-	ENDIF
-	ENDIF
-	ENDIF
-	IF (((0x6660)&0xFF00)+0) < (0x6680)
-	IF ((((0x6660)&0xFF00)+0)+256) > (0x6660)
-	IF (((0x6660)&0xFF00)+0) < (0x6660)
-	dw 0x6660
-	ELSE
-	dw (((0x6660)&0xFF00)+0)
-	ENDIF
-	IF ((((0x6660)&0xFF00)+0)+256) > (0x6680)
-	dw 0x6680
-	ELSE
-	dw ((((0x6660)&0xFF00)+0)+256)
-	ENDIF
-	ENDIF
-	ENDIF
-	IF (((0x6660)&0xFF00)+256) < (0x6680)
-	IF ((((0x6660)&0xFF00)+256)+256) > (0x6660)
-	IF (((0x6660)&0xFF00)+256) < (0x6660)
-	dw 0x6660
-	ELSE
-	dw (((0x6660)&0xFF00)+256)
-	ENDIF
-	IF ((((0x6660)&0xFF00)+256)+256) > (0x6680)
-	dw 0x6680
-	ELSE
-	dw ((((0x6660)&0xFF00)+256)+256)
-	ENDIF
-	ENDIF
-	ENDIF
-	IF (((0x6660)&0xFF00)+512) < (0x6680)
-	IF ((((0x6660)&0xFF00)+512)+256) > (0x6660)
-	IF (((0x6660)&0xFF00)+512) < (0x6660)
-	dw 0x6660
-	ELSE
-	dw (((0x6660)&0xFF00)+512)
-	ENDIF
-	IF ((((0x6660)&0xFF00)+512)+256) > (0x6680)
-	dw 0x6680
-	ELSE
-	dw ((((0x6660)&0xFF00)+512)+256)
-	ENDIF
-	ENDIF
-	ENDIF
-	IF (((0x6660)&0xFF00)+768) < (0x6680)
-	IF ((((0x6660)&0xFF00)+768)+256) > (0x6660)
-	IF (((0x6660)&0xFF00)+768) < (0x6660)
-	dw 0x6660
-	ELSE
-	dw (((0x6660)&0xFF00)+768)
-	ENDIF
-	IF ((((0x6660)&0xFF00)+768)+256) > (0x6680)
-	dw 0x6680
-	ELSE
-	dw ((((0x6660)&0xFF00)+768)+256)
-	ENDIF
-	ENDIF
-	ENDIF
-	IF (((0x6660)&0xFF00)+1024) < (0x6680)
-	IF ((((0x6660)&0xFF00)+1024)+256) > (0x6660)
-	IF (((0x6660)&0xFF00)+1024) < (0x6660)
-	dw 0x6660
-	ELSE
-	dw (((0x6660)&0xFF00)+1024)
-	ENDIF
-	IF ((((0x6660)&0xFF00)+1024)+256) > (0x6680)
-	dw 0x6680
-	ELSE
-	dw ((((0x6660)&0xFF00)+1024)+256)
+	dw ((((nes_snake_aux_end)&0xFF00)+1024)+256)
 	ENDIF
 	ENDIF
 	ENDIF

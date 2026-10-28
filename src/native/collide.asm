@@ -539,9 +539,6 @@ p8f7:		call	L_9067			; меч
 ; меч (91) — враг гибнет, очки 2000/3000; иначе гибель героя (8DA2), на уровнях 1-4 враг тоже снимается
 L_91E5:
 proc_91E5:
-		IFDEF NES_FULL
-		call	nes_amulet_step
-		ENDIF
 		ld	a,(0x70AC)
 		dec	a
 		jp	nz,p9e5

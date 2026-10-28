@@ -99,6 +99,8 @@ L_AE83:		ld	hl,0x70B3
 L_A067:
  call nf_valid_room
  ret nc
+ xor a
+ ld (nf_snake_count),a
  ld hl,(0x71A7)
  ld (nf_room_row),hl
  call L_AE77
@@ -257,7 +259,7 @@ nf_actor:
  jp z,nf_snake_set
  ld a,0x81
 nf_snake_set:
- call L_A378
+ call nes_snake_record_draw
  jp nf_next_pop
 nf_mobile:
  ld a,(0x707A)

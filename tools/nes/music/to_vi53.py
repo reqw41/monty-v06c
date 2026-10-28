@@ -362,7 +362,7 @@ def main():
     args.report.write_text(json.dumps(result, ensure_ascii=False, indent=2) + '\n')
     page_source = []
     for begin, end in [('PS_MORE', '0x7000'), ('video_raw_end', 'joe_latch_source'), ('sprite_sources_end', 'joe_high_free_end'),
-                       ('ps_heap', 'PS_TOP'), ('ps_boot_source+125', 'ps_boot_source_end'), ('sprt_end','sprite_table_free_end'), ('0x6660','0x6680'), ('JOE_PICTURE+12*joe_nes_rows','JOE_BACKGROUND'), ('JOE_BACKGROUND+9*joe_nes_rows','0xFB00')]:
+                       ('ps_heap', 'PS_TOP'), ('ps_boot_source+125', 'ps_boot_source_end'), ('nes_snake_aux_end','sprite_table_free_end'), ('JOE_PICTURE+12*joe_nes_rows','JOE_BACKGROUND'), ('JOE_BACKGROUND+9*joe_nes_rows','0xFB00')]:
         for i in range(5):
             page = f'((({begin})&0xFF00)+{256*i})'
             stop = f'({page}+256)'

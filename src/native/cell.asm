@@ -25,11 +25,15 @@ tile_kind:	ld	a,(rr_t)
 tk_other:	ld	l,a
 		ld	h,lv_idx/256
 		ld	a,(hl)
+		IFDEF NES_FULL
+		jp nes_snake_tile_kind
+		ELSE
 		cp	17
 		ld	c,4
 		ret	c
 		ld	c,1
 		ret
+		ENDIF
 ; Группы E0..EF: обычная лента A0, выключенный лазер 00, включённый 40.
 tile_belt_frames:	ld	a,(rr_t)
 		cp	0xE0
@@ -37,7 +41,11 @@ tile_belt_frames:	ld	a,(rr_t)
 		ret	z
 		ld	a,(rr_t)
 		cp	0xE8
+		IFDEF NES_FULL
+		ld a,4
+		ELSE
 		ld	a,2
+		ENDIF
 		ret	z
 		ld	a,1
 		ret
@@ -77,13 +85,25 @@ tile_select:	ld	b,a
 		ld	l,a
 		ld	h,lv_idx/256
 		ld	a,(hl)
+		IFDEF NES_FULL
+		cp FULL_ANIM_N
+		ELSE
 		cp	17
+		ENDIF
 		ld	a,0
 		jp	nc,tsel_add
+		IFDEF NES_FULL
+		call nes_snake_phase
+		ELSE
 		ld	a,(fire_shown)
+		ENDIF
 		jp	tsel_add
 tsel_chain:	ld	a,(belt_shown)
+		IFDEF NES_FULL
+		and 3
+		ELSE
 		and	1
+		ENDIF
 		jp	tsel_add
 tsel_belt:	ld	a,(belt_shown)
 tsel_add:	ld	c,a
@@ -202,7 +222,11 @@ dc_tile:	ld	a,(rr_t)
 		ld	l,b
 		ld	h,lv_idx/256
 		ld	a,(hl)
+		IFDEF NES_FULL
+		cp FULL_ANIM_N
+		ELSE
 		cp	17
+		ENDIF
 		jp	nc,dc_base
  IFDEF NES_FULL
  add a,a
@@ -253,7 +277,7 @@ dc_belt0:
  jp full_laser
 dc_belt8:
  ld a,(tile_phase)
- and 1
+ and 3
  ld hl,full_laser_h
 full_laser:
  call add_hl_a

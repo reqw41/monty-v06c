@@ -24,7 +24,7 @@ for(const level of [1,2,3,9])for(const taken of [false,true])for(const room of r
   if(taken){if(type>=14){const q=open[type];place(pos-1,[...q.slice(0,3),...Array(9).fill(q[3])],[0,1,2,32,33,34,64,65,66,96,97,98]);doors++;}continue;}
   if(type>=14){const q=closed[type];place(pos,[q[0],q[0],q[0],q[1]],[0,32,64,96]);positions.push([number,pos]);doors++;}
   else if(type>=5){const offset=sets[type];assert.notEqual(offset,undefined);place(pos,[...cart.subarray(0x9fd2+offset,0x9fd6+offset)],[0,1,32,33]);positions.push([number,pos]);}
-  else if(type===1){const offset=(rec[3]&4)?0x81:0x7c;place(pos,[...cart.subarray(0x9fd2+offset,0x9fd6+offset)],[0,1,32,33]);positions.push([number,pos]);}
+  else if(type===1){const offset=hero[1]>=rec[1]*8-1?0x7c:0x81;place(pos,[...cart.subarray(0x9fd2+offset,0x9fd6+offset)],[0,1,32,33]);positions.push([number,pos]);}
   else{enemy++;positions.push([number,0xff00+4*enemy]);}
  }
  call('L_A067');

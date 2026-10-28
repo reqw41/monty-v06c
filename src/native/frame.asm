@@ -121,7 +121,11 @@ fh1:		ld	a,(0x705F)
  or DIRTY_ROOM
  ld (video_dirty),a
  ENDIF
-fh2:		ld	hl,0x7097
+fh2:
+		IFDEF NES_FULL
+		call nes_snake_step
+		ENDIF
+		ld	hl,0x7097
 		inc	(hl)
 		ld	hl,(0x7047)
 		inc	hl
