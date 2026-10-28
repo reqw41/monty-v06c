@@ -429,6 +429,9 @@ PS_MORE equ joe_latch_end
 		INCLUDE "gen/joe_mirror.asm"
 sprite_sources_end:
 		INCLUDE "joe_attrs.asm"
+		IFDEF NES_FULL
+		INCLUDE "nes_chain_descent.asm"
+		ENDIF
 		ASSERT $ <= 0x7B00
  INCLUDE "gen/joe_nibble.asm"
 		INCLUDE "joe_bands.asm"

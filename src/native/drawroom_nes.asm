@@ -587,7 +587,7 @@ nf_bit_have:
  pop af
  ret
 
-; Native HUD mirrors the six-row NES arrangement, with original two-colour hats.
+; Native HUD mirrors the six-row NES arrangement, with Joe's own hat sprite.
 L_A548:
  call map_edit_begin
  call nf_hud_rebuild

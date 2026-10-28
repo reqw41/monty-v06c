@@ -385,6 +385,10 @@ h929b:		ld	a,(0x7057)
 h929c:		ld	a,(0x73EE)		; вниз: на конвейере (10 11) — 897C; на лестнице (C4) — 4
 		and	4
 		jp	z,h929e
+		IFDEF NES_FULL
+		call nes_chain_enter
+		jp nz,hs_8988
+		ENDIF
 		ld	a,(0x705B)
 		cp	0x10
 		jp	nz,h929l
@@ -755,7 +759,11 @@ hs_8D3E:	ld	a,(0x73EE)
 		jp	z,hs_8C39
 		ld	c,0xFE
 		jp	hs_8C39
-hs_8D4A:	ld	bc,0
+hs_8D4A:
+		IFDEF NES_FULL
+		call nes_chain_align
+		ENDIF
+		ld	bc,0
 		ld	a,(0x7058)
 		or	a
 		jp	z,hs_8C9C

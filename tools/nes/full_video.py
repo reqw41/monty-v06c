@@ -79,10 +79,20 @@ def main():
  (ROOT/'src/native/gen/video_full.asm').write_text('\n'.join(out)+'\n')
  # Bricks and hats preserve their separate inks; colour 2 is the floor accent.
  def image(t,mapping):return bytes(sum(128>>x for x in range(8) if mapping[r.tiles[t][y][x]]&bit) for bit in (4,2,1) for y in range(8))
- sty=['; Full-size NES bricks and 16x8 life hat.','style_bricks:',' db '+','.join(map(str,image(0x100,[0,3,2,6])+image(0x101,[0,3,2,6]))),'style_hat:',' db '+','.join(map(str,image(0x154,[0,3,2,6]))),'style_hat_right:',' db '+','.join(map(str,image(0x155,[0,3,2,6]))),'style_accents: db '+','.join(str(encode(RGB[r.b(0xc5d5+i)])) for i in range(9))]
- # The four-piece ornamental ladder cap uses all three NES ink values.
- sty[0]='; Full-size NES bricks, patterned ladder cap and 16x8 life hat.'
- sty[3:3]=['style_vase:',' db '+','.join(map(str,b''.join(image(t,[0,3,2,6]) for t in range(0x113,0x117))))]
+ sty=['; Full-size NES bricks, patterned ladder cap and Joe-derived 16x8 life hat.',
+      'style_bricks:',' db '+','.join(map(str,image(0x100,[0,3,2,6])+image(0x101,[0,3,2,6]))),
+      'style_vase:',' db '+','.join(map(str,b''.join(image(t,[0,3,2,6]) for t in range(0x113,0x117))))]
+ # Joe's idle frame supplies the brim and crown, so HUD hats match his sprite.
+ joe=json.loads((ROOT/'build/joe_nes/frames.json').read_text())['frames'][0]
+ assert joe['state']==0 and joe['phase']==0 and joe['rows']==23
+ hat=joe['pixels'][3:11]
+ def hat_half(half,inks):
+  return [sum(128>>x for x in range(8) if inks[hat[y][(half*8+x)//2]]&bit)
+          for bit in (4,2,1) for y in range(8)]
+ for directive,inks in [(' IFDEF NES_JOE_3COLOR',(0,2,3,1)),(' ELSE',(0,1,3,1))]:
+  sty += [directive,'style_hat:',' db '+','.join(map(str,hat_half(0,inks))),
+          'style_hat_right:',' db '+','.join(map(str,hat_half(1,inks)))]
+ sty += [' ENDIF','style_accents: db '+','.join(str(encode(RGB[r.b(0xc5d5+i)])) for i in range(9))]
  fg=[6,2,6,2,2,2,2,2,2,2,0,0,2,2,1,6,6,6,1,2,6,2,6,2,1,6,2,2,2,2,1,6]
  modes=[sum(((ci>>bit)&1)<<(2*bit) for bit in range(3)) for ci in fg]
  sty+=['full_modes: db '+','.join(map(str,modes))]

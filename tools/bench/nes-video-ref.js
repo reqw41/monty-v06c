@@ -2,6 +2,7 @@
 const fs=require('fs'),path=require('path'),root=path.resolve(__dirname,'../..');
 const rom=fs.readFileSync(path.join(root,'orig/nes/monty.nes'));
 const data=JSON.parse(fs.readFileSync(path.join(root,'build/nes_full/graphics.json'))),chars=data.chars;
+const joeHat=JSON.parse(fs.readFileSync(path.join(root,'build/joe_nes/frames.json'))).frames[0].pixels.slice(3,11);
 const meta=JSON.parse(fs.readFileSync(path.join(root,'build/nes/data/metasprites.json'))).groups.snake.states[0].frames;
 const animated=new Set(data.animations),fg=[6,2,6,2,2,2,2,2,2,2,0,0,2,2,1,6,6,6,1,2,6,2,6,2,1,6,2,2,2,2,1,6];
 const chr=(t,x,y)=>((rom[32784+16*t+y]>>(7-x))&1)|(((rom[32784+16*t+y+8]>>(7-x))&1)<<1);
@@ -9,6 +10,7 @@ const snakes={};
 for(let phase=0;phase<2;phase++)for(const direction of [1,2]){const view=meta[phase].views[String(direction)],parts=view.parts,x0=Math.min(...parts.map(p=>p.x)),y0=Math.min(...parts.map(p=>p.y)),pic=Array.from({length:16},()=>new Uint8Array(16));for(const p of [...parts].reverse())for(let y=0;y<8;y++)for(let x=0;x<8;x++){const xx=p.x-x0+x,yy=p.y-y0+y,v=chr(p.tile,p.flip_x?7-x:x,p.flip_y?7-y:y);if(v&&xx>=0&&xx<16&&yy>=0&&yy<16)pic[yy][xx]=v;}snakes[`${phase}:${direction}`]=pic;}
 const snakeParts={160:[1,0],161:[1,1],162:[1,2],163:[1,3],165:[2,0],164:[2,1],167:[2,2],166:[2,3]};
 function pixels(t,phase,belt){let tile=chars[t];
+ if(t===0x6e||t===0x6f){const offset=t===0x6e?8:0;return Array.from({length:8},(_,y)=>Uint8Array.from({length:8},(_,x)=>Number(joeHat[y][(offset+x)>>1])));}
  if(t>=4&&t<=6)tile=0x13c+3*phase+t-4;
  if(t>=0xb8&&t<=0xba)tile=0x13c+3*((4-phase)%4)+t-0xb8;
  if(t===0xa8||t===0xae)tile=0x123+2*phase+(t===0xae?1:0);
@@ -24,7 +26,7 @@ function cell(m,s,t,phase,belt,options={}){const p=pixels(t,phase,belt),indices=
  if(t===0xca||t===0xcb)ink=2;if(t===0xcc||t===0xcd)ink=1;if(t===0xd6||t===0xd7)ink=6;
  if(t>=0xa0&&t<=0xa7)ink=5;
  if(t===0xe0||t===0xe8)ink=col===0?0:col===0x40?m.rd(s.cmap+4):m.rd(s.cmap+10);
- for(let y=0;y<8;y++)for(let x=0;x<8;x++)indices[y][x]=dark&&terrain?0:(t===8||t===11||t===0x6e||t===0x6f||(t>=0xc8&&t<=0xcb))?[0,3,2,6][p[y][x]]:t===0x38?2:p[y][x]?ink:0;
+ for(let y=0;y<8;y++)for(let x=0;x<8;x++)indices[y][x]=t===0x6e||t===0x6f?(s.NES_JOE_COLORS===3?[0,2,3,1]:[0,1,3,1])[p[y][x]]:dark&&terrain?0:(t===8||t===11||(t>=0xc8&&t<=0xcb))?[0,3,2,6][p[y][x]]:t===0x38?2:p[y][x]?ink:0;
  const out=[];for(const bit of [4,2,1])for(let y=0;y<8;y++)out.push(indices[y].reduce((a,v,x)=>a|((v&bit)?128>>x:0),0));return out;
 }
 module.exports={cell,animated,pixels};

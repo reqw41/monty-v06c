@@ -4,6 +4,15 @@
 const fs=require('fs'),assert=require('assert/strict'),path=require('path');process.chdir(path.resolve(__dirname,'../..'));
 const E=require('../vec_emu'),{symbols}=require('./logic-profile'),B=process.env.B||'build/native',s=symbols(B),m=E.mk(B+'/monty.bin');
 const rom=fs.readFileSync('orig/nes/monty.nes'),chr=rom.subarray(32784);
+const joe=JSON.parse(fs.readFileSync('build/joe_nes/frames.json','utf8')).frames[0];
+assert.equal(joe.rows,23);
+assert(joe.pixels.slice(3,11).some(row=>row.includes(1)),'hat includes Joe green edge');
+const inks=B.includes('3color')?[0,2,3,1]:[0,1,3,1];
+for(let half=0;half<2;half++)for(let plane=0;plane<3;plane++)for(let y=0;y<8;y++){
+ let expected=0;
+ for(let x=0;x<8;x++)if(inks[Number(joe.pixels[y+3][(half*8+x)>>1])]&(4>>plane))expected|=128>>x;
+ assert.equal(m.rd((half?s.style_hat_right:s.style_hat)+plane*8+y),expected,`Joe hat source half ${half} plane ${plane} row ${y}`);
+}
 for(let f=0;f<320;f++){if(f===10)m.keyboard.matrix[2]|=2;if(f===100)m.keyboard.matrix[2]&=~2;m.frame();}
 function call(name,{a=0,de=0}={}){const c=m.cpu;c.iff=false;c.iff_pending=0;c.pc=s[name];c.sp=0x73BE;c.regs[7]=a;c.regs[2]=de>>8;c.regs[3]=de&255;m.wr(c.sp,s.unit_trap&255);m.wr(c.sp+1,s.unit_trap>>8);for(let n=0;c.pc!==s.unit_trap;n++){assert(n<1000000,name+' hung');c.instruction();}}
 let bytes=0;
@@ -32,6 +41,6 @@ m.wr(0x7049,6);call('L_AABB');call('nf_draw_hud');
 for(let half=0;half<2;half++)for(let plane=0;plane<3;plane++)for(let y=0;y<8;y++){
  const addr=0x8000+0x2000*plane+256*(1+half)+s.SCREEN_TOP-8*4-y;
  const source=half?s.style_hat_right:s.style_hat;
- assert.equal(m.rd(addr),m.rd(source+plane*8+y),`two-colour hat half ${half} plane ${plane} row ${y}`);
+ assert.equal(m.rd(addr),m.rd(source+plane*8+y),`Joe hat half ${half} plane ${plane} row ${y}`);
 }
-console.log(JSON.stringify({B,digits:10,originalChrTiles:40,comparedBytes:bytes,fireBodyOverlap:false,lifeHatCases:8,lifeHatPixelsCompared:48}));
+console.log(JSON.stringify({B,digits:10,originalChrTiles:40,comparedBytes:bytes,fireBodyOverlap:false,lifeHatCases:8,lifeHatSourceBytesCompared:48,lifeHatPixelsCompared:48}));

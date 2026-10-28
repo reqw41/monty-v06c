@@ -106,7 +106,7 @@ st_done:
  ret
 
  ENDIF
-; Special three-ink brick / two-ink life hat. All other tiles retain the
+; Special three-ink brick / Joe-derived life hat. All other tiles retain the
 ; ordinary colour-group compiler, including fire body 38 and dynamic colours.
  IFNDEF NES_FULL
 style_modes:
