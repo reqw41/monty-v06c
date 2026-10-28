@@ -1,73 +1,73 @@
 ; Generated from local NES CHR/OAM by tools/nes/joe_native.py.
-joe_nes_rows equ 19
+joe_nes_rows equ 23
 joe_nes_frames:
  dw jn_00_0,jn_01_0,jn_01_1,jn_01_2,jn_01_3,jn_02_0,jn_02_1,jn_03_0
  dw jn_04_0,jn_04_1,jn_05_0,jn_06_0,jn_07_0,jn_08_0,jn_08_1,jn_08_2
  dw jn_08_3,jn_08_4,jn_09_0,jn_0a_0,jn_0b_0,jn_0b_1,jn_0b_2
 jn_00_0 equ jn_00_0_ink-1
 jn_00_0_ink:
- db 1,2,3,4,5,6,7,8,9,10,11,12,13,13,14,15,16,17
+ db 1,2,2,3,4,5,6,7,8,9,10,11,12,13,14,15,15,16,17,18,19,20
 jn_01_0 equ jn_01_0_ink-1
 jn_01_0_ink:
- db 1,2,3,4,5,6,7,8,9,10,11,18,13,14,15,15,19,19
+ db 1,2,2,3,4,5,6,7,8,9,10,11,12,21,22,15,16,17,17,23,24,24
 jn_01_1 equ jn_01_1_ink-1
 jn_01_1_ink:
- db 1,2,3,4,5,6,7,8,9,10,11,18,13,14,20,21,22,23
+ db 1,2,2,3,4,5,6,7,8,9,10,11,12,21,22,15,16,25,26,27,28,29
 jn_01_2 equ jn_01_0
 jn_01_3 equ jn_00_0
-jn_02_0 equ jn_02_0_ink-5
+jn_02_0 equ jn_02_0_ink-6
 jn_02_0_ink:
- db 24,25,26,26,27,28,6,29,30,31,32,33,34,28
-jn_02_1 equ jn_02_1_ink-3
+ db 30,31,32,33,33,34,35,6,36,37,38,39,40,41,42,43,35
+jn_02_1 equ jn_02_1_ink-4
 jn_02_1_ink:
- db 35,35,35,36,37,38,39,28,6,29,30,31,32,33,34,28
+ db 44,44,44,45,45,46,47,48,35,6,36,37,38,39,40,41,42,43,35
 jn_03_0 equ jn_03_0_ink-1
 jn_03_0_ink:
- db 1,2,3,4,5,6,7,8,9,40,41,42,15,20,43,44,10,10
+ db 1,2,2,3,4,5,6,7,8,9,10,49,50,22,51,17,25,52,53,54,11,11
 jn_04_0 equ jn_04_0_ink-0
 jn_04_0_ink:
- db 45,45,46,47,28,48,34,49,50,51,52,53,34,32,54,48,48,55,24
+ db 55,55,35,56,57,35,58,43,59,60,61,62,63,64,65,43,40,66,58,58,67,68,30
 jn_04_1 equ jn_04_1_ink-0
 jn_04_1_ink:
- db 45,45,46,47,28,48,34,49,54,56,57,53,34,20,50,48,48,55,58
+ db 55,55,35,56,57,35,58,43,59,60,66,69,70,64,65,43,25,61,58,58,71,68,72
 jn_05_0 equ jn_05_0_ink-0
 jn_05_0_ink:
- db 45,45,46,47,28,48,34,49,48,59,60,53,61,61,62,63,64,65,65
+ db 55,55,35,56,57,35,58,43,59,60,58,73,74,64,65,75,75,76,77,78,29,79,79
 jn_06_0 equ jn_06_0_ink-0
 jn_06_0_ink:
- db 45,45,46,47,28,48,34,49,48,66,67,53,34,34,48,48,48,25,55
+ db 55,55,35,56,57,35,58,43,59,60,58,23,80,64,65,43,43,58,58,58,81,31,68
 jn_07_0 equ jn_07_0_ink-1
 jn_07_0_ink:
- db 45,68,69,70,70,71,72,48,34,34,34,53,73,73,74,75,25,55
+ db 55,82,83,84,85,85,86,87,88,58,43,43,43,65,64,89,89,90,91,31,31,68
 jn_08_0 equ jn_08_0_ink-1
 jn_08_0_ink:
- db 1,76,77,1,78,79,80,81,82,0,83,84,85,86,87,88,89,64
+ db 1,2,92,93,1,94,95,96,97,98,99,0,100,101,102,103,104,105,106,44,107,78
 jn_08_1 equ jn_08_1_ink-1
 jn_08_1_ink:
- db 1,0,76,0,90,91,92,93,94,0,95,96,97,98,99,88,100,101
+ db 1,0,0,92,0,108,109,110,111,112,113,0,114,0,115,116,117,118,106,33,119,120
 jn_08_2 equ jn_08_2_ink-1
 jn_08_2_ink:
- db 1,0,76,0,90,0,0,93,65,0,95,96,102,103,99,88,0,101
+ db 1,0,0,92,0,108,0,121,0,112,79,0,114,0,115,122,123,118,106,0,0,120
 jn_08_3 equ jn_08_3_ink-8
 jn_08_3_ink:
- db 90,104,0,0,76,0,1,102,0,0,104
-jn_08_4 equ jn_08_4_ink-9
+ db 124,0,108,125,0,0,0,92,0,1,122,0,126,0,125
+jn_08_4 equ jn_08_4_ink-8
 jn_08_4_ink:
- db 104,0,0,0,0,0,0,0,0,104
+ db 124,0,0,125,0,0,0,0,0,0,0,0,126,0,125
 jn_09_0 equ shape_00
 jn_0a_0 equ jn_0a_0_ink-0
 jn_0a_0_ink:
- db 45,45,46,47,28,48,34,49,48,105,106,53,6,6,107,108,109,110,110
-jn_0b_0 equ jn_0b_0_ink-7
+ db 55,55,35,56,57,35,58,43,59,60,58,127,128,64,65,6,6,129,130,131,132,133,133
+jn_0b_0 equ jn_0b_0_ink-9
 jn_0b_0_ink:
- db 48,34,34,34,111,45,45,99,99,45,76,76
+ db 58,43,43,43,134,2,55,55,118,118,55,55,92,92
 jn_0b_1 equ jn_0b_1_ink-1
 jn_0b_1_ink:
- db 99,28,112,6,6,34,34,34,34,34,61,113,114,76,45,1,0,0
+ db 118,135,35,136,6,6,43,43,43,43,43,43,75,5,137,138,92,55,1,0,0,0
 jn_0b_2 equ jn_0b_2_ink-0
 jn_0b_2_ink:
- db 99,115,6,6,34,34,34,61,5,5,5,116,28,117,102,76,76,76,76
-joe_top_rows: db 1,1,1,1,1,5,3,1,0,0,0,0,1,1,1,1,8,9,18,0,7,1,0
+ db 118,135,136,6,6,43,43,43,43,75,5,5,5,139,139,35,140,122,92,92,92,92,92
+joe_top_rows: db 1,1,1,1,1,6,4,1,0,0,0,0,1,1,1,1,8,8,22,0,9,1,0
 joe_row_dictionary:
  IFDEF NES_JOE_3COLOR
  db 0,0
@@ -105,6 +105,11 @@ joe_row_dictionary:
  db 119,255
  ENDIF
  IFDEF NES_JOE_3COLOR
+ db 143,15
+ ELSE
+ db 143,15
+ ENDIF
+ IFDEF NES_JOE_3COLOR
  db 127,255
  ELSE
  db 127,255
@@ -130,6 +135,11 @@ joe_row_dictionary:
  db 191,174
  ENDIF
  IFDEF NES_JOE_3COLOR
+ db 223,110
+ ELSE
+ db 223,110
+ ENDIF
+ IFDEF NES_JOE_3COLOR
  db 231,236
  ELSE
  db 111,206
@@ -150,6 +160,11 @@ joe_row_dictionary:
  db 255,204
  ENDIF
  IFDEF NES_JOE_3COLOR
+ db 192,192
+ ELSE
+ db 12,12
+ ENDIF
+ IFDEF NES_JOE_3COLOR
  db 224,224
  ELSE
  db 14,14
@@ -160,9 +175,19 @@ joe_row_dictionary:
  db 6,14
  ENDIF
  IFDEF NES_JOE_3COLOR
+ db 223,108
+ ELSE
+ db 223,78
+ ENDIF
+ IFDEF NES_JOE_3COLOR
  db 227,252
  ELSE
  db 47,207
+ ENDIF
+ IFDEF NES_JOE_3COLOR
+ db 16,128
+ ELSE
+ db 1,8
  ENDIF
  IFDEF NES_JOE_3COLOR
  db 16,192
@@ -178,6 +203,11 @@ joe_row_dictionary:
  db 255,116
  ELSE
  db 255,71
+ ENDIF
+ IFDEF NES_JOE_3COLOR
+ db 96,112
+ ELSE
+ db 6,7
  ENDIF
  IFDEF NES_JOE_3COLOR
  db 112,96
@@ -200,6 +230,11 @@ joe_row_dictionary:
  db 14,7
  ENDIF
  IFDEF NES_JOE_3COLOR
+ db 192,112
+ ELSE
+ db 12,7
+ ENDIF
+ IFDEF NES_JOE_3COLOR
  db 128,64
  ELSE
  db 8,4
@@ -213,6 +248,11 @@ joe_row_dictionary:
  db 51,204
  ELSE
  db 51,204
+ ENDIF
+ IFDEF NES_JOE_3COLOR
+ db 118,255
+ ELSE
+ db 103,255
  ENDIF
  IFDEF NES_JOE_3COLOR
  db 255,247
@@ -238,6 +278,11 @@ joe_row_dictionary:
  db 207,15
  ELSE
  db 207,15
+ ENDIF
+ IFDEF NES_JOE_3COLOR
+ db 63,255
+ ELSE
+ db 63,255
  ENDIF
  IFDEF NES_JOE_3COLOR
  db 255,255
@@ -295,6 +340,11 @@ joe_row_dictionary:
  db 119,7
  ENDIF
  IFDEF NES_JOE_3COLOR
+ db 48,32
+ ELSE
+ db 3,2
+ ENDIF
+ IFDEF NES_JOE_3COLOR
  db 17,136
  ELSE
  db 17,136
@@ -313,6 +363,11 @@ joe_row_dictionary:
  db 119,238
  ELSE
  db 119,238
+ ENDIF
+ IFDEF NES_JOE_3COLOR
+ db 127,239
+ ELSE
+ db 127,239
  ENDIF
  IFDEF NES_JOE_3COLOR
  db 143,31
@@ -340,9 +395,19 @@ joe_row_dictionary:
  db 223,191
  ENDIF
  IFDEF NES_JOE_3COLOR
+ db 239,127
+ ELSE
+ db 239,127
+ ENDIF
+ IFDEF NES_JOE_3COLOR
  db 247,238
  ELSE
  db 127,238
+ ENDIF
+ IFDEF NES_JOE_3COLOR
+ db 32,96
+ ELSE
+ db 2,6
  ENDIF
  IFDEF NES_JOE_3COLOR
  db 96,96
@@ -358,6 +423,11 @@ joe_row_dictionary:
  db 215,191
  ELSE
  db 95,191
+ ENDIF
+ IFDEF NES_JOE_3COLOR
+ db 96,64
+ ELSE
+ db 6,4
  ENDIF
  IFDEF NES_JOE_3COLOR
  db 0,96
@@ -400,14 +470,19 @@ joe_row_dictionary:
  db 3,0
  ENDIF
  IFDEF NES_JOE_3COLOR
- db 16,128
+ db 19,140
  ELSE
- db 1,8
+ db 19,140
  ENDIF
  IFDEF NES_JOE_3COLOR
- db 19,140
+ db 241,248
  ELSE
- db 19,140
+ db 31,143
+ ENDIF
+ IFDEF NES_JOE_3COLOR
+ db 3,12
+ ELSE
+ db 3,12
  ENDIF
  IFDEF NES_JOE_3COLOR
  db 23,142
@@ -428,6 +503,11 @@ joe_row_dictionary:
  db 95,175
  ELSE
  db 95,175
+ ENDIF
+ IFDEF NES_JOE_3COLOR
+ db 63,207
+ ELSE
+ db 63,207
  ENDIF
  IFDEF NES_JOE_3COLOR
  db 55,206
@@ -470,6 +550,11 @@ joe_row_dictionary:
  db 85,51
  ENDIF
  IFDEF NES_JOE_3COLOR
+ db 143,14
+ ELSE
+ db 143,14
+ ENDIF
+ IFDEF NES_JOE_3COLOR
  db 93,238
  ELSE
  db 93,238
@@ -488,6 +573,11 @@ joe_row_dictionary:
  db 157,4
  ELSE
  db 157,4
+ ENDIF
+ IFDEF NES_JOE_3COLOR
+ db 153,110
+ ELSE
+ db 153,110
  ENDIF
  IFDEF NES_JOE_3COLOR
  db 230,136
@@ -528,6 +618,11 @@ joe_row_dictionary:
  db 85,0
  ELSE
  db 85,0
+ ENDIF
+ IFDEF NES_JOE_3COLOR
+ db 140,6
+ ELSE
+ db 140,6
  ENDIF
  IFDEF NES_JOE_3COLOR
  db 68,136
@@ -580,6 +675,11 @@ joe_row_dictionary:
  db 2,8
  ENDIF
  IFDEF NES_JOE_3COLOR
+ db 4,2
+ ELSE
+ db 4,2
+ ENDIF
+ IFDEF NES_JOE_3COLOR
  db 0,68
  ELSE
  db 0,68
@@ -590,9 +690,19 @@ joe_row_dictionary:
  db 19,1
  ENDIF
  IFDEF NES_JOE_3COLOR
+ db 0,2
+ ELSE
+ db 0,2
+ ENDIF
+ IFDEF NES_JOE_3COLOR
  db 32,0
  ELSE
  db 2,0
+ ENDIF
+ IFDEF NES_JOE_3COLOR
+ db 0,64
+ ELSE
+ db 0,4
  ENDIF
  IFDEF NES_JOE_3COLOR
  db 254,128
@@ -620,6 +730,11 @@ joe_row_dictionary:
  db 3,6
  ENDIF
  IFDEF NES_JOE_3COLOR
+ db 0,224
+ ELSE
+ db 0,14
+ ENDIF
+ IFDEF NES_JOE_3COLOR
  db 0,192
  ELSE
  db 0,12
@@ -630,6 +745,11 @@ joe_row_dictionary:
  db 255,221
  ENDIF
  IFDEF NES_JOE_3COLOR
+ db 17,204
+ ELSE
+ db 17,204
+ ENDIF
+ IFDEF NES_JOE_3COLOR
  db 51,238
  ELSE
  db 51,238
@@ -643,11 +763,6 @@ joe_row_dictionary:
  db 102,136
  ELSE
  db 102,136
- ENDIF
- IFDEF NES_JOE_3COLOR
- db 17,204
- ELSE
- db 17,204
  ENDIF
  IFDEF NES_JOE_3COLOR
  db 119,136
@@ -668,6 +783,11 @@ joe_row_dictionary:
  db 1,140
  ELSE
  db 1,140
+ ENDIF
+ IFDEF NES_JOE_3COLOR
+ db 15,31
+ ELSE
+ db 15,31
  ENDIF
  IFDEF NES_JOE_3COLOR
  db 255,239
@@ -690,6 +810,11 @@ joe_row_dictionary:
  db 87,223
  ENDIF
  IFDEF NES_JOE_3COLOR
+ db 103,191
+ ELSE
+ db 103,191
+ ENDIF
+ IFDEF NES_JOE_3COLOR
  db 115,126
  ELSE
  db 55,111
@@ -710,9 +835,19 @@ joe_row_dictionary:
  db 51,255
  ENDIF
  IFDEF NES_JOE_3COLOR
+ db 48,48
+ ELSE
+ db 3,3
+ ENDIF
+ IFDEF NES_JOE_3COLOR
  db 112,112
  ELSE
  db 7,7
+ ENDIF
+ IFDEF NES_JOE_3COLOR
+ db 99,191
+ ELSE
+ db 39,191
  ENDIF
  IFDEF NES_JOE_3COLOR
  db 243,124
@@ -725,9 +860,14 @@ joe_row_dictionary:
  db 46,255
  ENDIF
  IFDEF NES_JOE_3COLOR
- db 0,224
+ db 224,96
  ELSE
- db 0,14
+ db 14,6
+ ENDIF
+ IFDEF NES_JOE_3COLOR
+ db 224,48
+ ELSE
+ db 14,3
  ENDIF
  IFDEF NES_JOE_3COLOR
  db 32,16
@@ -738,6 +878,11 @@ joe_row_dictionary:
  db 32,248
  ELSE
  db 2,143
+ ENDIF
+ IFDEF NES_JOE_3COLOR
+ db 255,230
+ ELSE
+ db 255,110
  ENDIF
  IFDEF NES_JOE_3COLOR
  db 254,255
@@ -753,6 +898,11 @@ joe_row_dictionary:
  db 15,63
  ELSE
  db 15,63
+ ENDIF
+ IFDEF NES_JOE_3COLOR
+ db 255,207
+ ELSE
+ db 255,207
  ENDIF
  IFDEF NES_JOE_3COLOR
  db 0,48
@@ -805,6 +955,11 @@ joe_row_dictionary:
  db 14,238
  ENDIF
  IFDEF NES_JOE_3COLOR
+ db 64,192
+ ELSE
+ db 4,12
+ ENDIF
+ IFDEF NES_JOE_3COLOR
  db 17,68
  ELSE
  db 17,68
@@ -818,6 +973,11 @@ joe_row_dictionary:
  db 204,170
  ELSE
  db 204,170
+ ENDIF
+ IFDEF NES_JOE_3COLOR
+ db 7,31
+ ELSE
+ db 7,31
  ENDIF
  IFDEF NES_JOE_3COLOR
  db 119,171
@@ -833,6 +993,11 @@ joe_row_dictionary:
  db 2,155
  ELSE
  db 2,155
+ ENDIF
+ IFDEF NES_JOE_3COLOR
+ db 103,153
+ ELSE
+ db 103,153
  ENDIF
  IFDEF NES_JOE_3COLOR
  db 17,118
@@ -873,6 +1038,11 @@ joe_row_dictionary:
  db 0,170
  ELSE
  db 0,170
+ ENDIF
+ IFDEF NES_JOE_3COLOR
+ db 6,19
+ ELSE
+ db 6,19
  ENDIF
  IFDEF NES_JOE_3COLOR
  db 17,34
@@ -930,9 +1100,9 @@ joe_row_dictionary:
  db 8,140
  ENDIF
  IFDEF NES_JOE_3COLOR
- db 0,64
+ db 4,0
  ELSE
- db 0,4
+ db 4,0
  ENDIF
  IFDEF NES_JOE_3COLOR
  db 187,255

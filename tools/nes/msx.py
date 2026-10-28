@@ -106,8 +106,8 @@ def add_semantic_contexts(mapping):
       '40/A8':([1],'9380',[3],'NES walking phase 3'),
       '4C/B0':([2],'9388',[0],'jump, even though the silhouette resembles a wide step'),
       '50/B4':([2],'938A',[0],'jump'),
-      '54/B8':([3],'938E',[0,2],'chain: NES 05:0; moving descent may use 0A:0'),
-      '58/BC':([3],'938E',[1,3],'chain: NES 05/0A; 06 is a pole pose, not a second chain phase'),
+      '54/B8':([3],'938E',[0,2],'two-column ladder 88/89, top 10/11: NES 04:0, climbing up or down'),
+      '58/BC':([3],'938E',[1,3],'two-column ladder 88/89, top 10/11: NES 04:1, climbing up or down'),
       '5C/C0':([4],'9396',[0,2],'ladder NES 04:0; rope/pole use NES 05/06/0A by context'),
       '60/C4':([4],'9396',[1,3],'ladder NES 04:1; rope/pole use NES 05/06/0A by context'),
       '64/C8':([5],'938C',[0],'fall / treasure-room descent; NES 03:0'),
@@ -120,7 +120,8 @@ def add_semantic_contexts(mapping):
     for row in mapping['joe']:
         states,table,phases,note=contexts[row['msx_layers']]
         row.update(msx_states=states,msx_selector='92DC (death: 8B7F)',msx_table=table,msx_phases=phases,policy=note,status='semantic context; different drawings and phase counts')
-        if row['msx_layers']=='58/BC':row.update(nes_state=10,nes_frame=0)
+        if row['msx_layers'] in ('54/B8','58/BC'):
+            row.update(nes_state=4,nes_frame=int(row['msx_layers']=='58/BC'))
     mapping['phase_policy']={
       'walk':'MSX four ticks select three unique poses per direction (six total); retain four NES phases, including phase 2, with an independent visual counter or the existing four-phase logical counter.',
       'death':'Use cause and elapsed effect time, not only the MSX layer pair: enemy 08 has five phases; fire 0B has three; lethal fall 02 has two. Map normalised progress or run a separate NES visual counter.',

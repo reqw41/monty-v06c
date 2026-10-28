@@ -12,5 +12,8 @@ live_list equ 0xFF00
 ISR_STACK equ 0x7F80
 DISP_STACK equ 0xF900
 SPR_SLOTS equ 0xF900
+; The 23-row Joe image can cross F9FF. Background remains inside page FA.
+JOE_PICTURE equ SPR_SLOTS
+JOE_BACKGROUND equ 0xFA20
 
 joe_attr_runtime equ 0xF500

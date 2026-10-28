@@ -1,12 +1,12 @@
- ASSERT 12*joe_nes_rows <= 256
- ASSERT joe_nes_rows <= 19 ; measured native release size
+ ASSERT JOE_PICTURE+12*joe_nes_rows <= JOE_BACKGROUND
+ ASSERT JOE_BACKGROUND+9*joe_nes_rows <= 0xFB00
  IFDEF NES_JOE_3COLOR
 NES_JOE_COLORS equ 3
  ELSE
 NES_JOE_COLORS equ 2
  ENDIF
 ; NES Joe, a foot-anchored cell of joe_nes_rows rows; leading empty rows are omitted.
-; One cached M/C/pad/A image in F900 and C/A/80 background in FA00.
+; One cached M/C/pad/A image in F900..FA13 and C/A/80 background in FA20..FAEE.
 ; POP AF ignores the padding byte; C keeps the mask from POP BC.
 ; Slot 1 keeps only the original MSX attributes; its unused rectangles hold private scratch.
 ; Fields +13/+15 of slot 1 remain planner marks; 66FC..FF is outside band_pairs.
@@ -54,8 +54,10 @@ joe_select:
  jp z,js_b
  cp 7
  jp z,js_b
+ ; State 3 climbs the two-column ladder (88/89, top 10/11),
+ ; in both directions. Select by state, independently of MSX layer order.
  cp 3
- jp z,js_chain
+ jp z,js_lad_phase
  cp 4
  jp z,js_ladder
  cp 8
@@ -70,18 +72,6 @@ joe_select:
 js_walk:
  ld a,(jn_walk)
  inc a
- ret
-js_chain:
- ; MSX retains the previous pose for the 705F & 40 transient.
- ld a,(spr_new+3)
- and 0xFC
- cp 0x58
- ld b,19
- jp z,js_b
- cp 0x54
- ld b,10
- jp z,js_b
- ld a,(jn_frame)
  ret
 js_ladder:
  ld a,(0x7058)
@@ -383,7 +373,7 @@ jn_mask_test:
  ld (jn_stride),a
  ld a,(jn_rows_count)
  ld (jn_left),a
- ld hl,0xF900
+ ld hl,JOE_PICTURE
  ld (jn_dest),hl
 jn_prep_row:
  ld hl,(jn_source)
@@ -466,6 +456,9 @@ jn_c0_mask:
  ld a,(jn_stride)
  add a,l
  ld l,a
+ jp nc,jn_column1
+ inc h
+jn_column1:
  ld a,b
  xor d
 jn_a1_mask:
@@ -499,6 +492,9 @@ jn_c1_mask:
  ld a,(jn_stride)
  add a,l
  ld l,a
+ jp nc,jn_column2
+ inc h
+jn_column2:
  ld a,d
 jn_a2_mask:
  and 0
@@ -581,8 +577,8 @@ jn_put_initial:
  ld hl,0
  add hl,sp
  ld (jn_stack),hl
- ld sp,0xF900
- ld de,0xFA00
+ ld sp,JOE_PICTURE
+ ld de,JOE_BACKGROUND
  ld hl,spr_rec+7
  ld a,(spr_rec+8)
  sub (hl)
@@ -592,6 +588,28 @@ jn_put_initial:
  add a,0xC0
  ld h,a
 jn_put_col:
+ ; The three screen pages are constant through this column. Patch the
+ ; selected loop once rather than doing H arithmetic for every plane/row.
+ ld a,(jn_no80)
+ or a
+ ld a,h
+ jp nz,jn_pages_two
+ ld (jn_full_c0+1),a
+ ld (jn_full_c1+1),a
+ sub 0x20
+ ld (jn_full_a0+1),a
+ ld (jn_full_a1+1),a
+ sub 0x20
+ ld (jn_full_800+1),a
+ ld (jn_full_801+1),a
+ jp jn_pages_ready
+jn_pages_two:
+ ld (jn_two_c0+1),a
+ ld (jn_two_c1+1),a
+ sub 0x20
+ ld (jn_two_a0+1),a
+ ld (jn_two_a1+1),a
+jn_pages_ready:
  ld a,(spr_rec+9)
  ld l,a
  ld a,(spr_rec+11)
@@ -612,9 +630,8 @@ jn_put_full:
  or b
  ld (hl),a
  inc e
- ld a,h
- sub 0x20
- ld h,a
+jn_full_a0:
+ ld h,0xA0
  pop af
  ld b,a
  ld a,(hl)
@@ -623,17 +640,15 @@ jn_put_full:
  or b
  ld (hl),a
  inc e
- ld a,h
- sub 0x20
- ld h,a
+jn_full_800:
+ ld h,0x80
  ld a,(hl)
  ld (de),a
  and c
  ld (hl),a
  inc e
- ld a,h
- add a,0x40
- ld h,a
+jn_full_c0:
+ ld h,0xC0
  dec l
 jn_put_full_second:
  ; Every byte commits C, A, 8000 together; cache words are M/C and pad/A.
@@ -646,9 +661,8 @@ jn_put_full_second:
  or b
  ld (hl),a
  inc e
- ld a,h
- sub 0x20
- ld h,a
+jn_full_a1:
+ ld h,0xA0
  pop af
  ld b,a
  ld a,(hl)
@@ -657,17 +671,15 @@ jn_put_full_second:
  or b
  ld (hl),a
  inc e
- ld a,h
- sub 0x20
- ld h,a
+jn_full_801:
+ ld h,0x80
  ld a,(hl)
  ld (de),a
  and c
  ld (hl),a
  inc e
- ld a,h
- add a,0x40
- ld h,a
+jn_full_c1:
+ ld h,0xC0
  dec l
  jp jn_put_count
 jn_put_two:
@@ -680,9 +692,8 @@ jn_put_two:
  or b
  ld (hl),a
  inc e
- ld a,h
- sub 0x20
- ld h,a
+jn_two_a0:
+ ld h,0xA0
  pop af
  ld b,a
  ld a,(hl)
@@ -692,9 +703,8 @@ jn_put_two:
  ld (hl),a
  inc e
  inc e ; unused 8000 background byte
- ld a,h
- add a,0x20
- ld h,a
+jn_two_c0:
+ ld h,0xC0
  dec l
 jn_put_two_second:
  pop bc
@@ -706,9 +716,8 @@ jn_put_two_second:
  or b
  ld (hl),a
  inc e
- ld a,h
- sub 0x20
- ld h,a
+jn_two_a1:
+ ld h,0xA0
  pop af
  ld b,a
  ld a,(hl)
@@ -718,9 +727,8 @@ jn_put_two_second:
  ld (hl),a
  inc e
  inc e ; unused 8000 background byte
- ld a,h
- add a,0x20
- ld h,a
+jn_two_c1:
+ ld h,0xC0
  dec l
 jn_put_count:
  ld a,(jn_left)
@@ -760,7 +768,7 @@ joe_restore:
  ld (jn_restore_partial+1),hl
  ld hl,jn_restore_two
  ld (jn_restore_groups+1),hl
- ld de,0xFA01
+ ld de,JOE_BACKGROUND+1
  ld a,0xA0
  jp jn_restore_ready
 jn_restore_three:
@@ -786,7 +794,7 @@ jn_restore_tail:
  ld (jn_restore_partial+1),hl
  ld hl,jn_restore_row
  ld (jn_restore_groups+1),hl
- ld de,0xFA02
+ ld de,JOE_BACKGROUND+2
  ld a,0x80
  jp jn_restore_ready
 jn_restore_ready:

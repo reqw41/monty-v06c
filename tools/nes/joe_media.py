@@ -45,11 +45,13 @@ def main():
         joined.save(dest / f'palette_{room}.png')
     raw = dest / 'raw'
     walk = sorted(raw.glob('walk_*.idx'))[:70]
-    death = [p for p in sorted(raw.glob('ladder_*.idx')) if json.loads(p.with_suffix('.json').read_text())['state'] == 8]
+    death = [p for p in sorted(raw.glob('death_*.idx')) if json.loads(p.with_suffix('.json').read_text())['state'] == 8]
+    ladder = sorted(raw.glob('ladder_*.idx'))[:220]
     raster = sorted((dest / 'scan').glob('raster_*.idx'))
     animation(raster, dest / 'jump.gif', scale)
     animation(walk, dest / 'walk.gif', scale)
     animation(death, dest / 'death.gif', scale)
-    print('Rendered palette comparisons and jump/walk/death GIFs in', dest)
+    animation(ladder, dest / 'ladder.gif', scale)
+    print('Rendered palette comparisons and jump/walk/death/ladder GIFs in', dest)
 
 if __name__ == '__main__': main()

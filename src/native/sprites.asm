@@ -1872,7 +1872,7 @@ ps_nrg:		push	hl
 ps_boot_source_end:
 		ASSERT ps_boot_source_end-ps_boot_source < 24*TILE_CAP
 ; свободные места (начало, конец): невидимая плоскость — бывший кэш тайлов, затем основная память
-ps_rg:		dw	PS_MORE, 0x7000, sprite_sources_end, 0x7B00, 0x7B80, VNT, 0xEB40, 0xEC00, 0xEF00, 0xF000, 0xF600+joe_latch_end-joe_latch_source, 0xF820, ps_heap, PS_TOP, ps_boot_source+125, ps_boot_source_end, sprt_end, 0x6800, 0x6660, 0x6680, SPR_SLOTS+12*joe_nes_rows, 0xFA00, 0xFA00+9*joe_nes_rows, 0xFB00, joe_runtime0+joe_end0-joe_source0, 0xFBD0, 0xFC30+joe_end1-joe_source1, 0xFCD0, joe_runtime2+joe_end2-joe_source2, 0xFDD0, 0xFE30, 0xFED0, 0, 0	; 0 — места нет
+ps_rg:		dw	PS_MORE, 0x7000, sprite_sources_end, 0x7B00, 0x7B80, VNT, 0xEB40, 0xEC00, 0xEF00, 0xF000, 0xF600+joe_latch_end-joe_latch_source, 0xF820, ps_heap, PS_TOP, ps_boot_source+125, ps_boot_source_end, sprt_end, 0x6800, 0x6660, 0x6680, JOE_PICTURE+12*joe_nes_rows, JOE_BACKGROUND, JOE_BACKGROUND+9*joe_nes_rows, 0xFB00, joe_runtime0+joe_end0-joe_source0, 0xFBD0, 0xFC30+joe_end1-joe_source1, 0xFCD0, joe_runtime2+joe_end2-joe_source2, 0xFDD0, 0xFE30, 0xFED0, 0, 0	; 0 — места нет
 ps_rg_end:
  ASSERT ps_rg_end-ps_rg <= 128
 
