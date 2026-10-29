@@ -56,12 +56,14 @@ def main():
    elif 0xd2<=t<=0xd5:chrid=0x118+(phase+t-0xd2)%4
    else:chrid=chars[t]
    frames.append(ptr(bytes(sum(128>>x for x in range(8) if r.tiles[chrid][y][x]) for y in range(8))))
- # Full NES laser masks replace the old MSX strip tables.
- lasers=[]
- for ids in ([0x12d,0x12f,0x131,0x133],[0x135,0x136,0x137,0x138]):
-  lasers.append([ptr(bytes(sum(128>>x for x in range(8) if r.tiles[n][y][x]) for y in range(8))) for n in ids])
+ # Keep NES vertical beams. The horizontal beam uses the two fuller MSX
+ # poses from C_85CA; repeat them across the existing four-phase selector.
+ lasers=[[ptr(bytes(sum(128>>x for x in range(8) if r.tiles[n][y][x]) for y in range(8)))
+          for n in (0x12d,0x12f,0x131,0x133)]]
+ msx_horizontal=(bytes.fromhex('ff66c366ff000000'),bytes.fromhex('ff661866ff000000'))
+ lasers.append([ptr(msx_horizontal[phase&1]) for phase in range(4)])
  assert len(strips)<256
- out=['; Generated NES CHR masks for the full 256x240 field.',f'FULL_ANIM_N equ {len(anim)}','anim_set: db '+','.join(map(str,anim))+',255','col0: db '+','.join(map(str,v0[0x2000:0x2020])),'raw_base:']
+ out=['; Generated NES CHR masks with the MSX horizontal laser for the 256x240 field.',f'FULL_ANIM_N equ {len(anim)}','anim_set: db '+','.join(map(str,anim))+',255','col0: db '+','.join(map(str,v0[0x2000:0x2020])),'raw_base:']
  for i in range(0,256,32):out.append(' db '+','.join(map(str,base[i:i+32])))
  out+=['raw_anim: db '+','.join(map(str,frames)),'full_laser_v: db '+','.join(map(str,lasers[0])),'full_laser_h: db '+','.join(map(str,lasers[1]))]
  transitions={};names=[]
