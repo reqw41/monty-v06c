@@ -316,10 +316,7 @@ nes_legacy_step:
 nl_next:
 	cp 5
 	jp c,nl_done
-	sub 5
-	push af
-	call L_AC6D
-	pop af
+	sub 5			; L_AC6D в NES-сборке — пустая заглушка (RET): вызывать её незачем
 	jp nl_next
 nl_done:
 	ld (snd_acc),a
