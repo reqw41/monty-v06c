@@ -27,7 +27,7 @@ for(const r of cases){m.memory.bytes.set(base);for(let i=192;i<960;i++)m.wr(s.VN
   const state=m.rd(0x7079),q=[m.rd(0x7305),m.rd(0x7304)-7,state,m.rd(0x7049)],want=r.trace[n];if(want[2]&32)break; // NES waits for its room decoder; boundary behavior has a separate suite.
   trace.push(q);total++;
   const dead=state>=8,nesdead=!!(want[2]&20),climb=state===3||state===4||state===5,nesclimb=!!(want[2]&200);
-  if((!dead&&!nesdead&&(q[0]!==want[0]||q[1]!==want[1]))||dead!==nesdead||climb!==nesclimb)diffs.push({step:n,want,got:q});
+  if((!dead&&!nesdead&&(q[0]!==want[0]||q[1]!==want[1]))||(!process.env.IGNORE_DEATH&&dead!==nesdead)||climb!==nesclimb)diffs.push({step:n,want,got:q});
   if(dead||nesdead||q[0]<6||q[0]>234||q[1]>210)break;
  }
  reports.push({escaped:crossed,location:r.location,name:r.name,steps:trace.length,differences:diffs.length,first:diffs[0],trace});

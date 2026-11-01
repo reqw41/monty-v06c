@@ -29,6 +29,7 @@ for level in LEVELS:
   for k in range(N):
    col,row=rnd.choice(spots);x=col*8+4
    y=row*8-25
+   if any(at(cc,rr)==0 for rr in range(y//8,(y+22)//8+1) for cc in range((x-3)//8,(x+18)//8+1)):continue  # Джо не должен начинать внутри стены
    if not 50<=y<=185 or not 16<=x<=224:continue
    p.case('walk-L%d-r%d-%d'%(level+1,index,k),terrain,x=x,y=y,state=0,keys=keys(),direction=rnd.choice((1,2)))
   if index%33==0:print('level',level+1,'room',index,'cases',len(p.cases),flush=True)
