@@ -20,7 +20,7 @@ queue.forEach((v,i)=>m.wr(s.cr_list+i,v));m.wr(s.cr_read,s.cr_list&255);m.wr(s.c
 for(const k of [0,2,3,4]){m.wr(s.spr_rec+16*k+7,9);m.wr(s.spr_rec+16*k+8,11);m.wr(s.spr_rec+16*k+11,k?16:23);}
 call('crit');assert(m.rd(s.crit_pend));assert.deepEqual(actions.filter(a=>a[0]===3),[[3,2],[3,0]],'overlap group must finish before deferral');assert.equal(m.rd(s.cr_read)|(m.rd(s.cr_read+1)<<8),s.cr_list+12);
 m.onInstr=null;let priorities=0;
-for(const frame of [5,120,250])for(const age of [0,3,4,12]){m.wr(s.frames,frame);m.wr(s.pace_enemy_stamp,(frame-age)&255);m.wr(s.ubr+8,19);const c=m.cpu;c.regs[2]=44;c.regs[3]=55;assert.equal(call('pace_priority',2),age>=4?1:19);assert.equal(c.regs[2],44);assert.equal(c.regs[3],55);priorities++;}
+for(const frame of [5,120,250])for(const age of [0,3,4,12]){m.wr(s.frames,frame);m.wr(s.pace_enemy_stamp,(frame-age)&255);m.wr(s.ubr+8,19);const c=m.cpu;c.regs[2]=44;c.regs[3]=55;assert.equal(call('pace_priority',2),age>=s.PACE_ENEMY_DEADLINE?1:19);assert.equal(c.regs[2],44);assert.equal(c.regs[3],55);priorities++;}
 assert.equal(call('pace_priority',0),0);
 // Actual visual phase sequence, including low-byte wrap. Logical belt and
 // platform hazard state are never modified by this independent clock.

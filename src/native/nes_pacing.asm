@@ -1,11 +1,21 @@
 ; Area-weighted sprite work and physical-frame cosmetic cadence.
 NES_FRAME_PACING equ 1
 NES_ANIM_CLOCK equ 1
+ IFNDEF PACE_BUDGET
 PACE_BUDGET equ 96
-PACE_ENEMY_PERIOD equ 3
-PACE_ENEMY_DEADLINE equ 4
+ ENDIF
+ IFNDEF PACE_ENEMY_PERIOD
+PACE_ENEMY_PERIOD equ 2      ; кадров между выводами врага (было 3): интервал 5,7 → 4,1 кадра в стартовой комнате без потери скорости
+ ENDIF
+ IFNDEF PACE_ENEMY_DEADLINE
+PACE_ENEMY_DEADLINE equ 3     ; предельный возраст вывода (было 4)
+ ENDIF
+ IFNDEF PACE_BG_PERIOD
 PACE_BG_PERIOD equ 6
+ ENDIF
+ IFNDEF PACE_PHASE_PERIOD
 PACE_PHASE_PERIOD equ 6
+ ENDIF
  ASSERT SPR_MAX == 6
  ASSERT pace_enemy_stamp/256 == (pace_enemy_stamp+3)/256
  ASSERT pace_fire_stamp+1 == pace_belt_stamp
