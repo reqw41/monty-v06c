@@ -161,6 +161,55 @@ def clean_states(states):
     return [(channels[0][i], channels[1][i], channels[2][i], state[3]) for i, state in enumerate(states)]
 
 
+# Длина секции (в кадрах NES), внутри которой квантование на 50 Гц начинается заново. Повторы оригинала (бас титула
+# повторяется целиком четыре раза, pulse 2 — дважды) при абсолютном квантовании сдвигаются на разные доли кадра и
+# перестают совпадать; по секциям они совпадают побайтно и сворачиваются словарём фраз (титул −28 %, пирамида −8 %, сокровищница −13 %).
+SECTION = {'title': 160, 'pyramid': 64, 'treasure': 80}
+
+
+def nes_frame_states(track, threshold):
+    """Состояние трёх голосов в середине каждого кадра NES (как frames(), но без перехода на сетку 50 Гц)."""
+    registers = Registers()
+    for address, value in track['initialWrites']:
+        registers.write(address, value)
+    events = iter(track['events'])
+    event = next(events, None)
+    result = []
+    transpositions = set()
+    for number in range(track['frames']):
+        time = (number + 0.5) * FRAME_PERIOD[0]
+        while event is not None and event[0] * FRAME_PERIOD[0] <= time:
+            registers.advance(event[0] * FRAME_PERIOD[0])
+            registers.write(event[1], event[2])
+            event = next(events, None)
+        registers.advance(time)
+        result.append(registers.state(threshold, transpositions))
+    return result, sorted(transpositions)
+
+
+def aligned_frames(track, frame_period, threshold):
+    """Состояния 50 Гц по секциям SECTION[id]: границы секций — целые кадры ВИ53 (сумма = длине петли),
+    внутри секции локальное время считается от её начала, поэтому одинаковые секции NES дают одинаковые байты."""
+    FRAME_PERIOD[0] = frame_period
+    nes, transpositions = nes_frame_states(track, threshold)
+    section = SECTION[track['id']]
+    period = track['periodFrames']
+    lead = next((i for i, state in enumerate(nes) if any(state[:3])), 0) if track['id'] == 'title' else 0
+    total = round(period * frame_period * 50)
+    count = period // section
+    loop = []
+    for k in range(count):
+        first, last = round(k * total / count), round((k + 1) * total / count)
+        for j in range(last - first):
+            local = min(section - 1, int((j + 0.5) / 50 / frame_period))
+            loop.append(nes[lead + k * section + local])
+    silent = (0, 0, 0, 0)
+    return [silent] * round(lead * frame_period * 50) + loop, transpositions
+
+
+FRAME_PERIOD = [0.0166]
+
+
 def runs(states):
     result = []
     for state in states:
@@ -272,6 +321,7 @@ def main():
     parser.add_argument('--output', type=Path, default=Path('src/native/gen'))
     parser.add_argument('--report', type=Path, default=Path('build/nes/music/vi53/conversion.json'))
     parser.add_argument('--threshold', type=int, default=3)
+    parser.add_argument('--no-align', action='store_true', help='quantise to 50 Hz by absolute time (repeats of the original drift apart)')
     parser.add_argument('--no-clean', action='store_true', help='keep driver artefacts (pitch scoops, quiet envelope tails)')
     args = parser.parse_args()
     if not 1 <= args.threshold <= 15:
@@ -282,7 +332,10 @@ def main():
     title_lead = 0
     for track in data['tracks']:
         threshold = 1 if track['id'] == 'sfx_landing' else args.threshold
-        states, transpositions = frames(track, data['framePeriod'], threshold)
+        if track['kind'] == 'music' and track['id'] in SECTION and not args.no_align:
+            states, transpositions = aligned_frames(track, data['framePeriod'], threshold)
+        else:
+            states, transpositions = frames(track, data['framePeriod'], threshold)
         if track['kind'] == 'music' and not args.no_clean:
             states = clean_states(states)
         if track['id'] == 'title':
