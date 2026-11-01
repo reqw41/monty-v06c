@@ -265,6 +265,13 @@ nes_event_ready:
 	ret z
 	cp 9
 	ret z
+	cp 2
+	jp nz,ne_play
+	ld a,(0x705F)		; подбор предмета: в сокровищнице (бит 5) без звука поверх музыки бонуса
+	and 0x20
+	ret nz
+	ld a,b
+ne_play:
 	ld hl,nes_effect_map
 	add a,a
 	call add_hl_a

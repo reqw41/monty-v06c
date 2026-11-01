@@ -388,14 +388,8 @@ L_901B:
 p901_draw:
 		ENDIF
 		push	bc
- IFDEF NES_FULL
- cp 0x44                   ; jewels: collect silently over the bonus music
- ld a,2
- call nz,L_AC1A
- ELSE
-		ld	a,2
+		ld	a,2			; в сокровищнице звук 2 глушится в nes_event_ready (поверх музыки бонуса)
 		call	L_AC1A
- ENDIF
 		call	L_90A5
 		ld	hl,(0x71B0)
 		ex	de,hl
