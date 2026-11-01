@@ -624,11 +624,6 @@ h929g:		ld	bc,0
  ENDIF
 		jp	hs_8992
  IFDEF NES_FULL
-; NES проверяет опору раньше прыжка: на шаге, где начинается падение с края (третье обновление), прыжок не выполняется.
-nj_jump:
- call nphys_ground_floor
- jp c,nphys_walk_fall
- jp hs_89DC
  ENDIF
 hs_897C:	call	L_8B20
  IFDEF NES_FULL
@@ -660,6 +655,12 @@ h992:		ld	a,b
 		ld	a,c
 		ld	(0x7077),a
 		ret
+ IFDEF NES_FULL
+; NES проверяет опору раньше прыжка: на шаге, где начинается падение с края (третье обновление), прыжок не выполняется.
+nj_jump:
+ call nphys_ground_floor
+ jp c,nphys_walk_fall
+ ENDIF
 hs_89DC:	ld	a,7			; прыжок
 		call	L_AC1A
 		ld	a,(0x7300)
@@ -1281,7 +1282,10 @@ nes_landing_y:
  ld (hl),a
  ld a,0x80                 ; release the scripted Down on the first landing
  ld (0x73EE),a
- jp nes_landing_idle
+ xor a
+ ld (0x707D),a              ; saved vertical motion
+ ld (0x707F),a              ; saved standing state, not the initial free-fall
+ ret
  ENDIF
 
  IFDEF NES_FULL

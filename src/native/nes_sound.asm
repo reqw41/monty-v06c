@@ -17,6 +17,8 @@ nes_m2 equ 0xEBF1
 nes_pole_div equ 0xEBF2
 nes_noise_div equ 0xEBF4
 nes_last_frame equ 0xEBF6
+nes_mute equ 0xEBF7          ; 0 — музыка играет, FF — выключена клавишей M
+nes_mkey equ 0xEBF8          ; клавиша M при прошлом кадре (0/20h); должен идти сразу за nes_mute
 
 	ORG 0xF600
 nes_prepare_core:
@@ -178,6 +180,12 @@ nes_pitch:
 	inc l
 	ld h,(hl)
 	ld l,a
+	ld a,(nes_mute)		; музыка выключена — пауза (SFX идут через nes_raw*)
+	or a
+	ret z
+	xor a
+	ld h,a
+	ld l,a
 	ret
 nes_out0:
 	call nes_pitch
@@ -311,16 +319,19 @@ nes_legacy_step:
 	cp (hl)
 	ret z
 	inc (hl)
-	ld a,(snd_acc)
-	add a,6
-nl_next:
-	cp 5
-	jp c,nl_done
-	sub 5			; L_AC6D в NES-сборке — пустая заглушка (RET): вызывать её незачем
-	jp nl_next
-nl_done:
-	ld (snd_acc),a
 	call nes_update_pole
+	ld a,(kbmat+5)		; клавиша M (Vector: ряд 5, бит 20h) включает и выключает музыку по нажатию
+	and 0x20
+	ld b,a
+	ld hl,nes_mkey
+	sub (hl)		; 20h — нажата только что
+	ld (hl),b
+	cp 0x20
+	jp nz,nes_legacy_step
+	dec l
+	ld a,(hl)
+	cpl
+	ld (hl),a
 	jp nes_legacy_step
 nes_pole_start:
 	ld a,1

@@ -1,7 +1,7 @@
 ; MSX E8: static cyan chain body (6), animated light row 2 (1).
 ; Only C000 changes during phase updates; bank changes rebuild the whole tile.
 ; Install after the title music stops, as before; F8C0 later becomes display SP.
- ORG nes_landing_idle_end
+ ORG nes_player_end
 nes_platform_source:
  DISP nes_effect_end
 NES_INK_SWAP23 equ 1
