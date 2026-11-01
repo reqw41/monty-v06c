@@ -62,9 +62,7 @@ npw_head_read:
  cp 6
  jp nz,npw_snap
 npw_cancel:
- xor a
- ld e,a
- ld (0x7076),a
+ ld e,0
 npw_snap:
  ld a,(0x7078)
  and 128
@@ -79,6 +77,8 @@ npw_snap_pos:
  ld (0x7301),a
 npw_done:
  pop bc
+ ld a,e                    ; фактический dX: упёрся в стену — запрос гасится (ни топота, ни щелчков шагов)
+ ld (0x7076),a
  ld b,e
  call L_8DD4
  push af

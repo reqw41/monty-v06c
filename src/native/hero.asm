@@ -619,7 +619,9 @@ h929g:		ld	bc,0
 		jp	c,hs_8A01
  ENDIF
 		xor	a
+ IFNDEF NES_FULL
 		ld	bc,0
+ ENDIF
 		jp	hs_8992
  IFDEF NES_FULL
 ; NES проверяет опору раньше прыжка: на шаге, где начинается падение с края (третье обновление), прыжок не выполняется.
