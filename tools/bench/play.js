@@ -12,7 +12,7 @@ const KEYS={left:[0,0x10],up:[0,0x20],right:[0,0x40],down:[0,0x80],space:[7,0x80
 const m=E.mk(B+'/monty.bin');let steps=0,fc=0,sf=0,cool=0,ri=0;const stat={};let curRoom='';const REC=[];let da=0;const motion=require('./joe-motion')(m,sym);const framecheck=process.env.FRAMECHECK==='1'?require('./framecheck')(m,sym):null;
 const irq=framecheck?require('./irq-watch')(m,sym):null;
 m.onInstr=(pc)=>{if(irq)irq.instruction(pc);motion.instruction(pc);if(framecheck)framecheck.instruction(pc); if(pc===sym.draw_all){cool=40;da=1;}
- if(pc===sym.L_A5D1){steps++;m.wr(0x7049,6);
+ if(pc===sym.L_A5D1){steps++;m.wr(0x7049,6);if(process.env.ZAP&&steps===3){const z=+process.env.ZAP,from=+(process.env.ZAPFROM||0);for(let i=from;i<from+z;i++){m.wr(sym.ps_tab+2*i,0);m.wr(sym.ps_tab+2*i+1,0);}}
   const f=m.frames-sf;sf=m.frames;const st=m.rd(0x7079);
   REC.push([steps,f,st,m.rd(0x71A7)+','+m.rd(0x71A8),da]);da=0;
   if(steps>=300&&(steps-300)%300===0&&ri<my.length){const [r,c]=my[ri++];m.wr(0x71A7,r);m.wr(0x71A8,c);m.wr(0x7079,9);}

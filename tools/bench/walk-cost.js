@@ -26,7 +26,7 @@ m.onInstr=pc=>{
   last=pc;lastSp=sp;lastOp=m.rd(pc);ctx=next;
   if(pc===sym.L_8DA2&&steps>60){const c=m.cpu;c.pc=m.rd(c.sp)|m.rd(c.sp+1)<<8;c.sp+=2;return;}
   if(pc===sym.L_A5D1){
-    steps++;m.wr(0x7049,6);if(sym.nes_amulet_ticks){m.wr(sym.nes_amulet_ticks,200);m.wr(sym.nes_amulet_ticks+1,0);}if(on){sh[m.rd(0x7079)]=(sh[m.rd(0x7079)]||0)+1;const x=m.rd(0x7305);if(lastX>=0&&x!==lastX&&!dirtyNow)movedSteps++;lastX=x;xs.add(x);}
+    steps++;m.wr(0x7049,6);if(process.env.ZAP&&steps===3){const z=+process.env.ZAP,from=+(process.env.ZAPFROM||0);for(let i=from;i<from+z;i++){m.wr(sym.ps_tab+2*i,0);m.wr(sym.ps_tab+2*i+1,0);}}if(sym.nes_amulet_ticks){m.wr(sym.nes_amulet_ticks,200);m.wr(sym.nes_amulet_ticks+1,0);}if(on){sh[m.rd(0x7079)]=(sh[m.rd(0x7079)]||0)+1;const x=m.rd(0x7305);if(lastX>=0&&x!==lastX&&!dirtyNow)movedSteps++;lastX=x;xs.add(x);}
     if(steps===50){m.wr(0x71A7,R);m.wr(0x71A8,C);m.wr(0x7079,9);}
     if(mode==='walk'&&steps>150){const ph=Math.floor((steps-150)/30)%2;m.keyboard.matrix[0]=(m.keyboard.matrix[0]&~0x50)|(ph?0x10:0x40);}
     if(on){ // закрыть прошлый шаг; смену комнаты отсекаем с запасом (3 шага до и 45 после)
