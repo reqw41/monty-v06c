@@ -105,6 +105,62 @@ def frames(track, frame_period, threshold):
     return states, sorted(transpositions)
 
 
+def _runs(seq):
+    out = []
+    for value in seq:
+        if out and out[-1][0] == value:
+            out[-1][1] += 1
+        else:
+            out.append([value, 1])
+    return out
+
+
+def clean_channel(seq, close=0.03):
+    """Remove driver artefacts that become clicks on a hardware square wave.
+
+    VI53 has no volume and every divider change restarts the counter, so:
+    (a) attack/release pitch scoops (steps of at most 3 %, one or two frames each) are merged into
+        the neighbouring sustained pitch;
+    (b) the quiet envelope tail after a note ("tone, 1 frame gap, 1-2 frame blip" of the same pitch,
+        NES volume 1 then 3) is dropped: it would be a full-level stutter.
+    """
+    def near(a, b):
+        return a and b and abs(a - b) / max(a, b) <= close
+    runs = _runs(seq)
+    changed = True
+    while changed:
+        changed = False
+        for i in range(len(runs)):
+            value, length = runs[i]
+            if not value or length > 2:
+                continue
+            nxt = runs[i + 1] if i + 1 < len(runs) else None
+            prv = runs[i - 1] if i else None
+            if nxt and near(value, nxt[0]) and nxt[1] >= length:
+                nxt[1] += length
+                del runs[i]
+                changed = True
+                break
+            if prv and near(value, prv[0]) and prv[1] >= 3:
+                prv[1] += length
+                del runs[i]
+                changed = True
+                break
+        runs = _runs([value for value, length in runs for _ in range(length)])
+    for i in range(2, len(runs)):
+        tone, gap, blip = runs[i - 2], runs[i - 1], runs[i]
+        if tone[0] and tone[1] >= 3 and not gap[0] and gap[1] <= 2 and blip[0] and blip[1] <= 2 \
+                and near(tone[0], blip[0]):
+            blip[0] = 0
+    return [value for value, length in _runs([v for v, n in runs for _ in range(n)]) for _ in range(length)]
+
+
+def clean_states(states):
+    channels = [clean_channel([state[c] for state in states]) if c < 2 else [state[c] for state in states]
+                for c in range(3)]
+    return [(channels[0][i], channels[1][i], channels[2][i], state[3]) for i, state in enumerate(states)]
+
+
 def runs(states):
     result = []
     for state in states:
@@ -216,6 +272,7 @@ def main():
     parser.add_argument('--output', type=Path, default=Path('src/native/gen'))
     parser.add_argument('--report', type=Path, default=Path('build/nes/music/vi53/conversion.json'))
     parser.add_argument('--threshold', type=int, default=3)
+    parser.add_argument('--no-clean', action='store_true', help='keep driver artefacts (pitch scoops, quiet envelope tails)')
     args = parser.parse_args()
     if not 1 <= args.threshold <= 15:
         parser.error('--threshold must be between 1 and 15')
@@ -226,6 +283,8 @@ def main():
     for track in data['tracks']:
         threshold = 1 if track['id'] == 'sfx_landing' else args.threshold
         states, transpositions = frames(track, data['framePeriod'], threshold)
+        if track['kind'] == 'music' and not args.no_clean:
+            states = clean_states(states)
         if track['id'] == 'title':
             title_lead = next(i for i, state in enumerate(states) if any(state[:3]))
             title_loop = states[title_lead:title_lead + round(track['periodFrames'] * data['framePeriod'] * 50)]

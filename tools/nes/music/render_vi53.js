@@ -16,7 +16,7 @@ function invoke(m,name,{a=0,b=0,hl=0}={}) {
   assert.notEqual(c.pc,undefined,name);
   let cycles=0;
   // Game entry also builds the enemy cache after title-only music is stopped.
-  const maxInstructions=name==='nes_begin'?1000000:100000;
+  const maxInstructions=name==='nes_begin'?30000000:100000;
   for(let n=0;c.pc!==s.unit_trap;n++) {assert(n<maxInstructions,'native call did not return: '+name);c.instruction();cycles+=c.vcycles;}
   c.pc=old.pc;c.sp=old.sp;c.iff=old.iff;c.iff_pending=old.pending;c.retrieve_flags(old.flags);c.regs.splice(0,8,...old.regs);m.onInstr=hook;
   return cycles;
@@ -57,7 +57,7 @@ function render(events,seconds){
 function prepare(id){
   const m=E.mk(dir+'/monty.bin');for(let f=0;f<200;f++)m.frame();
   assert(m.cpu.pc>=s.nm_wait&&m.cpu.pc<s.nes_begin,'not in native menu');
-  if(id!=='title')invoke(m,'nes_begin');
+  if(id!=='title'&&!process.env.SKIP_BEGIN)invoke(m,'nes_begin');
   for(let a=s.nes_m_ptr;a<s.nes_m_ptr+32;a++)m.wr(a,0);
   m.wr(s.nes_m1,64);m.wr(s.nes_m2,64);m.wr(s.nes_pitch_page,0xE8);invoke(m,'vi_off');
   return m;

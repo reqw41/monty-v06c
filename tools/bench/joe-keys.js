@@ -22,3 +22,7 @@ const poses=new Set(seq.map(k=>k.split(',')[0])),dirs=new Set(seq.map(k=>k.split
 console.log(`${scene} комната ${R},${C}: перерисовок ${seq.length} за ~${steps-200} шагов, разных ключей ${distinct.size} (поз ${poses.size}, направлений ${dirs.size}, сдвигов ${sh.size})`);
 console.log('доля попаданий LRU:',[1,2,4,8,16,24,32,48,64].map(n=>n+':'+(100*sim(n)/seq.length).toFixed(0)+'%').join('  '));
 if(process.env.SHOW)console.log([...distinct].join(' | '));
+
+{const cls={};let prevK=null;for(const k of seq){if(prevK){const a=prevK.split(',').map(Number),b=k.split(',').map(Number);
+ let c;if(a[0]===b[0]&&a[1]===b[1]&&a[3]===b[3]&&a[4]===b[4]){const d=((b[2]-a[2])+8)%8;c=d===4?'тот же кадр, сдвиг ±4':'тот же кадр, другой сдвиг ('+d+')';}else if(a[0]===b[0]&&a[1]!==b[1])c='развернулся';else c='другой кадр';cls[c]=(cls[c]||0)+1;}prevK=k;}
+ const tot=Object.values(cls).reduce((x,y)=>x+y,0);console.log('переходы между перерисовками:',Object.entries(cls).sort((a,b)=>b[1]-a[1]).map(([k,v])=>k+' '+(100*v/tot).toFixed(0)+'%').join(' | '));}
