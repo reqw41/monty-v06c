@@ -1272,14 +1272,19 @@ nphys_slide:
 nt_fall_speed:
  ld bc,3                    ; NES free fall, $A680: three pixels per step
 
- ld a,(0x7072)
+ ld hl,0x7072
+ ld a,(hl)
  or a
  jp m,nt_fall_momentum
  ld a,(0x705F)
  and 0x20
  ret z                      ; walking off an edge has no jump momentum
 nt_fall_momentum:
+ rrca                       ; бит 0 (0x81) — первый шаг падения после прыжка
  ld a,(0x7076)
  ld b,a
- ret
+ ret nc
+ dec (hl)                   ; NES: первый шаг падения (счётчик 0) сначала сдвигает Джо на 3 точки,
+ pop hl                     ; проверка опоры — со следующего шага; иначе на верхней точке прыжка
+ jp hs_8B06                 ; ступни внутри плитки ленты и Джо «подтягивается» на неё
  ENDIF

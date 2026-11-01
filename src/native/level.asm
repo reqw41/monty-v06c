@@ -63,11 +63,7 @@ gs3:		call	dl_add
 ; Cold bootstrap sources are reused by room tiles and sprite shifts. After
 ; GAME OVER reset game state in place, keeping the installed video/audio code.
 warm_restart:
- push bc
- ld hl,0x7000
- ld bc,0x0200
- ld e,0
- call memfill
+ push bc                    ; 7000..71FF уже очищены в title_resume
  ld a,2
  ld (0x7012),a
  ld (0x7068),a

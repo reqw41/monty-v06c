@@ -7,9 +7,11 @@ title_resume:
  ld de,0x8000
  call title_zx0
  ld hl,0x7000
- ld bc,0x0329                ; retain motion/menu/joystick helpers at 7329..737F
- ld e,0
+ ld bc,0x0200                ; 7200..7328 — снимок холодного старта (таблица клеток, слоты врагов,
+ ld e,0                      ; размеры Джо): его нельзя обнулять, иначе после GAME OVER нет врагов
  call memfill
+ ld a,0x10                   ; 7207 после холодного старта
+ ld (0x7207),a
  ld hl,cmap
  ld bc,16
  ld e,0
