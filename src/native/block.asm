@@ -3,6 +3,13 @@
 ; клетка - 2 на строку). Запись — в VNT с отметкой строк (row_dirty), чтение — из VNT; клетки вне таблицы —
 ; общим путём (nt_put / nt_get). Выход: BC, DE, HL — как на входе, A = (7000).
 ; Входная метка L_AEA7 — от транслятора.
+ IFDEF NES_FULL
+; NES callers only copy one two-cell item row (L_A378). The old MSX room
+; decoder's multi-row/read/staircase modes are absent in this build.
+ call nt_put
+ ld a,(0x7000)
+ ret
+ ELSE
 		push	bc
 		push	hl
 		push	de
@@ -154,3 +161,4 @@ bkm1:		ld	(hl),1
 bkm2:		pop	de
 		ret
 		ENDIF
+ ENDIF

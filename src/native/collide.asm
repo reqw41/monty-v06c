@@ -146,7 +146,12 @@ p9e3:		ld	(0x7075),a
 		ret
 
 ; L_911E / L_9122: тайл A (911E — под ногами, 705B) — опора? CF — нет опоры; A = D2 — смертельный (913B)
-L_911E:		ld	a,(0x705B)
+L_911E:
+ IFDEF NES_FULL
+ jp nes_floor_at
+ ELSE
+ ld a,(0x705B)
+ ENDIF
 L_9122:		call	tile_floor
 		jp	z,p912n			; проходим по полу: CF = 0
 		cp	0xE8
@@ -225,7 +230,11 @@ L_91B0:		ld	a,(0x7096)
 p91b:		ld	(0x7096),a
 		ret
 ; L_91BD: шаг ходьбы: 70AD -= 1; 0 — 70AD := 2, 70AA := 70AA - 1 (или 7)
-L_91BD:		ld	hl,0x70AD
+ IFDEF NES_FULL
+L_91BD equ L_92DC
+ ELSE
+L_91BD:
+		ld	hl,0x70AD
 		dec	(hl)
 		ret	nz
 		ld	(hl),2
@@ -235,6 +244,7 @@ L_91BD:		ld	hl,0x70AD
 		ld	a,7
 p91c:		ld	(0x70AA),a
 		ret
+ ENDIF
 ; L_91D1: CF := |A - (HL)| < B (модуль по знаку байта)
 L_91D1:		sub	(hl)
 		jp	p,p91d
@@ -378,8 +388,14 @@ L_901B:
 p901_draw:
 		ENDIF
 		push	bc
+ IFDEF NES_FULL
+ cp 0x44                   ; jewels: collect silently over the bonus music
+ ld a,2
+ call nz,L_AC1A
+ ELSE
 		ld	a,2
 		call	L_AC1A
+ ENDIF
 		call	L_90A5
 		ld	hl,(0x71B0)
 		ex	de,hl
@@ -455,6 +471,8 @@ p8f2:		call	L_9156			; огонь/лазер под героем (9428)
 		ld	a,b
 		ret	nz
 p8f_no_amulet:
+ cp 0xD0
+ jp nc,p8f3
 		ENDIF
 		cp	0x40
 		jp	c,p8f3
@@ -539,11 +557,14 @@ p8f7:		call	L_9067			; меч
 ; меч (91) — враг гибнет, очки 2000/3000; иначе гибель героя (8DA2), на уровнях 1-4 враг тоже снимается
 L_91E5:
 proc_91E5:
-		ld	a,(0x70AC)
-		dec	a
-		jp	nz,p9e5
-		ld	a,1
-p9e5:		ld	(0x70AC),a
+ IFNDEF NES_FULL
+ ld a,(0x70AC)
+ dec a
+ jp nz,p9e5
+ ld a,1
+p9e5:
+ ld (0x70AC),a
+ ENDIF
 		ld	a,(0x7079)
 		cp	8
 		ret	nc
@@ -651,6 +672,10 @@ nes_amulet_step:
 
 ; --- кадр героя ---------------------------------------------------------------------------------------------
 ; L_9369: CF := герой смотрит вправо (7078 бит 7 = 0); A сохраняется
+ IFDEF NES_FULL
+L_9369 equ L_91BD
+L_9305 equ L_91BD
+ ELSE
 L_9369:		push	af
 		ld	a,(0x7078)
 		and	0x80
@@ -669,8 +694,13 @@ L_9305:		add	a,a
 		ld	a,(hl)
 		ld	(0x7306),a
 		ret
+ ENDIF
 ; L_92DC: кадр спрайта героя по состоянию 7079
-L_92DC:		ld	a,(0x7079)
+ IFDEF NES_FULL
+L_92DC equ nphys_noop
+ ELSE
+L_92DC:
+		ld	a,(0x7079)
 		or	a
 		jp	z,p92w0			; standing uses walking frame zero
 		cp	1
@@ -731,6 +761,8 @@ p92w1:		ld	hl,C_9380
 		jp	nc,L_9305
 		ld	hl,C_9378
 		jp	L_9305
+
+ ENDIF
 
 		IFNDEF	STRICT
 ; Допуск у предметов (отступление от оригинала; -DSTRICT — как у MSX): предмет 2 x 2 клетки берётся, когда

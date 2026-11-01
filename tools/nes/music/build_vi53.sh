@@ -7,7 +7,7 @@ test -f build/native/ram0.pk || { echo 'First create build/native/ram0.pk using 
 python3 tools/nes/music/to_vi53.py "${1:-build/nes/music/music.json}"
 (
   cd src/native
-  ../../tools/sjasmplus --nologo --i8080 --sym=../../build/native/monty.sym game.asm
+  ../../tools/sjasmplus --nologo --i8080 -DNES_JOE_3COLOR --sym=../../build/native/monty.sym game.asm
   ../../tools/sjasmplus --nologo --i8080 -DSTRICT --sym=../../build/native_strict/monty.sym game.asm
 )
 node tools/nes/music/test_vi53.js

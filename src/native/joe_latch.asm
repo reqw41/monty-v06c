@@ -44,7 +44,11 @@ joe_latch_y:
  ld hl,jn_delta
  sub (hl)
  ld e,a
+ IFDEF NES_FULL
+ ld a,SCREEN_TOP-FIELD_YSHIFT
+ ELSE
  ld a,SCREEN_TOP
+ ENDIF
  sub e
  ld c,a
  rrca

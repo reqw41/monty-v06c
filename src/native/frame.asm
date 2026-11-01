@@ -16,6 +16,7 @@ L_A894:		cp	8
 		xor	0x80			; Z = wall
 		ld	a,l
 		pop	hl
+nphys_noop:
 		ret
 
 ; Кадры огня и лент — переменные игры. Графика всех кадров неизменяема.
@@ -31,10 +32,13 @@ L_A92F:		ld	a,(0x73F9)
 		cp	0x10
 		jp	z,fa_set
 		inc	c
-fa_set:		ld	a,c
-		ld	(fire_frame),a
+fa_set:
+ IFNDEF NES_FULL
+ ld a,c
+ ld (fire_frame),a
 		ld	a,(0x7096)
 		ld	(belt_frame),a
+ ENDIF
 		ld	a,(video_dirty)
 		or	DIRTY_FIRE+DIRTY_BELT
 		ld	(video_dirty),a
@@ -122,6 +126,9 @@ fh1:		ld	a,(0x705F)
  ld (video_dirty),a
  ENDIF
 fh2:
+ IFDEF NES_FULL
+ call pace_belt_tick
+ ENDIF
 		IFDEF NES_FULL
 		call nes_snake_step
 		ENDIF

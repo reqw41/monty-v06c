@@ -69,73 +69,73 @@
 	ENDIF
 	ENDIF
 	ENDIF
-	IF (((video_raw_end)&0xFF00)+0) < (joe_latch_source)
-	IF ((((video_raw_end)&0xFF00)+0)+256) > (video_raw_end)
-	IF (((video_raw_end)&0xFF00)+0) < (video_raw_end)
-	dw video_raw_end
+	IF (((joe_band_free_source)&0xFF00)+0) < (joe_latch_source)
+	IF ((((joe_band_free_source)&0xFF00)+0)+256) > (joe_band_free_source)
+	IF (((joe_band_free_source)&0xFF00)+0) < (joe_band_free_source)
+	dw joe_band_free_source
 	ELSE
-	dw (((video_raw_end)&0xFF00)+0)
+	dw (((joe_band_free_source)&0xFF00)+0)
 	ENDIF
-	IF ((((video_raw_end)&0xFF00)+0)+256) > (joe_latch_source)
+	IF ((((joe_band_free_source)&0xFF00)+0)+256) > (joe_latch_source)
 	dw joe_latch_source
 	ELSE
-	dw ((((video_raw_end)&0xFF00)+0)+256)
+	dw ((((joe_band_free_source)&0xFF00)+0)+256)
 	ENDIF
 	ENDIF
 	ENDIF
-	IF (((video_raw_end)&0xFF00)+256) < (joe_latch_source)
-	IF ((((video_raw_end)&0xFF00)+256)+256) > (video_raw_end)
-	IF (((video_raw_end)&0xFF00)+256) < (video_raw_end)
-	dw video_raw_end
+	IF (((joe_band_free_source)&0xFF00)+256) < (joe_latch_source)
+	IF ((((joe_band_free_source)&0xFF00)+256)+256) > (joe_band_free_source)
+	IF (((joe_band_free_source)&0xFF00)+256) < (joe_band_free_source)
+	dw joe_band_free_source
 	ELSE
-	dw (((video_raw_end)&0xFF00)+256)
+	dw (((joe_band_free_source)&0xFF00)+256)
 	ENDIF
-	IF ((((video_raw_end)&0xFF00)+256)+256) > (joe_latch_source)
+	IF ((((joe_band_free_source)&0xFF00)+256)+256) > (joe_latch_source)
 	dw joe_latch_source
 	ELSE
-	dw ((((video_raw_end)&0xFF00)+256)+256)
+	dw ((((joe_band_free_source)&0xFF00)+256)+256)
 	ENDIF
 	ENDIF
 	ENDIF
-	IF (((video_raw_end)&0xFF00)+512) < (joe_latch_source)
-	IF ((((video_raw_end)&0xFF00)+512)+256) > (video_raw_end)
-	IF (((video_raw_end)&0xFF00)+512) < (video_raw_end)
-	dw video_raw_end
+	IF (((joe_band_free_source)&0xFF00)+512) < (joe_latch_source)
+	IF ((((joe_band_free_source)&0xFF00)+512)+256) > (joe_band_free_source)
+	IF (((joe_band_free_source)&0xFF00)+512) < (joe_band_free_source)
+	dw joe_band_free_source
 	ELSE
-	dw (((video_raw_end)&0xFF00)+512)
+	dw (((joe_band_free_source)&0xFF00)+512)
 	ENDIF
-	IF ((((video_raw_end)&0xFF00)+512)+256) > (joe_latch_source)
+	IF ((((joe_band_free_source)&0xFF00)+512)+256) > (joe_latch_source)
 	dw joe_latch_source
 	ELSE
-	dw ((((video_raw_end)&0xFF00)+512)+256)
+	dw ((((joe_band_free_source)&0xFF00)+512)+256)
 	ENDIF
 	ENDIF
 	ENDIF
-	IF (((video_raw_end)&0xFF00)+768) < (joe_latch_source)
-	IF ((((video_raw_end)&0xFF00)+768)+256) > (video_raw_end)
-	IF (((video_raw_end)&0xFF00)+768) < (video_raw_end)
-	dw video_raw_end
+	IF (((joe_band_free_source)&0xFF00)+768) < (joe_latch_source)
+	IF ((((joe_band_free_source)&0xFF00)+768)+256) > (joe_band_free_source)
+	IF (((joe_band_free_source)&0xFF00)+768) < (joe_band_free_source)
+	dw joe_band_free_source
 	ELSE
-	dw (((video_raw_end)&0xFF00)+768)
+	dw (((joe_band_free_source)&0xFF00)+768)
 	ENDIF
-	IF ((((video_raw_end)&0xFF00)+768)+256) > (joe_latch_source)
+	IF ((((joe_band_free_source)&0xFF00)+768)+256) > (joe_latch_source)
 	dw joe_latch_source
 	ELSE
-	dw ((((video_raw_end)&0xFF00)+768)+256)
+	dw ((((joe_band_free_source)&0xFF00)+768)+256)
 	ENDIF
 	ENDIF
 	ENDIF
-	IF (((video_raw_end)&0xFF00)+1024) < (joe_latch_source)
-	IF ((((video_raw_end)&0xFF00)+1024)+256) > (video_raw_end)
-	IF (((video_raw_end)&0xFF00)+1024) < (video_raw_end)
-	dw video_raw_end
+	IF (((joe_band_free_source)&0xFF00)+1024) < (joe_latch_source)
+	IF ((((joe_band_free_source)&0xFF00)+1024)+256) > (joe_band_free_source)
+	IF (((joe_band_free_source)&0xFF00)+1024) < (joe_band_free_source)
+	dw joe_band_free_source
 	ELSE
-	dw (((video_raw_end)&0xFF00)+1024)
+	dw (((joe_band_free_source)&0xFF00)+1024)
 	ENDIF
-	IF ((((video_raw_end)&0xFF00)+1024)+256) > (joe_latch_source)
+	IF ((((joe_band_free_source)&0xFF00)+1024)+256) > (joe_latch_source)
 	dw joe_latch_source
 	ELSE
-	dw ((((video_raw_end)&0xFF00)+1024)+256)
+	dw ((((joe_band_free_source)&0xFF00)+1024)+256)
 	ENDIF
 	ENDIF
 	ENDIF
@@ -279,73 +279,73 @@
 	ENDIF
 	ENDIF
 	ENDIF
-	IF (((ps_boot_source+125)&0xFF00)+0) < (ps_boot_source_end)
-	IF ((((ps_boot_source+125)&0xFF00)+0)+256) > (ps_boot_source+125)
-	IF (((ps_boot_source+125)&0xFF00)+0) < (ps_boot_source+125)
-	dw ps_boot_source+125
+	IF (((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+0) < (ps_boot_source_end)
+	IF ((((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+0)+256) > (ps_boot_source+LIVE_CODE_BYTES)
+	IF (((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+0) < (ps_boot_source+LIVE_CODE_BYTES)
+	dw ps_boot_source+LIVE_CODE_BYTES
 	ELSE
-	dw (((ps_boot_source+125)&0xFF00)+0)
+	dw (((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+0)
 	ENDIF
-	IF ((((ps_boot_source+125)&0xFF00)+0)+256) > (ps_boot_source_end)
+	IF ((((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+0)+256) > (ps_boot_source_end)
 	dw ps_boot_source_end
 	ELSE
-	dw ((((ps_boot_source+125)&0xFF00)+0)+256)
+	dw ((((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+0)+256)
 	ENDIF
 	ENDIF
 	ENDIF
-	IF (((ps_boot_source+125)&0xFF00)+256) < (ps_boot_source_end)
-	IF ((((ps_boot_source+125)&0xFF00)+256)+256) > (ps_boot_source+125)
-	IF (((ps_boot_source+125)&0xFF00)+256) < (ps_boot_source+125)
-	dw ps_boot_source+125
+	IF (((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+256) < (ps_boot_source_end)
+	IF ((((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+256)+256) > (ps_boot_source+LIVE_CODE_BYTES)
+	IF (((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+256) < (ps_boot_source+LIVE_CODE_BYTES)
+	dw ps_boot_source+LIVE_CODE_BYTES
 	ELSE
-	dw (((ps_boot_source+125)&0xFF00)+256)
+	dw (((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+256)
 	ENDIF
-	IF ((((ps_boot_source+125)&0xFF00)+256)+256) > (ps_boot_source_end)
+	IF ((((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+256)+256) > (ps_boot_source_end)
 	dw ps_boot_source_end
 	ELSE
-	dw ((((ps_boot_source+125)&0xFF00)+256)+256)
+	dw ((((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+256)+256)
 	ENDIF
 	ENDIF
 	ENDIF
-	IF (((ps_boot_source+125)&0xFF00)+512) < (ps_boot_source_end)
-	IF ((((ps_boot_source+125)&0xFF00)+512)+256) > (ps_boot_source+125)
-	IF (((ps_boot_source+125)&0xFF00)+512) < (ps_boot_source+125)
-	dw ps_boot_source+125
+	IF (((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+512) < (ps_boot_source_end)
+	IF ((((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+512)+256) > (ps_boot_source+LIVE_CODE_BYTES)
+	IF (((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+512) < (ps_boot_source+LIVE_CODE_BYTES)
+	dw ps_boot_source+LIVE_CODE_BYTES
 	ELSE
-	dw (((ps_boot_source+125)&0xFF00)+512)
+	dw (((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+512)
 	ENDIF
-	IF ((((ps_boot_source+125)&0xFF00)+512)+256) > (ps_boot_source_end)
+	IF ((((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+512)+256) > (ps_boot_source_end)
 	dw ps_boot_source_end
 	ELSE
-	dw ((((ps_boot_source+125)&0xFF00)+512)+256)
+	dw ((((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+512)+256)
 	ENDIF
 	ENDIF
 	ENDIF
-	IF (((ps_boot_source+125)&0xFF00)+768) < (ps_boot_source_end)
-	IF ((((ps_boot_source+125)&0xFF00)+768)+256) > (ps_boot_source+125)
-	IF (((ps_boot_source+125)&0xFF00)+768) < (ps_boot_source+125)
-	dw ps_boot_source+125
+	IF (((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+768) < (ps_boot_source_end)
+	IF ((((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+768)+256) > (ps_boot_source+LIVE_CODE_BYTES)
+	IF (((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+768) < (ps_boot_source+LIVE_CODE_BYTES)
+	dw ps_boot_source+LIVE_CODE_BYTES
 	ELSE
-	dw (((ps_boot_source+125)&0xFF00)+768)
+	dw (((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+768)
 	ENDIF
-	IF ((((ps_boot_source+125)&0xFF00)+768)+256) > (ps_boot_source_end)
+	IF ((((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+768)+256) > (ps_boot_source_end)
 	dw ps_boot_source_end
 	ELSE
-	dw ((((ps_boot_source+125)&0xFF00)+768)+256)
+	dw ((((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+768)+256)
 	ENDIF
 	ENDIF
 	ENDIF
-	IF (((ps_boot_source+125)&0xFF00)+1024) < (ps_boot_source_end)
-	IF ((((ps_boot_source+125)&0xFF00)+1024)+256) > (ps_boot_source+125)
-	IF (((ps_boot_source+125)&0xFF00)+1024) < (ps_boot_source+125)
-	dw ps_boot_source+125
+	IF (((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+1024) < (ps_boot_source_end)
+	IF ((((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+1024)+256) > (ps_boot_source+LIVE_CODE_BYTES)
+	IF (((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+1024) < (ps_boot_source+LIVE_CODE_BYTES)
+	dw ps_boot_source+LIVE_CODE_BYTES
 	ELSE
-	dw (((ps_boot_source+125)&0xFF00)+1024)
+	dw (((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+1024)
 	ENDIF
-	IF ((((ps_boot_source+125)&0xFF00)+1024)+256) > (ps_boot_source_end)
+	IF ((((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+1024)+256) > (ps_boot_source_end)
 	dw ps_boot_source_end
 	ELSE
-	dw ((((ps_boot_source+125)&0xFF00)+1024)+256)
+	dw ((((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+1024)+256)
 	ENDIF
 	ENDIF
 	ENDIF
@@ -419,143 +419,143 @@
 	ENDIF
 	ENDIF
 	ENDIF
-	IF (((JOE_PICTURE+12*joe_nes_rows)&0xFF00)+0) < (JOE_BACKGROUND)
-	IF ((((JOE_PICTURE+12*joe_nes_rows)&0xFF00)+0)+256) > (JOE_PICTURE+12*joe_nes_rows)
-	IF (((JOE_PICTURE+12*joe_nes_rows)&0xFF00)+0) < (JOE_PICTURE+12*joe_nes_rows)
-	dw JOE_PICTURE+12*joe_nes_rows
+	IF (((ENEMY_CACHE_FREE)&0xFF00)+0) < (live_hi+256)
+	IF ((((ENEMY_CACHE_FREE)&0xFF00)+0)+256) > (ENEMY_CACHE_FREE)
+	IF (((ENEMY_CACHE_FREE)&0xFF00)+0) < (ENEMY_CACHE_FREE)
+	dw ENEMY_CACHE_FREE
 	ELSE
-	dw (((JOE_PICTURE+12*joe_nes_rows)&0xFF00)+0)
+	dw (((ENEMY_CACHE_FREE)&0xFF00)+0)
 	ENDIF
-	IF ((((JOE_PICTURE+12*joe_nes_rows)&0xFF00)+0)+256) > (JOE_BACKGROUND)
-	dw JOE_BACKGROUND
+	IF ((((ENEMY_CACHE_FREE)&0xFF00)+0)+256) > (live_hi+256)
+	dw live_hi+256
 	ELSE
-	dw ((((JOE_PICTURE+12*joe_nes_rows)&0xFF00)+0)+256)
+	dw ((((ENEMY_CACHE_FREE)&0xFF00)+0)+256)
 	ENDIF
 	ENDIF
 	ENDIF
-	IF (((JOE_PICTURE+12*joe_nes_rows)&0xFF00)+256) < (JOE_BACKGROUND)
-	IF ((((JOE_PICTURE+12*joe_nes_rows)&0xFF00)+256)+256) > (JOE_PICTURE+12*joe_nes_rows)
-	IF (((JOE_PICTURE+12*joe_nes_rows)&0xFF00)+256) < (JOE_PICTURE+12*joe_nes_rows)
-	dw JOE_PICTURE+12*joe_nes_rows
+	IF (((ENEMY_CACHE_FREE)&0xFF00)+256) < (live_hi+256)
+	IF ((((ENEMY_CACHE_FREE)&0xFF00)+256)+256) > (ENEMY_CACHE_FREE)
+	IF (((ENEMY_CACHE_FREE)&0xFF00)+256) < (ENEMY_CACHE_FREE)
+	dw ENEMY_CACHE_FREE
 	ELSE
-	dw (((JOE_PICTURE+12*joe_nes_rows)&0xFF00)+256)
+	dw (((ENEMY_CACHE_FREE)&0xFF00)+256)
 	ENDIF
-	IF ((((JOE_PICTURE+12*joe_nes_rows)&0xFF00)+256)+256) > (JOE_BACKGROUND)
-	dw JOE_BACKGROUND
+	IF ((((ENEMY_CACHE_FREE)&0xFF00)+256)+256) > (live_hi+256)
+	dw live_hi+256
 	ELSE
-	dw ((((JOE_PICTURE+12*joe_nes_rows)&0xFF00)+256)+256)
+	dw ((((ENEMY_CACHE_FREE)&0xFF00)+256)+256)
 	ENDIF
 	ENDIF
 	ENDIF
-	IF (((JOE_PICTURE+12*joe_nes_rows)&0xFF00)+512) < (JOE_BACKGROUND)
-	IF ((((JOE_PICTURE+12*joe_nes_rows)&0xFF00)+512)+256) > (JOE_PICTURE+12*joe_nes_rows)
-	IF (((JOE_PICTURE+12*joe_nes_rows)&0xFF00)+512) < (JOE_PICTURE+12*joe_nes_rows)
-	dw JOE_PICTURE+12*joe_nes_rows
+	IF (((ENEMY_CACHE_FREE)&0xFF00)+512) < (live_hi+256)
+	IF ((((ENEMY_CACHE_FREE)&0xFF00)+512)+256) > (ENEMY_CACHE_FREE)
+	IF (((ENEMY_CACHE_FREE)&0xFF00)+512) < (ENEMY_CACHE_FREE)
+	dw ENEMY_CACHE_FREE
 	ELSE
-	dw (((JOE_PICTURE+12*joe_nes_rows)&0xFF00)+512)
+	dw (((ENEMY_CACHE_FREE)&0xFF00)+512)
 	ENDIF
-	IF ((((JOE_PICTURE+12*joe_nes_rows)&0xFF00)+512)+256) > (JOE_BACKGROUND)
-	dw JOE_BACKGROUND
+	IF ((((ENEMY_CACHE_FREE)&0xFF00)+512)+256) > (live_hi+256)
+	dw live_hi+256
 	ELSE
-	dw ((((JOE_PICTURE+12*joe_nes_rows)&0xFF00)+512)+256)
+	dw ((((ENEMY_CACHE_FREE)&0xFF00)+512)+256)
 	ENDIF
 	ENDIF
 	ENDIF
-	IF (((JOE_PICTURE+12*joe_nes_rows)&0xFF00)+768) < (JOE_BACKGROUND)
-	IF ((((JOE_PICTURE+12*joe_nes_rows)&0xFF00)+768)+256) > (JOE_PICTURE+12*joe_nes_rows)
-	IF (((JOE_PICTURE+12*joe_nes_rows)&0xFF00)+768) < (JOE_PICTURE+12*joe_nes_rows)
-	dw JOE_PICTURE+12*joe_nes_rows
+	IF (((ENEMY_CACHE_FREE)&0xFF00)+768) < (live_hi+256)
+	IF ((((ENEMY_CACHE_FREE)&0xFF00)+768)+256) > (ENEMY_CACHE_FREE)
+	IF (((ENEMY_CACHE_FREE)&0xFF00)+768) < (ENEMY_CACHE_FREE)
+	dw ENEMY_CACHE_FREE
 	ELSE
-	dw (((JOE_PICTURE+12*joe_nes_rows)&0xFF00)+768)
+	dw (((ENEMY_CACHE_FREE)&0xFF00)+768)
 	ENDIF
-	IF ((((JOE_PICTURE+12*joe_nes_rows)&0xFF00)+768)+256) > (JOE_BACKGROUND)
-	dw JOE_BACKGROUND
+	IF ((((ENEMY_CACHE_FREE)&0xFF00)+768)+256) > (live_hi+256)
+	dw live_hi+256
 	ELSE
-	dw ((((JOE_PICTURE+12*joe_nes_rows)&0xFF00)+768)+256)
+	dw ((((ENEMY_CACHE_FREE)&0xFF00)+768)+256)
 	ENDIF
 	ENDIF
 	ENDIF
-	IF (((JOE_PICTURE+12*joe_nes_rows)&0xFF00)+1024) < (JOE_BACKGROUND)
-	IF ((((JOE_PICTURE+12*joe_nes_rows)&0xFF00)+1024)+256) > (JOE_PICTURE+12*joe_nes_rows)
-	IF (((JOE_PICTURE+12*joe_nes_rows)&0xFF00)+1024) < (JOE_PICTURE+12*joe_nes_rows)
-	dw JOE_PICTURE+12*joe_nes_rows
+	IF (((ENEMY_CACHE_FREE)&0xFF00)+1024) < (live_hi+256)
+	IF ((((ENEMY_CACHE_FREE)&0xFF00)+1024)+256) > (ENEMY_CACHE_FREE)
+	IF (((ENEMY_CACHE_FREE)&0xFF00)+1024) < (ENEMY_CACHE_FREE)
+	dw ENEMY_CACHE_FREE
 	ELSE
-	dw (((JOE_PICTURE+12*joe_nes_rows)&0xFF00)+1024)
+	dw (((ENEMY_CACHE_FREE)&0xFF00)+1024)
 	ENDIF
-	IF ((((JOE_PICTURE+12*joe_nes_rows)&0xFF00)+1024)+256) > (JOE_BACKGROUND)
-	dw JOE_BACKGROUND
+	IF ((((ENEMY_CACHE_FREE)&0xFF00)+1024)+256) > (live_hi+256)
+	dw live_hi+256
 	ELSE
-	dw ((((JOE_PICTURE+12*joe_nes_rows)&0xFF00)+1024)+256)
+	dw ((((ENEMY_CACHE_FREE)&0xFF00)+1024)+256)
 	ENDIF
 	ENDIF
 	ENDIF
-	IF (((JOE_BACKGROUND+9*joe_nes_rows)&0xFF00)+0) < (0xFB00)
-	IF ((((JOE_BACKGROUND+9*joe_nes_rows)&0xFF00)+0)+256) > (JOE_BACKGROUND+9*joe_nes_rows)
-	IF (((JOE_BACKGROUND+9*joe_nes_rows)&0xFF00)+0) < (JOE_BACKGROUND+9*joe_nes_rows)
-	dw JOE_BACKGROUND+9*joe_nes_rows
+	IF (((live_list+LIVE_N)&0xFF00)+0) < (0xFFFF)
+	IF ((((live_list+LIVE_N)&0xFF00)+0)+256) > (live_list+LIVE_N)
+	IF (((live_list+LIVE_N)&0xFF00)+0) < (live_list+LIVE_N)
+	dw live_list+LIVE_N
 	ELSE
-	dw (((JOE_BACKGROUND+9*joe_nes_rows)&0xFF00)+0)
+	dw (((live_list+LIVE_N)&0xFF00)+0)
 	ENDIF
-	IF ((((JOE_BACKGROUND+9*joe_nes_rows)&0xFF00)+0)+256) > (0xFB00)
-	dw 0xFB00
+	IF ((((live_list+LIVE_N)&0xFF00)+0)+256) > (0xFFFF)
+	dw 0xFFFF
 	ELSE
-	dw ((((JOE_BACKGROUND+9*joe_nes_rows)&0xFF00)+0)+256)
+	dw ((((live_list+LIVE_N)&0xFF00)+0)+256)
 	ENDIF
 	ENDIF
 	ENDIF
-	IF (((JOE_BACKGROUND+9*joe_nes_rows)&0xFF00)+256) < (0xFB00)
-	IF ((((JOE_BACKGROUND+9*joe_nes_rows)&0xFF00)+256)+256) > (JOE_BACKGROUND+9*joe_nes_rows)
-	IF (((JOE_BACKGROUND+9*joe_nes_rows)&0xFF00)+256) < (JOE_BACKGROUND+9*joe_nes_rows)
-	dw JOE_BACKGROUND+9*joe_nes_rows
+	IF (((live_list+LIVE_N)&0xFF00)+256) < (0xFFFF)
+	IF ((((live_list+LIVE_N)&0xFF00)+256)+256) > (live_list+LIVE_N)
+	IF (((live_list+LIVE_N)&0xFF00)+256) < (live_list+LIVE_N)
+	dw live_list+LIVE_N
 	ELSE
-	dw (((JOE_BACKGROUND+9*joe_nes_rows)&0xFF00)+256)
+	dw (((live_list+LIVE_N)&0xFF00)+256)
 	ENDIF
-	IF ((((JOE_BACKGROUND+9*joe_nes_rows)&0xFF00)+256)+256) > (0xFB00)
-	dw 0xFB00
+	IF ((((live_list+LIVE_N)&0xFF00)+256)+256) > (0xFFFF)
+	dw 0xFFFF
 	ELSE
-	dw ((((JOE_BACKGROUND+9*joe_nes_rows)&0xFF00)+256)+256)
+	dw ((((live_list+LIVE_N)&0xFF00)+256)+256)
 	ENDIF
 	ENDIF
 	ENDIF
-	IF (((JOE_BACKGROUND+9*joe_nes_rows)&0xFF00)+512) < (0xFB00)
-	IF ((((JOE_BACKGROUND+9*joe_nes_rows)&0xFF00)+512)+256) > (JOE_BACKGROUND+9*joe_nes_rows)
-	IF (((JOE_BACKGROUND+9*joe_nes_rows)&0xFF00)+512) < (JOE_BACKGROUND+9*joe_nes_rows)
-	dw JOE_BACKGROUND+9*joe_nes_rows
+	IF (((live_list+LIVE_N)&0xFF00)+512) < (0xFFFF)
+	IF ((((live_list+LIVE_N)&0xFF00)+512)+256) > (live_list+LIVE_N)
+	IF (((live_list+LIVE_N)&0xFF00)+512) < (live_list+LIVE_N)
+	dw live_list+LIVE_N
 	ELSE
-	dw (((JOE_BACKGROUND+9*joe_nes_rows)&0xFF00)+512)
+	dw (((live_list+LIVE_N)&0xFF00)+512)
 	ENDIF
-	IF ((((JOE_BACKGROUND+9*joe_nes_rows)&0xFF00)+512)+256) > (0xFB00)
-	dw 0xFB00
+	IF ((((live_list+LIVE_N)&0xFF00)+512)+256) > (0xFFFF)
+	dw 0xFFFF
 	ELSE
-	dw ((((JOE_BACKGROUND+9*joe_nes_rows)&0xFF00)+512)+256)
+	dw ((((live_list+LIVE_N)&0xFF00)+512)+256)
 	ENDIF
 	ENDIF
 	ENDIF
-	IF (((JOE_BACKGROUND+9*joe_nes_rows)&0xFF00)+768) < (0xFB00)
-	IF ((((JOE_BACKGROUND+9*joe_nes_rows)&0xFF00)+768)+256) > (JOE_BACKGROUND+9*joe_nes_rows)
-	IF (((JOE_BACKGROUND+9*joe_nes_rows)&0xFF00)+768) < (JOE_BACKGROUND+9*joe_nes_rows)
-	dw JOE_BACKGROUND+9*joe_nes_rows
+	IF (((live_list+LIVE_N)&0xFF00)+768) < (0xFFFF)
+	IF ((((live_list+LIVE_N)&0xFF00)+768)+256) > (live_list+LIVE_N)
+	IF (((live_list+LIVE_N)&0xFF00)+768) < (live_list+LIVE_N)
+	dw live_list+LIVE_N
 	ELSE
-	dw (((JOE_BACKGROUND+9*joe_nes_rows)&0xFF00)+768)
+	dw (((live_list+LIVE_N)&0xFF00)+768)
 	ENDIF
-	IF ((((JOE_BACKGROUND+9*joe_nes_rows)&0xFF00)+768)+256) > (0xFB00)
-	dw 0xFB00
+	IF ((((live_list+LIVE_N)&0xFF00)+768)+256) > (0xFFFF)
+	dw 0xFFFF
 	ELSE
-	dw ((((JOE_BACKGROUND+9*joe_nes_rows)&0xFF00)+768)+256)
+	dw ((((live_list+LIVE_N)&0xFF00)+768)+256)
 	ENDIF
 	ENDIF
 	ENDIF
-	IF (((JOE_BACKGROUND+9*joe_nes_rows)&0xFF00)+1024) < (0xFB00)
-	IF ((((JOE_BACKGROUND+9*joe_nes_rows)&0xFF00)+1024)+256) > (JOE_BACKGROUND+9*joe_nes_rows)
-	IF (((JOE_BACKGROUND+9*joe_nes_rows)&0xFF00)+1024) < (JOE_BACKGROUND+9*joe_nes_rows)
-	dw JOE_BACKGROUND+9*joe_nes_rows
+	IF (((live_list+LIVE_N)&0xFF00)+1024) < (0xFFFF)
+	IF ((((live_list+LIVE_N)&0xFF00)+1024)+256) > (live_list+LIVE_N)
+	IF (((live_list+LIVE_N)&0xFF00)+1024) < (live_list+LIVE_N)
+	dw live_list+LIVE_N
 	ELSE
-	dw (((JOE_BACKGROUND+9*joe_nes_rows)&0xFF00)+1024)
+	dw (((live_list+LIVE_N)&0xFF00)+1024)
 	ENDIF
-	IF ((((JOE_BACKGROUND+9*joe_nes_rows)&0xFF00)+1024)+256) > (0xFB00)
-	dw 0xFB00
+	IF ((((live_list+LIVE_N)&0xFF00)+1024)+256) > (0xFFFF)
+	dw 0xFFFF
 	ELSE
-	dw ((((JOE_BACKGROUND+9*joe_nes_rows)&0xFF00)+1024)+256)
+	dw ((((live_list+LIVE_N)&0xFF00)+1024)+256)
 	ENDIF
 	ENDIF
 	ENDIF

@@ -292,6 +292,12 @@ nf_mark_field:
 		ret	nz
 		push	de
 		ld	e,(hl)			; в клетке живой тайл (огонь, лента...) — список живых клеток устарел
+ IFDEF NES_FULL
+ ld a,e
+ and 0xF8
+ cp 0xA0
+ jp z,dla1                 ; facing changes cannot invalidate the sparse list
+ ENDIF
 		ld	d,lv_idx/256
 		ld	a,(de)
 		inc	a

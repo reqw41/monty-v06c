@@ -22,9 +22,9 @@ for(const state of states)for(const f of state.frames){
 module.exports=function(m,s,put){if(!m.rd(s.spr_rec))return;
  const id=m.rd(s.jn_shown),pic=frames[id];if(!pic)throw Error('NES Joe frame '+id);
  const rows=s.joe_nes_rows||23;
- const mirror=m.rd(s.jn_shown_dir),skip=m.rd(s.jn_shown_skip),n=m.rd(s.spr_rec+11),top=(s.SCREEN_TOP??0xDF)-m.rd(s.spr_rec+9),x0=m.rd(s.spr_rec+2);
+ const mirror=m.rd(s.jn_shown_dir),skip=m.rd(s.jn_shown_skip),n=m.rd(s.spr_rec+11),top=(s.SCREEN_TOP??0xDF)-(s.SCREEN_HEIGHT===240?16:0)-m.rd(s.spr_rec+9),x0=m.rd(s.spr_rec+2)+(s.NES_LADDER_CENTERED&&[8,9].includes(id)?1:0);
  for(let y=0;y<n;y++)for(let x=0;x<16&&x0+x<256;x++){
   const v=pic[Math.min(22,Math.floor((skip+y+.5)*23/rows))][mirror?15-x:x];if(!v)continue;
-  const ci=s.NES_JOE_COLORS===3?[0,2,3,1][v]:[0,1,3,1][v];put(x0+x,top+y,ci);
+  const ci=s.NES_JOE_COLORS===3?(s.NES_INK_SWAP23?[0,3,2,1]:[0,2,3,1])[v]:(s.NES_INK_SWAP23?[0,1,2,1]:[0,1,3,1])[v];put(x0+x,top+y,ci);
  }
 };

@@ -46,36 +46,59 @@ def main():
    data.append((label,packed));records.append(dict(id=len(records),state=state,phase=phase,rows=a.height,pixels=pixels,policy='fit burst to 16x23' if state==11 else 'NES anchor Y=1..23'))
  # Deduplicate complete eight-logical-pixel rows; mirrored rows share the dictionary.
  unique=list(dict.fromkeys([tuple(row) for f in records for row in f['pixels']]))
- normal=len(unique)
  for row in list(unique):
   if row[::-1] not in unique:unique.append(row[::-1])
+ # Adjacent indices are mirror partners. Duplicate symmetric rows too: all
+ # runtime mirroring then becomes XOR 1, without a separate lookup table.
+ paired=[]
+ for row in unique:
+  if row not in paired:paired.extend((row,row[::-1]))
+ unique=paired
+ assert len(unique)<=256 and not any(unique[0]) and not any(unique[1])
+ assert all(unique[i^1]==row[::-1] for i,row in enumerate(unique))
  asm=['; Generated from local NES CHR/OAM by tools/nes/joe_native.py.', 'joe_nes_rows equ '+str(a.height),'joe_nes_frames:']
  for i in range(0,len(names),8):asm.append(' dw '+','.join(names[i:i+8]))
  seen_frames={}
+ frame_blocks=[]
  emitted_rows=0
  for label,f in zip(names,records):
   shape=tuple(tuple(row) for row in f['pixels'])
   if shape in seen_frames:
-   asm.append(label+' equ '+seen_frames[shape]);continue
+   frame_blocks.append((0,[label+' equ '+seen_frames[shape]]));continue
   seen_frames[shape]=label
   if f['state']==9:
    assert not any(any(row) for row in f['pixels']) and not any(unique[0])
-   asm.append(label+' equ shape_00')
+   frame_blocks.append((0,[label+' equ shape_00']))
   else:
    first=next(i for i,row in enumerate(f['pixels']) if any(row))
    emitted_rows+=a.height-first
-   asm += [label+' equ '+label+'_ink-'+str(first),label+'_ink:',' db '+','.join(str(unique.index(tuple(row))) for row in f['pixels'][first:])]
- asm += ['joe_top_rows: db '+','.join(str(next((i for i,row in enumerate(f['pixels']) if any(row)),a.height-1)) for f in records)]
- asm += ['joe_row_dictionary:']
+   frame_blocks.append((a.height-first,[label+' equ '+label+'_ink-'+str(first),label+'_ink:',' db '+','.join(str(unique.index(tuple(row))) for row in f['pixels'][first:])]))
+ top='joe_top_rows: db '+','.join(str(next((i for i,row in enumerate(f['pixels']) if any(row)),a.height-1)) for f in records)
+ encoded={True:[],False:[]}
  for row in unique:
   def planes(three):
-   ci=[0,2,3,1] if three else [0,1,3,1];out=[]
+   ci=[0,3,2,1] if three else [0,1,2,1];out=[]
    for half in range(2):
     for bit in (2,1):out.append(sum((3<<(6-2*x)) for x,v in enumerate(row[4*half:4*half+4]) if ci[v]&bit))
    def nibble(v):
     return sum(((v>>(6-2*x))&1)<<(3-x) for x in range(4))
    return [(nibble(out[0])<<4)|nibble(out[1]),(nibble(out[2])<<4)|nibble(out[3])]
-  asm += [' IFDEF NES_JOE_3COLOR',' db '+','.join(map(str,planes(True))),' ELSE',' db '+','.join(map(str,planes(False))),' ENDIF']
+  for three in encoded:encoded[three].append(planes(three))
+ # Index both packed halves directly through H:L. Put short frame streams
+ # in the gap after the first table instead of wasting it on alignment.
+ header=asm
+ asm=header[:2]+[top,' ALIGN 256','joe_row_dictionary:','joe_row_lo:']
+ def half(index):
+  def rows(three):return [' db '+','.join(str(row[index]) for row in encoded[three][i:i+64]) for i in range(0,len(unique),64)]
+  return [' IFDEF NES_JOE_3COLOR']+rows(True)+[' ELSE']+rows(False)+[' ENDIF']
+ asm+=half(0)
+ remaining=[];space=256-len(unique)
+ assert space>=0
+ for size,lines in frame_blocks:
+  if size and size<=space:asm+=lines;space-=size
+  else:remaining+=lines
+ asm+=[' ALIGN 256','joe_row_hi:']+half(1)
+ asm+=[' ASSERT joe_row_hi == joe_row_lo+256']+header[2:]+remaining
  asm += ['joe_nes_end:']
  table=['; Rotated doubled-pixel nibbles. Fixed aligned page, shared by all poses.', ' IFDEF NES_FULL', ' ORG 0x6780', ' ELSE', ' ORG 0x7B00', ' ENDIF', 'joe_nibble_rotations:']
  for shift in range(8):
@@ -87,18 +110,30 @@ def main():
  table += ['joe_nibble_end:', ' IFDEF NES_FULL', ' ASSERT joe_nibble_rotations == 0x6780', ' ASSERT $ == 0x6800', ' ELSE', ' ASSERT joe_nibble_rotations == 0x7B00', ' ASSERT $ == 0x7B80', ' ENDIF']
  (ROOT/'src/native/gen/joe_nibble.asm').write_text('\n'.join(table)+'\n')
  (ROOT/'src/native/gen/joe_nes.asm').write_text('\n'.join(asm)+'\n')
- (ROOT/'src/native/gen/joe_mirror.asm').write_text('; Visual row dictionary mirrors.\njoe_row_mirror:\n'+'\n'.join(' db '+','.join(str(unique.index(row[::-1])) for row in unique[i:min(i+64,normal)]) for i in range(0,normal,64))+'\n')
+ (ROOT/'src/native/gen/joe_mirror.asm').write_text('; Adjacent dictionary rows are mirror partners, including symmetric rows.\njoe_row_mirror_xor equ 1\n')
  # Keep all enemy source names, including 68/78 used by cache validation.
  import re
  legacy=(ROOT/'src/native/gen/spat.asm').read_text()
  source_names=','.join(re.findall(r'^ dw (.*)',legacy,re.M)).split(',')
- keep={source_names[i] for i in list(range(13))+[0x68//4,0x78//4]}
+ keep={source_names[i] for i in range(13)}
  source_names=[v if v in keep else 'shape_00' for v in source_names]
- enemy=['; Generated by tools/nes/joe_native.py: original enemy frames and compatibility 68/78.',' ORG VSPR','sprite_sources:']
- for i in range(0,32,8):enemy.append(' dw '+','.join(source_names[i:i+8]))
+ enemy=['; Generated by tools/nes/joe_native.py: original enemy frames; Joe uses native NES pictures.',' ORG VSPR','sprite_sources:']
+ for i in range(3,13,8):enemy.append(' dw '+','.join(source_names[i:min(i+8,13)]))
+ enemy+=['shape_00 equ 0x0040 ; 32 permanent zero bytes in logic_class','enemy_shape_bytes:']
+ blob=bytearray()
  for label,body in re.findall(r'^(shape_\d+):\n(.*?)(?=^shape_|^sprite_sources_end:)',legacy,re.M|re.S):
-  if label in keep:enemy += [label+':',body.rstrip()]
+  if label in keep and label!='shape_00':
+   pixels=bytes(int(v) for v in re.findall(r'\d+',body))
+   overlap=max(i for i in range(len(pixels)+1) if blob.endswith(pixels[:i]))
+   # The fast runtime mask builder adjusts only L between the two halves.
+   # Keep each complete source inside one page, even when sharing zero tails.
+   if (20+len(blob)-overlap)%256+len(pixels)>256:
+    blob.extend(bytes((-20-len(blob))%256));overlap=0
+   enemy.append(label+' equ enemy_shape_bytes+'+str(len(blob)-overlap))
+   blob.extend(pixels[overlap:])
+ for i in range(0,len(blob),24):enemy.append(' db '+','.join(map(str,blob[i:i+24])))
+ enemy+=['title_anim_code:',' INCLUDE "nes_title_anim.asm"',' ASSERT $ <= 0x7600']
  (ROOT/'src/native/gen/spat_nes.asm').write_text('\n'.join(enemy)+'\n')
  out=ROOT/'build/joe_nes';out.mkdir(parents=True,exist_ok=True);(out/'frames.json').write_text(json.dumps(dict(rom_sha256=hashlib.sha256(rom.data).hexdigest(),rows=a.height,frames=records),indent=2)+'\n')
- print(len(records),'frames;',len(unique),'unique mirrored rows;',emitted_rows+len(unique)*2,'row/index bytes')
+ print(len(records),'frames;',len(unique),'mirror-paired rows;',emitted_rows+len(unique)*2,'row/index bytes')
 if __name__=='__main__':main()

@@ -13,6 +13,7 @@ for (const l of fs.readFileSync((process.env.VB || 'build/vec') + '/monty.sym', 
 }
 const N = +(process.argv[2] || 400), FIRE = +(process.argv[3] || 120), PLAN = process.argv[4] || '';
 const SYNC = +(process.env.SYNC || 0xA9B3);
+if (!Number.isInteger(sym['L_' + SYNC.toString(16).toUpperCase()])) throw Error('Missing Vector synchronization label: ' + SYNC.toString(16));
 const LV = +(process.env.LV || 1), CHEAT = process.env.CHEAT === '1';   // уровень; жизни 7049 := 6 на каждой итерации   // точка тика: A9B3 (обработчик) или 8C13 (ожидание кадра в главном цикле)
 const plan = {};
 plan[FIRE] = [['space', true]]; plan[FIRE + 8] = [['space', false]];
@@ -109,6 +110,7 @@ function vecPats(m) {
   return out;
 }
 const A = runMsx(), B = runVec();
+if (A.length !== N || B.length !== N) throw Error('Incomplete lockstep: MSX ' + A.length + ', Vector ' + B.length + ', expected ' + N);
 console.log('тиков: MSX', A.length, 'Вектор', B.length);
 let first = -1, prevBad = false, runs = 0;
 for (let k = 0; k < Math.min(A.length, B.length); k++) {

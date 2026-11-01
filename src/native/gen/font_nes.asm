@@ -1,5 +1,6 @@
 ; NES title-credit CHR glyphs for the level selector.
 NES_TITLE_CREDITS_INK equ 173
+NES_TITLE_TEXT_SLOT equ 4
 font_tab:
  db "S",126,254,240,120,62,254,252,0
  db "E",254,254,224,254,224,254,254,0
@@ -12,4 +13,4 @@ font_tab:
  db "3",254,254,14,254,14,254,254,0
  db ".",0,0,0,0,0,192,192,0
  db ",",0,0,0,0,0,192,192,128
- db 0,0,0,0,0,0,0,0,0
+ db 255 ; continue at font_extra

@@ -55,11 +55,12 @@ nsf_done:
  jp nz,nsf_next
  ret
 
+SNAKE_POSE_TICKS equ 10
 nes_snake_step:
  ld hl,snake_tick
  inc (hl)
  ld a,(hl)
- cp 5			; 6 NES frames at 60 Hz = 5 Vector frames at 50 Hz
+ cp SNAKE_POSE_TICKS     ; redraw the pose half as often; logic still runs each step
  jp c,nss_face
  xor a
  ld (hl),a
@@ -78,40 +79,51 @@ nss_face:
  call nes_amulet_step
  jp nes_snake_palette
 
-; The live-cell list limits updates to the snake cells in the current room.
+; Snakes have fixed 2x2 positions. Queue only their two changing tiles through
+; the ordinary covered-cell path; turning no longer rebuilds all live buckets.
+NES_SNAKE_LOCAL equ 1
 nes_snake_render:
  ld a,(video_dirty)
  and DIRTY_SNAKE
  ret z
- ld a,(fire_ran)
- or a
- ret nz
  ld a,(video_dirty)
  and 0xFF-DIRTY_SNAKE
  ld (video_dirty),a
  ld a,(snake_frame)
  ld (snake_shown),a
- ld hl,tile_changed+0xA0
- ld b,8
- ld a,1
-nsr_mark:
- ld (hl),a
+ ld a,(nf_snake_count)
+ or a
+ ret z
+ ld b,a
+ ld hl,nf_snake_offsets
+ns_local_next:
+ push bc
+ ld e,(hl)
  inc hl
- dec b
- jp nz,nsr_mark
- ld a,1
- ld (dc_pt),a
- ld a,tile_changed/256
- call force_live_t
- ld hl,tile_changed+0xA0
- ld b,8
- xor a
-nsr_clear:
- ld (hl),a
+ ld d,(hl)
  inc hl
+ push hl
+ call ns_local_pair
+ pop hl
+ pop bc
  dec b
- jp nz,nsr_clear
+ jp nz,ns_local_next
  ret
+
+ns_local_pair:
+ ld hl,VNT
+ add hl,de
+ ld a,(hl)
+ and 1                     ; A0: right (TR/BL); A5: left (TL/BR)
+ ld de,33
+ jp nz,ns_local_ready
+ inc hl
+ dec de
+ dec de
+ns_local_ready:
+ call dl_add
+ add hl,de
+ jp dl_add
 
 ; Tile cache builds two snake poses and four fire poses.
 nes_snake_tile_kind:

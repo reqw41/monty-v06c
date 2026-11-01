@@ -44,12 +44,14 @@ gs2:
 		ENDIF
 L_A59D:		ld	a,b			; (метка — для стендов: выбор сделан)
 		ld	(0x71A6),a
+ IFNDEF NES_FULL
 		ld	hl,VNT+MENU_POS		; надпись — стереть: её клетки — заново из карты
 		ld	b,MENU_LEN
 gs3:		call	dl_add
 		inc	hl
 		dec	b
 		jp	nz,gs3
+ ENDIF
 		xor	a			; состояние героя — как до первого начала (8E7E запоминает его для возрождения)
 		ld	(0x7079),a
 		call	a59d
@@ -61,6 +63,7 @@ gs3:		call	dl_add
 ; Cold bootstrap sources are reused by room tiles and sprite shifts. After
 ; GAME OVER reset game state in place, keeping the installed video/audio code.
 warm_restart:
+ push bc
  ld hl,0x7000
  ld bc,0x0200
  ld e,0
@@ -74,13 +77,14 @@ warm_restart:
  ld (0x7303),a
  ld a,11
  ld (0x7307),a
- ld b,1
+ pop bc
  ei
  jp L_A59D
  ENDIF
 ; a59d (A59D): начало уровня
 a59d:		ld	a,6
 		ld	(0x7049),a
+a59d_keep_lives:
 		ld	hl,0x705F
 		ld	a,(hl)
 		or	4
@@ -96,17 +100,16 @@ a59d:		ld	a,6
  xor a
  ld (nes_amulet_ticks),a
  ld (nes_amulet_ticks+1),a
- xor a
  ld (0x71A7),a
  ld (0x7076),a
  ld (0x7077),a
  ld a,10
  ld (0x71A8),a
- ld a,31
+ ld a,44
  ld (0x7300),a
  add a,3
  ld (0x7304),a
- ld a,120
+ ld a,116
  ld (0x7301),a
  ld (0x7305),a
  ELSE
@@ -114,12 +117,21 @@ a59d:		ld	a,6
 		ld (0x71A8),a
  ENDIF
 		call L_A067
+ IFDEF NES_FULL
+ call L_9156               ; publish the rope tile before the first Joe frame
+ ENDIF
 		call	L_8E7E
+ IFDEF NES_FULL
+ ld a,4                    ; begin attached to the opening rope
+ ELSE
 		ld	a,5
+ ENDIF
 		ld	(0x7079),a
 		ret
 
-menu_txt:	db	"SELECT LEVEL   1, 2, 3.",0	; текст оригинала (8293)
+ IFNDEF NES_FULL
+menu_txt: db "SELECT LEVEL   1, 2, 3.",0
+ ENDIF
 MENU_LEN	equ	23
 
 ; txt_draw: HL = текст (0 — конец), DE = клетка (32 * строка + столбец) — прямо в плоскости экрана шрифтом
@@ -160,17 +172,25 @@ td1:		ld	b,(hl)
 		inc	hl
 		cp	b
 		jp	z,td2
+		IFDEF NES_FULL
+		inc b
+		jp z,td_extra
+		dec b
+		ELSE
 		inc	b
 		dec	b
+		ENDIF
 		jp	z,td2			; конец таблицы — пустой глиф (font_end)
 		ld	de,8
 		add	hl,de
 		jp	td1
+		IFDEF NES_FULL
+td_extra:
+		ld hl,font_extra
+		jp td1
+		ENDIF
 td2:		ex	de,hl
-		ld	a,(txt_l)
-		ld	l,a
-		ld	a,(txt_h)
-		ld	h,a
+		ld	hl,(txt_l)
 		ld	a,(txt_c)
 		ld	c,a
 		ld	b,3

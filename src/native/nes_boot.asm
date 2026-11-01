@@ -1,6 +1,8 @@
 ; Once-only title/menu, in the tile arena before any room is built.
 	ORG 0xE400
 nes_menu:
+ xor a
+ ld (video_enabled),a       ; title colours cannot be changed by gameplay
 	INCLUDE "gen/music_reloc_late.asm"
 	ld hl,nes_m_ptr
 	ld bc,32
@@ -21,21 +23,18 @@ nes_menu:
 	ld bc,16
 	ld e,0
 	call memfill
-	ld a,7
+	ld a,NES_TITLE_TEXT_SLOT
 	ld (cmap+15),a
 	ld hl,pal
 	ld bc,16
 	ld e,0
 	call memfill
 	IFDEF NES_STYLE
-	ld de,title_palette
+	ld de,title_warm_palette
 	ld hl,pal
 	ld bc,16
 	call copy_de_hl
 	ENDIF
-	ld a,NES_TITLE_CREDITS_INK
-	ld (pal+14),a
-	ld (pal+15),a
 	ld a,1
 	ld (pal_load),a
 nm_wait:
@@ -46,6 +45,10 @@ nm_wait:
 	ld a,1
 	ld (kb_req),a
 	halt
+ IFDEF NES_FULL
+ call cheat_menu_keys
+ jp nc,nm_wait
+ ELSE
 	ld a,(kbmat+2)
 	ld b,1
 	rrca
@@ -57,8 +60,10 @@ nm_wait:
 	inc b
 	rrca
 	jp nc,nm_wait
+ ENDIF
 	jp gs2
 nes_begin:
+	call title_animate
 	push bc
 	ld a,1
 	ld (snd_busy),a
@@ -78,6 +83,23 @@ nes_begin:
 	ld hl,0xEF00
 	ld bc,nes_effect_source_end-nes_effect_source
 	call copy_de_hl
+	ld de,nes_platform_source
+	ld hl,style_pal
+	ld bc,nes_platform_source_end-nes_platform_source
+	call copy_de_hl
+	ld hl,nes_platform_source
+	ld bc,nes_platform_source_end-nes_platform_source
+	ld e,0
+	call memfill
+	; The extra cache ranges overlap discarded title music. Build only after
+	; its playback has stopped; warm restarts keep these masks in place.
+ IFDEF NES_ENEMY_SEEDS
+ ld de,nes_seed_source
+ ld hl,nes_seed_masks
+ ld bc,nes_seed_end-nes_seed_masks
+ call copy_de_hl
+ ENDIF
+	call ps_build
 	call lv_init
 	ld a,(frames)
 	ld (nes_last_frame),a

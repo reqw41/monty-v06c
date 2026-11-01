@@ -92,3 +92,15 @@ joe_end1:
  ASSERT joe_end1-joe_source1 <= 160
  ASSERT jn_restore_two_end-jn_restore_two == 8*18
  ASSERT jn_restore_end-jn_restore_last == 4*25
+
+ ; The SP build skips copying these legacy restore procedures. Their source
+ ; bytes can hold permanent cache preparation code if the allocator skips it.
+ IFDEF NES_STABLE_COLORS
+ ORG video_raw_end
+ INCLUDE "nes_conveyor.asm"
+ ASSERT $ <= joe_end1
+ ORG joe_end1
+ ENDIF
+ ; Install the tile index only after legacy restore code was copied.
+joe_band_free_source equ raw_base+256
+ ASSERT joe_band_free_source <= joe_end1

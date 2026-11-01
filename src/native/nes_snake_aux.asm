@@ -18,12 +18,12 @@ nes_snake_choice:
  ld a,0x81		; left-facing A5,A4,A7,A6
  ret
 
-; NES $8B12/$8B2A: sprite palette 1 stays green normally and cycles
+; Shared snake/spider slot 4 stays green normally and cycles
 ; blue, pink, black, green while item 09 protects Joe.
 nes_snake_palette:
- ld a,(nf_snake_count)
+ ld a,(video_enabled)
  or a
- ret z
+ ret z                    ; preserve the separate title/game-over palette
  ld a,(nes_amulet_ticks)
  ld b,a
  ld a,(nes_amulet_ticks+1)
@@ -38,7 +38,7 @@ nes_snake_palette:
  call add_hl_a
  ld a,(hl)
 nsp_color:
- ld hl,pal+10
+ ld hl,pal+8
  cp (hl)
  ret z
  ld (hl),a

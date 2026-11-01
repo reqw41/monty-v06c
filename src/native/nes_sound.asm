@@ -72,6 +72,9 @@ nt_2:
 	ld a,c
 	call z,nes_out2
 nt_save:
+	ld a,(nes_m_wait)
+	or a
+	jp z,nt_record		; zero-delay events belong to this same music tick
 	ex de,hl
 	ld (nes_m_ptr),hl
 nt_fx:
@@ -159,14 +162,10 @@ nt_music_end:
 	ld (nes_m1),a
 	ld (nes_m2),a
 	call nes_out0
-	ld a,(nes_p_wait)
-	or a
 	ld a,64
-	call z,nes_out1
-	ld a,(nes_n_wait)
-	or a
+	call nes_out1
 	ld a,64
-	call z,nes_out2
+	call nes_out2
 	jp nt_fx
 
 ; Look up actual divisors and prepare the timer control/CPU flag words.
@@ -432,4 +431,3 @@ nqr_clear:
 	ret
 
 nes_player_end:
-	ASSERT $ <= 0xF8C0

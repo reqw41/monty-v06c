@@ -12,7 +12,9 @@ disp_prep:
  call nes_service
  ENDIF
 		xor	a
+ IFNDEF NES_FULL
 		ld	(drew_any),a
+ ENDIF
 		ld	a,(video_dirty)
 		and	DIRTY_ROOM			; новая комната: дождаться конца рисования (2 кадра без очистки)
 		jp	z,dp1
@@ -36,15 +38,33 @@ dp1:
 		call	live_build
 dp1a:		xor	a
 		ld	(fire_ran),a
+ IFNDEF NES_FULL
 		ld	hl,enemy_turn
 		inc	(hl)
 		ld	a,(hl)
 		cp	3
 		jp	c,dp_phase
 		ld	(hl),0
+ ENDIF
 dp_phase:
- ; Finish every published sprite queue before the next preparation. While Joe
- ; moves, defer background by at most two preparations, retaining dirty bits.
+ IFDEF NES_FULL
+ ; Keep fresh background work off moving-Joe preparations. The oldest
+ ; completed submission becomes mandatory after six physical frames.
+ call joe_motion_pending
+ jp z,dp_background
+ ld a,(pace_fire_stamp)
+ ld hl,pace_belt_stamp
+ sub (hl)
+ jp p,dp_oldest
+ dec hl                    ; fire_stamp immediately precedes belt_stamp
+dp_oldest:
+ ld a,(frames)
+ sub (hl)
+ cp PACE_BG_PERIOD
+ jp c,dp3
+ ENDIF
+ IFNDEF NES_FULL
+ ; Legacy scheduling is unchanged.
  ld a,(bg_turn)
  inc a
  cp 6
@@ -59,17 +79,24 @@ dp_turn_ready:
  jp z,dp_background
  cp 3
  jp nz,dp3
+ ENDIF
 dp_background:
  ld a,1			; до dp3 (кадры огня и лент) у живых клеток меняются только точки
 		ld	(dc_pt),a
 		ld	a,(video_dirty)
 		and	DIRTY_COLOR
 		jp	nz,dp_color_first
- ; Alternate the preferred job: a constantly dirty belt must not prevent fire
- ; from ever running when animation work is deferred on moving-Joe steps.
+ IFDEF NES_FULL
+ ; Oldest completed submission wins. Preparing Joe cannot skip this turn.
+ ld a,(pace_fire_stamp)
+ ld hl,pace_belt_stamp
+ sub (hl)
+ jp m,dp_fire_new
+ ELSE
  ld a,(bg_turn)
  and 2
  jp nz,dp_fire_new
+ ENDIF
 		ld	a,(video_dirty)
 		and	DIRTY_BELT
 		jp	z,dp_fire_new
@@ -91,6 +118,10 @@ dp_fire_new:	ld	a,(video_dirty)
 		call	fire_changes		; tile_changed: тайлы, у которых меняется исходная полоса
 		ld	a,(fire_next)
 		ld	(fire_shown),a
+ IFDEF NES_FULL
+ ld a,(frames)
+ ld (pace_fire_stamp),a
+ ENDIF
 		ld	a,(fl_ph)		; их живые клетки — к перерисовке, но не все: каждая FIRE_K-я по очереди
 		inc	a			; (огонь мигает вразнобой; дешевле в FIRE_K раз). FIRE_K и число кадров
 		cp	FIRE_K			; огня (4) — взаимно простые: каждая клетка проходит все кадры
@@ -125,9 +156,14 @@ dp_color_first:	xor	a
 		ld	a,1
 		ld	(dc_pt),a
 		jp	dp2
-dp2:		ld	a,(fire_ran)
-		or	a
-		jp	nz,dp3
+dp2:
+ IFNDEF NES_FULL
+ ld a,(fire_ran)
+ or a
+ jp nz,dp3
+ ENDIF
+ ; The NES phases share one physical clock. Submit the belt after fire in
+ ; this preparation rather than making a second pass before Joe can paint.
 		ld	a,(video_dirty)
 		and	DIRTY_BELT
 		jp	z,dp3
@@ -139,6 +175,10 @@ dp2:		ld	a,(fire_ran)
 		cp	(hl)
 		jp	z,dp3
 		ld	(hl),a
+ IFDEF NES_FULL
+ ld a,(frames)
+ ld (pace_belt_stamp),a
+ ENDIF
 		ld	a,1
 		ld	(tile_changed+0xE0),a
 		ld	(tile_changed+0xE8),a
@@ -375,7 +415,11 @@ room_redraw:
 ; Живые клетки (анимированные тайлы anim_set и лента/цепь E0-EF) — по корзинам тайлов: lv_idx[тайл] = корзина
 ; (0..32) или FF; корзина b — элементы с lv_beg[b] по lv_beg[b + 1] - 1: адрес клетки в VNT — младший байт
 ; в live_list, старший — в live_hi (до LIVE_N клеток; в комнатах — до 189).
+ IFDEF NES_FULL
+LIVE_N equ 80              ; audited maximum 76; snakes use fixed entity offsets
+ ELSE
 LIVE_N		equ	250
+ ENDIF
 FIRE_K		equ	3			; огонь: при смене кадра — каждая FIRE_K-я клетка (по очереди)
 live_hi		equ	0xF100			; (бывшие флаги анимации тайлов — не читались)
  IFDEF NES_FULL
@@ -399,6 +443,12 @@ lbz:		ld	(hl),a
  ENDIF
 		ld	d,lv_idx/256
 lb1:		ld	e,(hl)
+ IFDEF NES_FULL
+ ld a,e
+ and 0xF8
+ cp 0xA0
+ jp z,lb2                  ; fixed snakes animate through their object offsets
+ ENDIF
 		ld	a,(de)
 		cp	0xFF
 		jp	z,lb2
@@ -436,6 +486,12 @@ lb4:		ld	c,a
 		ld	hl,VNT
  ENDIF			; раскладка
 lb5:		ld	e,(hl)
+ IFDEF NES_FULL
+ ld a,e
+ and 0xF8
+ cp 0xA0
+ jp z,lb7
+ ENDIF
 		ld	d,lv_idx/256
 		ld	a,(de)
 		cp	0xFF
@@ -537,6 +593,12 @@ flt1:		ld	c,(hl)			; корзина (из непустых)
 		ld	a,(dc_pt)
 		or	a
 		jp	z,fl_color_pm
+ IFDEF NES_FULL
+ ld a,(rr_t)
+ cp 0xE8
+ ld a,0x08       ; E8 light middle changes only row 2 of C000
+ jp z,fl_pm_ready
+ ENDIF
 		ld	a,c
 		rrca
 		xor	c
@@ -630,7 +692,7 @@ flt9:
  and 0xC0
  or b
  cpl
- add a,(SCREEN_TOP+1)&255
+ add a,(SCREEN_TOP+1-FIELD_YSHIFT)&255
  ld b,a
  ELSE
  ld a,e
@@ -721,8 +783,8 @@ flt_o:		ld	a,1
 ; Частые наборы плоскостей: готовые входы без цикла и проверки маски на каждой клетке.
 fl_select:	push	af
 		ld	a,(fl_pm)
-		and	0x80
-		ld	a,6			; A000/C000 не затрагивают врагов, рисуемых только в 8000
+		and	0x88
+		ld	a,6			; A000 affects Joe; 8000/C000 may also cover enemies
 		jp	z,fl_set_cover
 		ld	a,0x7E
 fl_set_cover:	ld	(fl_cover+1),a
@@ -890,6 +952,24 @@ dal0:		ld	(hl),0
  ENDIF
 		ld	e,0
 		call	memfill_f
+ IFDEF NES_FULL
+; The title uses the whole raster. Clear the new HUD gap on every room redraw,
+; including a fresh level chosen after GAME OVER.
+ ld hl,0x80C0
+ ld b,96
+dal_gap_col:
+ xor a
+ ld c,8
+dal_gap_lo:
+ ld (hl),a
+ inc l
+ dec c
+ jp nz,dal_gap_lo
+ inc h
+ ld l,0xC0
+ dec b
+ jp nz,dal_gap_col
+ ENDIF
 		ld	a,0xFF
 		ld	(da_t),a
 		ld	de,VNT			; DE — клетка карты, HL — экран (столбец 0, верх строки 0)
@@ -897,7 +977,7 @@ dal0:		ld	(hl),0
  ld (rr_r),a
  ld (rr_c),a
  IFDEF NES_FULL
- ld hl,0x80FF
+ ld hl,0x80FF-HUD_YSHIFT
  ELSE
  IFDEF NES_STYLE
  ld hl,0x80E7
@@ -948,6 +1028,14 @@ dal3:		pop	hl
  ld a,(hl)
  cp 3
  pop hl
+ IFDEF NES_FULL
+ cp HUD_ROWS
+ jp nz,dal_full_row
+ ld a,l
+ sub FIELD_YSHIFT-HUD_YSHIFT
+ ld l,a
+dal_full_row:
+ ENDIF
  IFNDEF NES_FULL
  jp nz,dal_style_row
  ld a,l
@@ -1022,20 +1110,32 @@ da_blit:	push	hl
 		ld	hl,(tile_src)
 		ex	de,hl
 		pop	hl
-		REPT	3
+		DUP 3, plane
+ IFDEF NES_STABLE_COLORS
+ IF plane != 1
+ call score_blit_select
+ jp c,score_blit_zero
+ ENDIF
+ ENDIF
 		REPT	8
 		ld	a,(de)
 		ld	(hl),a
 		inc	de
 		dec	l
 		ENDR
+ IF plane == 0
+da_blit_first_advance:
+ ENDIF
+ IF plane == 2
+da_blit_last_advance:
+ ENDIF
 		ld	a,l
 		add	a,8
 		ld	l,a
 		ld	a,h
 		add	a,0x20
 		ld	h,a
-		ENDR
+		EDUP
 		ld	a,h
 		sub	0x60
 		ld	h,a
@@ -1101,6 +1201,16 @@ cg1:		ld	a,(de)
 		rlca
 		rlca
 		rlca
+ IFDEF NES_FULL
+ ld c,a
+ ld a,b
+ and 0xFE
+ cp 0x1C
+ ld a,c
+ jp nz,cg_mask_ready
+ ld a,0xA8             ; rebuild the complete E8 image when its visibility bank switches
+cg_mask_ready:
+ ENDIF
 		ld	(cg_mask+1),a
 		pop	hl
 		pop	de
@@ -1184,6 +1294,9 @@ color_belt_phase:	ld	l,a
 		rlca
 		rlca
 		or	b
+ IFDEF NES_FULL
+ or 8                    ; both white chains and the platform middle use C000
+ ENDIF
 		pop	hl
 		ld	(hl),a
 		ret
@@ -1257,7 +1370,9 @@ dl_go:		ld	a,(de)
 		ld	a,(hl)
 		ld	(rr_t),a
 		ld	a,1
+ IFNDEF NES_FULL
 		ld	(drew_any),a
+ ENDIF
 		call	draw_cell
 dl8:		pop	hl
 		ld	a,(dl_cnt)
@@ -1376,7 +1491,9 @@ dr_go:		ld	a,(de)
 		and	31
 		ld	(rr_c),a
 		ld	a,1
+ IFNDEF NES_FULL
 		ld	(drew_any),a
+ ENDIF
 		push	hl
 		push	de
 		push	bc
@@ -1505,9 +1622,17 @@ group_mode_color:	push	bc
 ; The source frames all share the omitted rows: no per-cell phase is assumed.
 ; Rebuilt for every animation bucket, so colour/cache resets cannot stale code.
 live_code equ ps_boot_source
+; MOV B,L + three planes (MOV L,B, 8*(MVI M,N/DCR L), advance H) + JMP.
+LIVE_CODE_BYTES equ 1+3*(1+8*3+4)+3
 fl_compile:	ld	a,(dc_pt)
 		or	a
 		ret	z
+ IFDEF NES_FULL
+ ; E8 has one changing byte, even when there are fewer than eight cells.
+ ld a,(rr_t)
+ cp 0xE8
+ jp z,nes_platform_select
+ ENDIF
 		ld	a,(fl_n)
 		cp	8
 		ret	c
@@ -1515,8 +1640,7 @@ fl_compile:	ld	a,(dc_pt)
  ld a,(rr_t)
  cp 0xE0
  jp z,fc_nes_vertical
- cp 0xE8
- jp z,fc_nes_horizontal
+fc_nes_mask:
  ld l,a
  ld h,lv_idx/256
  ld a,(hl)
@@ -1529,10 +1653,6 @@ fl_compile:	ld	a,(dc_pt)
  jp fc_rows
 fc_nes_vertical:
  ld a,(full_laser_rowmask)
- ld c,a
- jp fc_rows
-fc_nes_horizontal:
- ld a,(full_laser_rowmask+1)
  ld c,a
  jp fc_rows
  ELSE

@@ -6,6 +6,12 @@ src/native/gen/spat.asm — общие исходные кадры объект�
 import re, os, sys
 ROOT = os.path.join(os.path.dirname(__file__), '..')
 IMG = open(os.path.join(ROOT, 'build/monty_entry.bin'), 'rb').read()
+CART = bytearray(IMG)
+if '--nes-full' in sys.argv:
+    # Inventory retains MSX logical item IDs, but its art must use NES blocks.
+    # These aliases otherwise name MSX-only tiles absent from full_video.py.
+    for inventory, world in [(0x8C,0x49),(0x91,0x4E)]:
+        CART[0x9FD2+inventory:0x9FD2+inventory+4] = IMG[0x9FD2+world:0x9FD2+world+4]
 LO, HI = 0x800C, 0xBFFF
 PTR_TABLES = {0x9477: 100, 0xAD0B: 10}         # указатели в данные (комнаты, эффекты)
 
@@ -59,7 +65,17 @@ while work:
             if w in data and blk_of(w) not in take: work.append(blk_of(w))
 out = ['; создано tools/mknative.py — не править', '; данные картриджа (нужные нативному коду): C_xxxx — адрес xxxx оригинала', '']
 eqs = []
+data_kept = 0
 for (a, b) in sorted(take):
+    if '--nes-full' in sys.argv:
+        # These two MSX blocks contain much more art than the native game
+        # reads. 830D copies 28 colour bytes from 841E; the last 9378 user
+        # reads the ninth seven-byte row starting at 93C0. Keep the original
+        # bytes that logic still uses and leave the rest out of NES_FULL.
+        if a == 0xA9AD: continue  # obsolete MSX bonus rope / boundary strips
+        if a == 0x841E: b = min(b, 0x841E + 28)
+        if a == 0x9378: b = min(b, 0x93C0 + 9 * 7)
+    data_kept += b-a
     out.append(f'blk_{a:04X}:')
     row = []
     def flush():
@@ -72,10 +88,9 @@ for (a, b) in sorted(take):
             if w in data:
                 flush(); eqs.append(f'C_{p + 1:04X}\t\tequ\tblk_{a:04X}+0x{p + 1 - a:04X}')
                 out.append(f'\t\tdw\tC_{w:04X}'); p += 2; continue
-        row.append(f'0x{IMG[p]:02X}'); p += 1
+        row.append(f'0x{CART[p]:02X}'); p += 1
         if len(row) == 16: flush()
     flush()
-data_kept = sum(b - a for a, b in take)
 open(os.path.join(ROOT, 'src/native/gen/cart_full.asm' if '--nes-full' in sys.argv else 'src/native/gen/cart.asm'), 'w').write('\n'.join(out + [''] + eqs) + '\n')
 print('данных картриджа', data_kept, 'из', len(data), 'байт,', len(take), 'блоков')
 

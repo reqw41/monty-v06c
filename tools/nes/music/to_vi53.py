@@ -255,7 +255,7 @@ def main():
     regions = [(0xE840 + 2 * len(notes), 0xEBE0, 'high'),
                (0x0100, 0x01E0, 'boot'), (8, 0x38, 'vectors'),
                (0xFB97, 0xFBD0, 'joe0'), (0xFCC1, 0xFCD0, 'joe1'),
-               (0xFD95, 0xFDD0, 'joe2'), (0xFE30, 0xFED0, 'joe3'),
+               (0xFD95, 0xFDD0, 'joe2'), (0xFEC0, 0xFED0, 'joe3'),
                (0xEFC8, 0xF000, 'effect_tail')]
     placements = {name: [] for start, end, name in regions}
     cursors = {name: start for start, end, name in regions}
@@ -361,8 +361,9 @@ def main():
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps(result, ensure_ascii=False, indent=2) + '\n')
     page_source = []
-    for begin, end in [('PS_MORE', '0x7000'), ('video_raw_end', 'joe_latch_source'), ('sprite_sources_end', 'joe_high_free_end'),
-                       ('ps_heap', 'PS_TOP'), ('ps_boot_source+125', 'ps_boot_source_end'), ('nes_snake_aux_end','sprite_table_free_end'), ('JOE_PICTURE+12*joe_nes_rows','JOE_BACKGROUND'), ('JOE_BACKGROUND+9*joe_nes_rows','0xFB00')]:
+    for begin, end in [('PS_MORE', '0x7000'), ('joe_band_free_source', 'joe_latch_source'), ('sprite_sources_end', 'joe_high_free_end'),
+                       ('ps_heap', 'PS_TOP'), ('ps_boot_source+LIVE_CODE_BYTES', 'ps_boot_source_end'), ('nes_snake_aux_end','sprite_table_free_end'),
+                       ('ENEMY_CACHE_FREE','live_hi+256'), ('live_list+LIVE_N','0xFFFF')]:
         for i in range(5):
             page = f'((({begin})&0xFF00)+{256*i})'
             stop = f'({page}+256)'

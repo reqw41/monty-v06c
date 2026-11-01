@@ -65,6 +65,11 @@ npa_skip:
 	ld (hl),a
 	ld hl,(np_begin)
 	ret
+ IFDEF NES_ENEMY_SEEDS
+ENEMY_CACHE_FREE equ nes_seed_end
+ ELSE
+ENEMY_CACHE_FREE equ live_hi+LIVE_N
+ ENDIF
 nes_ps_pages:
 	INCLUDE "gen/music_pages.asm"
 nes_ps_pages_end:

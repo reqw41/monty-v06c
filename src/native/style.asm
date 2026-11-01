@@ -1,6 +1,12 @@
-; NES presentation over the unchanged MSX map and logical HUD.
-; Index 2 belongs to the room; Joe uses white 1 and dark brown 3.
+; NES presentation and logical HUD. In NES_FULL Joe uses fixed inks 1/2/3;
+; the room accent lives in slot 7.
 style_palette:
+ IFDEF NES_STABLE_COLORS
+ ld a,5
+ ld (full_modes+19),a     ; ordinary jewels: Joe skin, C000+A000
+ ld a,0x3A
+ ld (nes_snake_palette),a ; restore the normal LDA video_enabled entry
+ ENDIF
  ld hl,style_cmap
  ld de,cmap
  ld bc,16
@@ -11,25 +17,43 @@ style_palette:
  call copy_de_hl_swap
  ld a,(0x71A7)
  inc a
+ IFDEF NES_STABLE_COLORS
+ cp 10
+ jp nc,nt_bonus_palette
+ ELSE
  cp 9
  jp c,stp_row
  xor a
+ ENDIF
 stp_row:
  ld hl,style_accents
  call add_hl_a
  ld a,(hl)
+ IFDEF NES_FULL
+ ld (pal+14),a
+ ld (pal+15),a
+ ELSE
  ld (pal+4),a
  ld (pal+5),a
+ ENDIF
  IFDEF NES_FULL
  jp nes_snake_palette
  ELSE
  ret
  ENDIF
+ IFNDEF NES_FULL
 copy_de_hl_swap:
  ex de,hl
  jp copy_de_hl
+ ENDIF
+ IFDEF NES_FULL
+style_cmap: db 0,0,6,6,6,6,2,6,7,7,7,1,6,7,1,1
+ ELSE
 style_cmap: db 0,0,6,6,6,6,3,6,2,2,2,1,6,2,4,4
+ ENDIF
+ IFNDEF NES_FULL
 style_pal: db 0,0,255,255,31,31,3,3,255,255,255,255,160,160,255,255
+ ENDIF
 
 ; A raw tile -> visual tile. Private F0/F1/F4 never enter VNT.
 ; rr_r/rr_c are valid at both full-room and dirty-cell entry points.
@@ -142,6 +166,10 @@ stm_cyan:
 
  ENDIF
 style_image:
+ IFDEF NES_STABLE_COLORS
+ call object_image_select
+ ret c
+ ENDIF
  ld a,(rr_t)
  IFDEF NES_FULL
  cp 0xC8
@@ -167,7 +195,7 @@ style_image:
  ex de,hl
  jp sti_copy
 sti_no_vase:
- cp 0x6E
+ cp 0xDE
  ld de,style_hat_right
  jp z,sti_copy
  ENDIF
@@ -199,6 +227,7 @@ sti_copy:
  call copy_de_hl
  scf
  ret
+
 
 ; The extra HUD row occupies the unused border at physical Y=16..23.
 ; Only four vertical sides are needed: room/logic never writes this row.
@@ -257,8 +286,19 @@ fsm_dark:
  ret
 fsm_lit:
  ld a,b
+ jp nes_color_modes
+fsm_default:
  cp 0xE0
  jp c,fsm_regular
+ jp z,fsm_chain_white
+ cp 0xE8
+ jp nz,fsm_other_belt
+ ld a,c
+ or a
+ ret z
+ ld c,0x14              ; MSX E8 uses the cyan chain ink, index 6
+ ret
+fsm_other_belt:
  cp 0xF0
  ret c
 fsm_regular:
@@ -266,11 +306,23 @@ fsm_regular:
  jp c,fsm_not_snake
  cp 0xA8
  jp nc,fsm_not_snake
- ld c,0x11		; snake ink = private palette index 5
+ ld c,0x10		; snake ink = shared one-plane green, index 4
  ret
 fsm_not_snake:
+ IFDEF NES_LADDER_LOW
+LADDER_IN_JOE_PLANES equ 1
+ ; White ladder and its cap live entirely in Joe's C000 plane.
+ cp 0x10
+ jp z,fsm_white
+ cp 0x11
+ jp z,fsm_white
+ cp 0x88
+ jp z,fsm_white
+ cp 0x89
+ jp z,fsm_white
+ ENDIF
  cp 0x38
- ld c,8
+ ld c,8                  ; solid red body, palette index 2
  ret z
  cp 0xD6
  jp z,fsm_cyan
@@ -294,10 +346,22 @@ fsm_not_snake:
  ld c,(hl)
  pop hl
  ret
+; Two tiny ink handlers occupy the six bytes after the persistent snake code.
+; This leaves the three-colour build below PS_TOP without changing runtime RAM.
+style_low_after_inks equ $
+ ORG 0x6FF8
+ ASSERT nes_snake_end <= $
 fsm_cyan: ld c,0x14
  ret
 fsm_accent: ld c,4
  ret
+nes_style_tail_end equ $
+ ASSERT nes_style_tail_end <= 0x7000
+ ORG style_low_after_inks
+fsm_chain_white:
+ ld a,c
+ or a
+ ret z
 fsm_white: ld c,1
  ret
  INCLUDE "gen/style_full.asm"

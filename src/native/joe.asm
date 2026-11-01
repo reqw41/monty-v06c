@@ -1,12 +1,13 @@
  ASSERT JOE_PICTURE+12*joe_nes_rows <= JOE_BACKGROUND
- ASSERT JOE_BACKGROUND+9*joe_nes_rows <= 0xFB00
+ ASSERT JOE_BACKGROUND+3*JOE_BACKGROUND_STRIDE*joe_nes_rows <= 0xFB00
  IFDEF NES_JOE_3COLOR
 NES_JOE_COLORS equ 3
  ELSE
 NES_JOE_COLORS equ 2
  ENDIF
 ; NES Joe, a foot-anchored cell of joe_nes_rows rows; leading empty rows are omitted.
-; One cached M/C/pad/A image in F900..FA13 and C/A/80 background in FA20..FAEE.
+; One cached M/C/pad/A image in F900..FA13; SP restore packs C/A background
+; into FA20..FAA9, other builds retain the C/A/80 background layout.
 ; POP AF ignores the padding byte; C keeps the mask from POP BC.
 ; Slot 1 keeps only the original MSX attributes; its unused rectangles hold private scratch.
 ; Fields +13/+15 of slot 1 remain planner marks; 66FC..FF is outside band_pairs.
@@ -35,6 +36,9 @@ joe_clock:
  ld a,(hl)
  and 3
  ld (hl),a
+ IFDEF NES_FULL
+ call joe_footstep
+ ENDIF
  jp jc_end
  IFDEF NES_FULL
 jc_ladder:
@@ -83,7 +87,11 @@ joe_select:
  ; State 3 climbs the two-column ladder (88/89, top 10/11),
  ; in both directions. Select by state, independently of MSX layer order.
  cp 3
+ IFDEF NES_FULL
+ jp z,js_nes_ladder
+ ELSE
  jp z,js_lad_phase
+ ENDIF
  cp 4
  jp z,js_ladder
  cp 8
@@ -230,6 +238,15 @@ js_blank:
 js_b:
  ld a,b
  ret
+ IFDEF NES_FULL
+; Physics keeps its MSX anchor at ladder X-1. Shift only the NES pixels.
+NES_LADDER_CENTERED equ 0
+jn_visual_x:
+ ld a,(spr_new+2)
+ ret
+jn_visual_x_end:
+
+ ENDIF
 joe_plan:
  ld a,(jn_hold)
  or a
@@ -350,7 +367,11 @@ jn_rows:
  and 31
  ld (hl),a
  inc l
+ IFDEF NES_FULL
+ call jn_visual_x
+ ELSE
  ld a,(spr_new+2)
+ ENDIF
  rrca
  rrca
  rrca
@@ -358,7 +379,11 @@ jn_rows:
  ld (hl),a
  inc l
  ld d,a
+ IFDEF NES_FULL
+ call jn_visual_x
+ ELSE
  ld a,(spr_new+2)
+ ENDIF
  and 7
  ld a,1
  jp z,jn_width
@@ -371,7 +396,11 @@ jn_width:
 jn_right:
  ld (hl),a
  ld hl,spr_new+9
+ IFDEF NES_FULL
+ ld a,SCREEN_TOP-FIELD_YSHIFT
+ ELSE
  ld a,SCREEN_TOP
+ ENDIF
  sub c
  ld (hl),a
  inc l
@@ -416,7 +445,11 @@ joe_prepare:
  call mk_cmp
  ld a,(jn_dir)
  call mk_cmp
+ IFDEF NES_FULL
+ call jn_visual_x
+ ELSE
  ld a,(spr_new+2)
+ ENDIF
  and 7
  call mk_cmp
  ld a,(jn_skip)
@@ -426,9 +459,21 @@ joe_prepare:
  ld a,c
  or a
  ret z
+ IFDEF NES_FULL
+ call jn_visual_x
+ ELSE
  ld a,(spr_new+2)
+ ENDIF
  and 7
- call rotate_select
+ ; JP skips column 3 for aligned X. LXI B consumes the same two-byte
+ ; operand for shifted X; B/C are dead after the middle column.
+ ld hl,jn_third_column
+ ld (hl),0xC3
+ or a
+ jp z,jn_third_ready
+ ld (hl),0x01
+jn_third_ready:
+ ; Joe uses nibble lookup tables, not the legacy rotate_byte procedure.
  ld b,a
  add a,a
  add a,a
@@ -448,6 +493,9 @@ jn_mask_loop:
 jn_mask_test:
  dec b
  jp nz,jn_mask_loop
+ IFDEF NES_JOE_3COLOR
+ ld (jn_m0_mask+1),a
+ ENDIF
  ld (jn_a0_mask+1),a
  ld (jn_c0_mask+1),a
  ld (jn_a1_mask+1),a
@@ -463,38 +511,43 @@ jn_mask_test:
  inc hl
  ld d,(hl)
  ld a,(jn_skip)
- call add_de_a
- ex de,hl
- ld (jn_source),hl
- ex de,hl
- ld a,(jn_rows_count)
- add a,a
- add a,a
- ld (jn_stride),a
- ld a,(jn_rows_count)
- ld (jn_left),a
- ld hl,JOE_PICTURE
- ld (jn_dest),hl
-jn_prep_row:
- ld hl,(jn_source)
- ld e,(hl)
- inc hl
- ld (jn_source),hl
- ld a,(jn_dir)
- or a
- ld a,e
- jp z,jn_row_index
- ld hl,joe_row_mirror
- call add_hl_a
- ld a,(hl)
-jn_row_index:
  ld l,a
  ld h,0
- add hl,hl
- ld de,joe_row_dictionary
  add hl,de
- ld d,(hl)
+ ld (jn_prep_source+1),hl
+ ld a,(jn_rows_count)
+ add a,a
+ add a,a
+ IFDEF NES_JOE_3COLOR
+ sub 3
+ ld (jn_stride1+1),a
+ ld (jn_stride2+1),a
+ add a,3
+ ELSE
+ ld (jn_stride),a
+ ENDIF
+ add a,JOE_PICTURE&255
+ ld (jn_prep_end+1),a
+ ld a,JOE_PICTURE&255
+ ld (jn_dest_read+1),a
+ ld a,(jn_dir)
+ rlca
+ and joe_row_mirror_xor
+jn_mirror_ready:
+ ld (jn_mirror_branch+1),a
+jn_prep_row:
+jn_prep_source:
+ ld hl,0
+ ld a,(hl)
  inc hl
+ ld (jn_prep_source+1),hl
+jn_mirror_branch:
+ xor 0
+jn_row_index:
+ ld l,a
+ ld h,joe_row_lo/256
+ ld d,(hl)
+ inc h
  ld e,(hl)
  ld h,joe_nibble_rotations/256
  ld a,d
@@ -529,7 +582,31 @@ jn_lookup3:
  or 0
  ld l,a
  ld e,(hl)
- ld hl,(jn_dest)
+jn_dest_read:
+ ld hl,JOE_PICTURE
+ IFDEF NES_JOE_3COLOR
+ ; Form the left mask in registers and write M/C/pad/A forwards.
+ ; B/C retain their unmasked source bytes for the middle column.
+ ld a,b
+ or c
+jn_m0_mask:
+ and 255
+ cpl
+ ld (hl),a
+ inc l
+ ld a,c
+jn_c0_mask:
+ and 255
+ ld (hl),a
+ inc l
+ inc l
+ ld a,b
+jn_a0_mask:
+ and 255
+ ld (hl),a
+jn_stride1:
+ ld a,0
+ ELSE
  ld a,b
 jn_a0_mask:
  and 255
@@ -554,11 +631,37 @@ jn_c0_mask:
  dec l
  ld (hl),a
  ld a,(jn_stride)
+ ENDIF
  add a,l
  ld l,a
  jp nc,jn_column1
  inc h
 jn_column1:
+ IFDEF NES_JOE_3COLOR
+ ; The left source bytes are no longer needed. Keep the middle inks in
+ ; B/C, form the union mask in registers, then write M/C/pad/A forwards.
+ ld a,b
+ xor d
+jn_a1_mask:
+ and 255
+ xor b
+ ld b,a
+ ld a,c
+ xor e
+jn_c1_mask:
+ and 255
+ xor c
+ ld c,a
+ ld a,b
+ or c
+ cpl
+ ld (hl),a
+ inc l
+ ld (hl),c
+ inc l
+ inc l
+ ld (hl),b
+ ELSE
  ld a,b
  xor d
 jn_a1_mask:
@@ -586,15 +689,38 @@ jn_c1_mask:
  cpl
  dec l
  ld (hl),a
- ld a,(spr_new+2)
- and 7
- jp z,jn_row_done
+ ENDIF
+jn_third_column:
+ jp jn_row_done
+ IFDEF NES_JOE_3COLOR
+jn_stride2:
+ ld a,0
+ ELSE
  ld a,(jn_stride)
+ ENDIF
  add a,l
  ld l,a
  jp nc,jn_column2
  inc h
 jn_column2:
+ IFDEF NES_JOE_3COLOR
+ ld a,d
+jn_a2_mask:
+ and 0
+ ld d,a
+ ld a,e
+jn_c2_mask:
+ and 0
+ ld e,a
+ or d
+ cpl
+ ld (hl),a
+ inc l
+ ld (hl),e
+ inc l
+ inc l
+ ld (hl),d
+ ELSE
  ld a,d
 jn_a2_mask:
  and 0
@@ -618,22 +744,16 @@ jn_c2_mask:
  cpl
  dec l
  ld (hl),a
+ ENDIF
 jn_row_done:
- ld hl,(jn_dest)
- inc l
- inc l
- inc l
- inc l
- ld (jn_dest),hl
- ld hl,jn_left
- dec (hl)
+ ; The first column occupies at most 23*4 bytes, within one page.
+ ASSERT (JOE_PICTURE&255)+4*joe_nes_rows <= 256
+ ld a,(jn_dest_read+1)
+ add a,4
+ ld (jn_dest_read+1),a
+jn_prep_end:
+ cp 0
  jp nz,jn_prep_row
- ret
-add_de_a:
- add a,e
- ld e,a
- ret nc
- inc d
  ret
 joe_put:
  ld a,(jn_hold)
@@ -656,13 +776,23 @@ jn_put_geometry:
  ld (jn_shown_dir),a
  ld a,(jn_skip)
  ld (jn_shown_skip),a
+ IFDEF NES_JOE_BLEND80
+NES_JOE_BLEND_MODE equ 1
+ ; Experimental: preserve the background's third colour bit through Joe.
+jn_blend_select:
+ ld a,1
+ ld (jn_no80),a
+ ELSE
  call jn_test80
+ ENDIF
 jn_put_tested:
+ IFNDEF NES_JOE_BLEND80
  ld hl,jn_put_full
  ld de,jn_put_full_second-jn_put_full
  ld a,(jn_no80)
  or a
  jp z,jn_put_select
+ ENDIF
  ld hl,jn_put_two
  ld de,jn_put_two_second-jn_put_two
 jn_put_select:
@@ -678,6 +808,7 @@ jn_put_initial:
  add hl,sp
  ld (jn_stack),hl
  ld sp,JOE_PICTURE
+jn_put_background:
  ld de,JOE_BACKGROUND
  ld hl,spr_rec+7
  ld a,(spr_rec+8)
@@ -690,6 +821,7 @@ jn_put_initial:
 jn_put_col:
  ; The three screen pages are constant through this column. Patch the
  ; selected loop once rather than doing H arithmetic for every plane/row.
+ IFNDEF NES_JOE_BLEND80
  ld a,(jn_no80)
  or a
  ld a,h
@@ -703,6 +835,9 @@ jn_put_col:
  ld (jn_full_800+1),a
  ld (jn_full_801+1),a
  jp jn_pages_ready
+ ELSE
+ ld a,h
+ ENDIF
 jn_pages_two:
  ld (jn_two_c0+1),a
  ld (jn_two_c1+1),a
@@ -713,12 +848,17 @@ jn_pages_ready:
  ld a,(spr_rec+9)
  ld l,a
  ld a,(spr_rec+11)
- inc a
- rrca
- and 0x7F
- ld (jn_left),a
+ ld c,a
+ ld a,l
+ sub c
+ ld (jn_put_end+1),a
 jn_put_row:
+ IFDEF NES_JOE_BLEND80
+ jp jn_put_two
+ ELSE
  jp jn_put_full
+ ENDIF
+ IFNDEF NES_JOE_BLEND80
 jn_put_full:
  ; Every byte commits C, A, 8000 together; cache words are M/C and pad/A.
  pop bc
@@ -750,9 +890,23 @@ jn_full_800:
 jn_full_c0:
  ld h,0xC0
  dec l
+ IFDEF NES_JOE_BLEND80
+ ; Keep a compact optional three-plane path. Gameplay and title animation
+ ; both use the unchanged two-row, two-plane loop below.
+ jp jn_put_count
+jn_put_full_second equ jn_put_full
+jn_full_a1 equ jn_full_a0
+jn_full_801 equ jn_full_800
+jn_full_c1 equ jn_full_c0
+ ELSE
 jn_put_full_second:
  ; Every byte commits C, A, 8000 together; cache words are M/C and pad/A.
  pop bc
+ IFDEF NES_JOE_BLEND80
+ ld a,b
+ ld (jn_title_xor1+1),a
+ ld (jn_title_and1+1),a
+ ENDIF
  ld a,(hl)
  ld (de),a
  IFDEF NES_JOE_3COLOR
@@ -764,6 +918,10 @@ jn_put_full_second:
 jn_full_a1:
  ld h,0xA0
  pop af
+ IFDEF NES_JOE_BLEND80
+jn_title_xor1:
+ xor 0
+ ENDIF
  ld b,a
  ld a,(hl)
  ld (de),a
@@ -773,15 +931,26 @@ jn_full_a1:
  inc e
 jn_full_801:
  ld h,0x80
+ IFDEF NES_JOE_BLEND80
+ ld a,b
+jn_title_and1:
+ and 0
+ ld b,a
+ ENDIF
  ld a,(hl)
  ld (de),a
  and c
+ IFDEF NES_JOE_BLEND80
+ or b
+ ENDIF
  ld (hl),a
  inc e
 jn_full_c1:
  ld h,0xC0
  dec l
  jp jn_put_count
+ ENDIF
+ ENDIF
 jn_put_two:
  pop bc
  ld a,(hl)
@@ -802,7 +971,9 @@ jn_two_a0:
  or b
  ld (hl),a
  inc e
+ IF JOE_BACKGROUND_STRIDE == 3
  inc e ; unused 8000 background byte
+ ENDIF
 jn_two_c0:
  ld h,0xC0
  dec l
@@ -826,16 +997,22 @@ jn_two_a1:
  or b
  ld (hl),a
  inc e
+ IF JOE_BACKGROUND_STRIDE == 3
  inc e ; unused 8000 background byte
+ ENDIF
 jn_two_c1:
  ld h,0xC0
  dec l
 jn_put_count:
- ld a,(jn_left)
- dec a
- ld (jn_left),a
+ ld a,l
+jn_put_end:
+ cp 0
 jn_put_repeat:
+ IFDEF NES_JOE_BLEND80
+ jp nz,jn_put_two
+ ELSE
  jp nz,jn_put_full
+ ENDIF
  inc h
  ld a,(jn_columns)
  dec a
@@ -846,6 +1023,12 @@ jn_put_repeat:
  ret
 
 joe_restore:
+ IFDEF NES_JOE_SP_RESTORE
+ IFNDEF NES_JOE_BLEND80
+ ASSERT 0 ; This experimental restore requires the two-plane-only put.
+ ENDIF
+ INCLUDE "joe_restore_sp.asm"
+ ELSE
  push bc
  ld hl,spr_rec+9
  call en_load
@@ -936,8 +1119,10 @@ jn_restore_next:
  jp nz,jn_restore_col
  pop bc
  ret
+ ENDIF
 ; Skipping an unchanged plane is safe even when other sprites overlap: Joe
 ; made no writes there, so his matching restore must also make no writes.
+ IFNDEF NES_JOE_BLEND80
 jn_test80:
  xor a
  ld (jn_no80),a
@@ -972,6 +1157,7 @@ jn_scan80_row:
  inc a
  ld (jn_no80),a
  ret
+ ENDIF
 jn_no80 equ spr_rec+30
 jn_stack equ spr_new+23
 jn_tick: db 0
@@ -1021,8 +1207,18 @@ joe_motion_pending:
  cp (hl)
  ret nz
 jn_motion_valid:
+ IFDEF NES_FULL
+ ; A brief walking reversal can return to the last painted X. Do not count
+ ; that cancelled displacement as a fresh paint and restart the visual gate.
+ ld a,(0x7079)
+ cp 1
+ ret z
+ ENDIF
  ld a,(jn_epoch)
  ld (jn_last_epoch),a
+ IFDEF NES_FULL
+ cp a                       ; position comparison succeeded in every state
+ ENDIF
  ret
 jn_hold equ spr_rec+28
 

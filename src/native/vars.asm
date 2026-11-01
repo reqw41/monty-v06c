@@ -20,7 +20,9 @@ snake_tick:	ds	1
  ENDIF
 kbmat:		ds	8
 row_dirty:	ds	SCREEN_ROWS
+ IFNDEF NES_FULL
 drew_any:	ds	1
+ ENDIF
 shown_colors:	ds	32
  IFNDEF NES_STYLE
 used:		ds	16
@@ -75,7 +77,9 @@ sn_chg:		ds	1
 sn_per:		ds	8
 sn_att:		ds	4
  ENDIF
+ IFNDEF NES_FULL
 obj_end:	ds	1
+ ENDIF
 tile_phase:	ds	1
 tile_i:		ds	1
 tile_frames:	ds	1
@@ -84,7 +88,9 @@ fl_source:	ds	2
 tile_src:	ds	2
 tile_dst:	ds	2
 group_modes:	ds	32
+ IFNDEF NES_FULL
 enemy_turn:	ds	1
+ ENDIF
 sprite_dirty:	ds	1
 fire_ran:	ds	1
 en_reuse:	ds	1
@@ -95,6 +101,16 @@ band_candidate:	ds	1
 band_pair_n:	ds	1
 band_valid:	ds	1
 band_ok:	ds	1
+ IFDEF NES_FULL
+; Fill the alignment tail with independent scalar state.
+cheat_mode: ds 1
+cheat_l_down: ds 1
+nf_dist_hi: ds 1
+; Physical-frame timestamps occupy the existing alignment tail.
+pace_enemy_stamp: ds 4      ; completed paints of physical actors 2..5
+pace_fire_stamp: ds 1
+pace_belt_stamp: ds 1
+ ENDIF
 		ALIGN	8
 band_order:	ds	SPR_MAX
  IFDEF NES_FULL
@@ -111,7 +127,6 @@ nf_left: ds 2
 nf_bitbyte: ds 1
 nf_bitcount: ds 1
 nf_distance: ds 2
-nf_dist_hi: ds 1
  ENDIF
 pvars_end:
 tabs_end:

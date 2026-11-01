@@ -41,11 +41,7 @@ tile_belt_frames:	ld	a,(rr_t)
 		ret	z
 		ld	a,(rr_t)
 		cp	0xE8
-		IFDEF NES_FULL
-		ld a,4
-		ELSE
 		ld	a,2
-		ENDIF
 		ret	z
 		ld	a,1
 		ret
@@ -99,11 +95,7 @@ tile_select:	ld	b,a
 		ENDIF
 		jp	tsel_add
 tsel_chain:	ld	a,(belt_shown)
-		IFDEF NES_FULL
-		and 3
-		ELSE
 		and	1
-		ENDIF
 		jp	tsel_add
 tsel_belt:	ld	a,(belt_shown)
 tsel_add:	ld	c,a
@@ -159,6 +151,15 @@ tbuild0:	ld	a,(tile_i)
  ENDIF
 		call	dc_tile
 		call	da_img
+ IFDEF NES_FULL
+ IFDEF NES_STABLE_COLORS
+ call nes_terrain_image
+ ELSE
+ ld a,(rr_t)
+ cp 0xE8
+ call z,nes_platform_image
+ ENDIF
+ ENDIF
 tbuild_styled:
 		ld	hl,tile_i
 		inc	(hl)
@@ -340,6 +341,18 @@ dc_scr:		ld	a,(rr_r)
 		add	a,a
 		cpl
 		add a,(SCREEN_TOP+1)&255
+ IFDEF NES_FULL
+ ld b,a
+ ld a,(rr_r)
+ cp HUD_ROWS
+ ld a,b
+ jp c,dcs_hud
+ sub FIELD_YSHIFT
+ jp dcs_shifted
+dcs_hud:
+ sub HUD_YSHIFT
+dcs_shifted:
+ ENDIF
  IFDEF NES_STYLE
  IFNDEF NES_FULL
  ld b,a

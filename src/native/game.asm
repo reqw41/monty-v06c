@@ -86,7 +86,7 @@ en_b		equ	0x7FA7
 
 		ORG	0x0000
 		di
-		ld	sp,0x0038		; boot stack 0008..0037; 0040..00FF holds logic classes
+		ld	sp,0x0038		; boot stack; reused by music after boot
 		jp	boot
 		ORG	0x0038
 		jp	isr
@@ -99,6 +99,12 @@ boot:
 		out	(0x02),a
 		ld	a,0xFF
 		out	(0x03),a
+ IFDEF NES_FULL
+ ld a,0x83                 ; P joystick: PPI2 B input, select both devices
+ out (4),a
+ ld a,0x9F
+ out (5),a
+ ENDIF
 		ld	hl,pvars		; переменные платформы и таблицы
 		ld	bc,tabs_end-pvars
 		ld	e,0
@@ -151,13 +157,28 @@ bclr:
 		INCLUDE "gen/music_reloc_early.asm"
 		ENDIF
 		call joe_load
+ IFDEF NES_FULL
+ ld de,raw_base_source
+ ld hl,raw_base
+ ld bc,256
+ call copy_de_hl
+ ENDIF
+ IFNDEF NES_FULL
 		call	ps_build		; готовые сдвиги кадров врагов
+ ENDIF
 		IFDEF STRICT
 		call lv_init
 		ENDIF
 		ld	a,1
 		ld	(kb_req),a
 		call	game_init
+ IFDEF NES_FULL
+ ; Fire may already be held when the first keyboard IRQ runs.
+ ld de,nt_motion_source
+ ld hl,nt_jump_curve
+ ld bc,nt_motion_source_end-nt_motion_source
+ call copy_de_hl
+ ENDIF
 		ld	sp,GSTACK
 		ei
 		jp	game_start		; меню и начало уровня (level.asm)
@@ -187,6 +208,10 @@ isr:
 		ld	sp,ISR_STACK
 		push	bc
 		push	de
+		IFDEF NES_FULL
+		xor a
+		out (0x00),a             ; end the footstep pulse at the next frame
+		ENDIF
 		ld	a,(kb_req)		; сначала то, что только в начале кадра: клавиатура (порт 03 — он же прокрутка),
 		or	a			; палитра; потом спрайты (короткая часть), пока луч наверху
 		jp	z,isr1
@@ -208,6 +233,11 @@ isr1:		call	pal_load_isr
 isr0:		ld	hl,(frames)
 		inc	hl
 		ld	(frames),hl
+ IFDEF NES_FULL
+ ld a,l
+ and 3
+ call z,nt_bonus_tick
+ ENDIF
 		IFNDEF	STRICT
 		call nes_tick
 isr2:
@@ -250,12 +280,16 @@ frame_wait:
 fw2:
  IFNDEF STRICT
  call nes_legacy_step
- call nes_poll
  ENDIF
 fw_event:
 		ld	a,(nmi_pend)
 		or	a
 		jp	z,fw2
+ IFNDEF STRICT
+ ; Refill after a frame event, when IRQ has consumed a slot. The initial
+ ; fill and rendering safe points still cover long work outside this wait.
+ call nes_poll
+ ENDIF
 		ld	hl,nmi_pend
 		dec	(hl)		; one instruction: IRQ increment cannot interleave
 		xor a
@@ -312,12 +346,21 @@ ks0:		ld	a,b
 		out	(0x00),a
 		ld	a,0xFF
 		out	(0x03),a
+ IFDEF NES_FULL
+ jp joy_merge
+ ELSE
 		ret
+ ENDIF
 
 		INCLUDE	"map.asm"
 L_9156:		INCLUDE	"tiles.asm"
 L_AEA7:		INCLUDE	"block.asm"
-unit_trap:	jp	unit_trap		; возврат для tools/unit.js
+ IFDEF NES_FULL
+unit_trap equ 0x0030         ; tests stop before fetching this unused RST vector
+ ELSE
+unit_trap: jp unit_trap
+ ENDIF
+ IFNDEF NES_FULL
 unit_fw:	push	af			; tools/unit.js: ожидание кадра = обработчик кадра (регистры сохраняются)
 		push	bc
 		push	de
@@ -328,6 +371,7 @@ unit_fw:	push	af			; tools/unit.js: ожидание кадра = обработ
 		pop	bc
 		pop	af
 		ret
+ ENDIF
 		INCLUDE	"level.asm"
  IFDEF NES_FULL
  INCLUDE "drawroom_nes.asm"
@@ -347,6 +391,9 @@ unit_fw:	push	af			; tools/unit.js: ожидание кадра = обработ
 		INCLUDE	"main.asm"
 		INCLUDE	"display.asm"
 		INCLUDE	"sprites.asm"
+ IFDEF NES_FULL
+ INCLUDE "nes_pacing.asm"
+ ENDIF
 		INCLUDE "joe.asm"
 		INCLUDE	"render.asm"
 		INCLUDE	"cell.asm"
@@ -356,6 +403,8 @@ unit_fw:	push	af			; tools/unit.js: ожидание кадра = обработ
  ENDIF
  IFDEF NES_FULL
  INCLUDE "gen/cart_full.asm"
+ INCLUDE "nes_physics_data.asm"
+ INCLUDE "nes_title_restore.asm"
  INCLUDE "gen/rooms_full.asm"
  ELSE
  INCLUDE "gen/cart.asm"
@@ -373,7 +422,7 @@ lv_idx		equ	0xF400			; тайл -> корзина (FF — не живой); бы
  ENDIF
 		INCLUDE	"vars.asm"
 ps_idx		equ	0x7F00			; 64 байта; выше остаются 64 байта стека IRQ
-ps_tab:		ds	2*8*PS_N
+ps_tab:		ds	2*PS_SHIFTS*PS_N
 ps_rr:		ds	PS_N
 ps_rp equ 0xFF00
 ps_p equ 0xFF02
@@ -392,7 +441,7 @@ ps_heap:					; дальше до PS_TOP — место готовых сдвиг
 		ASSERT	ps_heap <= PS_TOP
 ; выровненные таблицы — на постоянных адресах под 7000 (рост кода не сдвигает их на страницу)
  IFDEF NES_FULL
-joe_high_free_end equ VNT-0x44
+joe_high_free_end equ VNT-0x65 ; permanent treasure motion and chain catch helpers
 sprite_table_free_end equ 0x6780
  ELSE
 joe_high_free_end equ 0x7B00
@@ -416,7 +465,7 @@ dlist:		ds	256			; список изменённых клеток (адреса 
 PS_MORE equ video_raw_end
  ELSE
  IFDEF NES_FULL
-PS_MORE equ nes_snake_end
+PS_MORE equ nes_style_tail_end
  ELSE
 PS_MORE equ joe_latch_end
  ENDIF
@@ -427,8 +476,14 @@ PS_MORE equ joe_latch_end
 
 		INCLUDE "gen/joe_nes.asm"
 		INCLUDE "gen/joe_mirror.asm"
+ IFDEF NES_FULL
+ INCLUDE "nes_terrain.asm"
+ ENDIF
 sprite_sources_end:
 		INCLUDE "joe_attrs.asm"
+ IFDEF NES_FULL
+ ASSERT joe_attr_end <= joe_high_free_end
+ ENDIF
 		ASSERT $ <= 0x7B00
  INCLUDE "gen/joe_nibble.asm"
 		INCLUDE "joe_bands.asm"
@@ -445,9 +500,15 @@ sprite_sources_end:
 		SAVEBIN	"../../build/native_strict/monty.bin", 0, VSPR+0x0800
 		ELSE
 		INCLUDE "gen/music.asm"
+		IFDEF NES_FULL
+		INCLUDE "nes_platform.asm"
+		ENDIF
 		INCLUDE "nes_sound.asm"
 		INCLUDE "nes_boot.asm"
 		INCLUDE "nes_alloc.asm"
+ IFDEF NES_ENEMY_SEEDS
+ INCLUDE "nes_enemy_seeds.asm"
+ ENDIF
 		INCLUDE "nes_idle.asm"
 		IFDEF NES_FULL
 		INCLUDE "nes_chain_descent.asm"
@@ -455,6 +516,20 @@ sprite_sources_end:
 		ASSERT copy_de_hl >= 0x01E0
  IFDEF NES_STYLE
  INCLUDE "gen/title.asm"
+ IFDEF NES_FULL
+ INCLUDE "gen/font_nes_extra.asm"
+ INCLUDE "nes_footstep.asm"
+ INCLUDE "nes_colors.asm"
+ IFDEF NES_STABLE_COLORS
+ INCLUDE "nes_object_colors.asm"
+ INCLUDE "nes_score.asm"
+ INCLUDE "nes_landing_save.asm"
  ENDIF
+ ENDIF
+ ENDIF
+		IFDEF NES_FULL
+		SAVEBIN "../../build/native/monty.bin", 0, 0xFEC0
+		ELSE
 		SAVEBIN "../../build/native/monty.bin", 0, 0xF950
+		ENDIF
 		ENDIF

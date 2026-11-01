@@ -20,7 +20,7 @@ python3 tools/nes/title_native.py
 python3 tools/nes/music/to_vi53.py --report build/nes_full/vi53/conversion.json
 (
   cd src/native
-  ../../tools/sjasmplus --nologo --i8080 -DNES_STYLE -DNES_FULL --sym=../../build/native/monty.sym game.asm
+  ../../tools/sjasmplus --nologo --i8080 -DNES_JOE_3COLOR --sym=../../build/native/monty.sym game.asm
   ../../tools/sjasmplus --nologo --i8080 -DSTRICT --sym=../../build/native_strict/monty.sym game.asm
 )
 B=${B:-build/nes-native}
@@ -34,41 +34,23 @@ B="$B" node tools/bench/nes-amulet-snake.js
 B="$B" node tools/bench/nes-snake-video.js
 B="$B" node tools/bench/nes-chain-exit.js
 B="$B" node tools/bench/nes-chain-descent.js
+B="$B" node tools/bench/nes-chain-approach.js
+B="$B" node tools/bench/nes-chain-live.js
 B="$B" node tools/bench/nes-ladder-gameplay.js
+B="$B" node tools/bench/nes-room-entry.js
+B="$B" node tools/bench/nes-room-exit.js
 B="$B" node tools/bench/nes-laser-video.js
 B="$B" node tools/bench/nes-death-paths.js
 B="$B" node tools/bench/nes-death-video.js
 B="$B" node tools/bench/nes-vase.js
 B="$B" node tools/bench/nes-hud.js
+B="$B" node tools/bench/nes-palette-fixed.js
+B="$B" node tools/bench/nes-tile-palette.js
 B="$B" node tools/bench/nes-title-font.js
 B="$B" node tools/bench/nes-restart.js
 B="$B" node tools/nes/music/test_vi53.js build/nes_full/vi53
+B="$B" node tools/bench/joe-selector.js
+B="$B" node tools/bench/joe-poses.js
 cp "$B/monty.bin" rom/Monty-v06c-native.r0m
 cp "$B/monty.bin" rom/Monty-v06c-native.c00
-
-cp "$B/monty.bin" rom/Monty-v06c-native-nes2.r0m
-if test "${BUILD_NES3:-0}" = 1; then
-  (
-    cd src/native
-    ../../tools/sjasmplus --nologo --i8080 -DNES_JOE_3COLOR --sym=../../build/native/monty.sym game.asm
-  )
-  B3="$B-3color"
-  mkdir -p "$B3"
-  cp build/native/monty.bin build/native/monty.sym "$B3/"
-  B="$B3" node tools/bench/nes-hud.js
-  B="$B3" node tools/bench/nes-title-font.js
-  B="$B3" node tools/bench/nes-key-persistence.js
-  B="$B3" node tools/bench/nes-amulet-snake.js
-  B="$B3" node tools/bench/nes-snake-video.js
-  B="$B3" node tools/bench/nes-chain-exit.js
-  B="$B3" node tools/bench/nes-chain-descent.js
-  B="$B3" node tools/bench/nes-ladder-gameplay.js
-  B="$B3" node tools/bench/nes-laser-video.js
-  B="$B3" node tools/bench/nes-death-paths.js
-  B="$B3" node tools/bench/nes-death-video.js
-  B="$B3" node tools/bench/nes-vase.js
-  B="$B3" node tools/bench/joe-selector.js
-  B="$B3" node tools/bench/joe-poses.js
-  cp "$B3/monty.bin" rom/Monty-v06c-native-nes3.r0m
-  cp "$B/monty.bin" "$B/monty.sym" build/native/
-fi
+cp "$B/monty.bin" rom/Monty-v06c-native-nes3.r0m

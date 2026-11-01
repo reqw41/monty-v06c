@@ -18,7 +18,7 @@ call('L_8F5F');assert.equal(m.rd(0x7049),6,'amulet protects from snake');assert.
 m.wr(0x71a8,10);call('L_A067');
 const enemyColor=m.rd(0x730b);assert(enemyColor,'moving enemy present');
 m.wr(0x7300,m.rd(0x7308));m.wr(0x7301,m.rd(0x7309));
-call('L_91E5');assert.equal(m.rd(0x7049),6,'amulet protects from moving enemy');assert.equal(m.rd(0x730b),enemyColor);
+for(const name of [m.rd(0x730a),0x2c]){m.wr(0x730a,name);call('L_91E5');assert.equal(m.rd(0x7049),6,'amulet protects from moving skull/spider');assert.equal(m.rd(0x730b),enemyColor);}
 call('nes_amulet_step');
 assert.equal(ticks(),426);
 // The ordinary game process advances the timer, then the item disappears.

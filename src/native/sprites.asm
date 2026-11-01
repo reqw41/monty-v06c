@@ -36,6 +36,7 @@ obj_ptr:	push	hl
 spr_plan:
  xor a
  ld (jn_hold),a
+ IFNDEF NES_FULL
  ld a,(nmi_pend)
  or a
  ld a,3
@@ -44,12 +45,15 @@ spr_plan:
 spl_limit:
  ld (spl_dx+1),a
  ld (spl_dy+1),a
+ ENDIF
 		ld	hl,0x0101
 		ld	(cover_moves),hl
 		ld	(cover_moves+2),hl
 		ld	(cover_moves+4),hl
 		xor	a
+ IFNDEF NES_FULL
 		ld	(obj_end),a
+ ENDIF
  call joe_attrs
 		ld	hl,spr_rec+33		; DE -> атрибуты, L = 16 * k + 1
 		ld	b,SPR_MAX-2
@@ -64,10 +68,25 @@ spl0:		ld	a,SPR_MAX
 		cp	0xD0
 		jp	nz,spl_c
 		ld	a,1
+ IFNDEF NES_FULL
 		ld	(obj_end),a
+ ENDIF
 spl_end:	ld	de,spl_z
  ENDIF
 spl_c:
+ IFDEF NES_FULL
+spl_band_y:
+ ld a,(spr_force)
+ or a
+ jp nz,spl_ch
+ push hl
+ ld a,SPR_MAX
+ sub b
+ call pace_age
+ pop hl
+ cp PACE_ENEMY_PERIOD
+ jp c,spl_unchanged
+ ELSE
 spl_band_y:	ld	a,(spr_force)
 		or	a
 		jp	nz,spl_ch
@@ -140,6 +159,7 @@ spl_hold:
 		ld	l,a
 		ld	(hl),0
 		jp	spl_n
+ ENDIF
 spl_compare:
 		push	de
 		REPT	3
@@ -153,6 +173,7 @@ spl_compare:
 		cp	(hl)
 		jp	nz,spl_cp
 		pop	de
+spl_unchanged:
 		ld	a,l			; без изменений: метка 0
 		and	0xF0
 		or	13
@@ -726,7 +747,11 @@ spr_one:
 so0:		ld	(st_rows),a
 		ld	a,(sp_y)
 		ld	b,a
+		IFDEF NES_FULL
+		ld a,SCREEN_TOP-FIELD_YSHIFT
+		ELSE
 		ld	a,SCREEN_TOP
+		ENDIF
 		sub	b
 		ld	(sv_lo),a
 		ld	a,(sp_x)
@@ -845,6 +870,10 @@ spr_masks:
 		ld	a,c
 		or	a
 		ret	z
+ IFDEF NES_ENEMY_SEEDS
+ call nes_seed_masks
+ ret z
+ ENDIF
 		ld	a,(sp_name)
 		call	sprite_source
 		ld	a,(sm_off)
@@ -870,8 +899,22 @@ smm:		or	a
 		cpl
 		ld	(smk_n1+1),a
 		ld	(smk_n2+1),a
-smk1:		ld	a,(hl)
+smk1:
+ IFDEF NES_FULL
+ ld a,(sp_line)
+ ld b,a
+ ENDIF
+smk_row:	ld	a,(hl)
+ IFDEF NES_FULL
+smk_rotate0:
+ jp smk_rotate0_end
+ REPT 7
+ rrca
+ ENDR
+smk_rotate0_end:
+ ELSE
 		call	rotate_byte
+ ENDIF
 		ld	c,a
 smk_m0:		and	0
 		ld	(de),a			; столбец 0 = r0 & m
@@ -881,11 +924,20 @@ smk_m0:		and	0
 		ld	a,c
 smk_n1:		and	0
 		ld	(de),a			; столбец 1 (пока) = r0 & ~m
-		ld	a,l
-		add	a,16
-		ld	l,a
+		ld a,l
+		add a,16
+		ld l,a
 		ld	a,(hl)
+ IFDEF NES_FULL
+smk_rotate1:
+ jp smk_rotate1_end
+ REPT 7
+ rrca
+ ENDR
+smk_rotate1_end:
+ ELSE
 		call	rotate_byte
+ ENDIF
 		ld	c,a
 smk_m1:		and	0
 		ex	de,hl
@@ -901,13 +953,18 @@ smk_n2:		and	0
 		ld	a,e
 		sub	31
 		ld	e,a
-		ld	a,l
-		sub	15
-		ld	l,a
+		ld a,l
+		sub 15
+		ld l,a
+ IFDEF NES_FULL
+ dec b
+ jp nz,smk_row
+ ELSE
 		ld	a,(sp_line)
 		dec	a
 		ld	(sp_line),a
 		jp	nz,smk1
+ ENDIF
 		ret
 ; mk_cmp: A — с (HL): другое — (HL) := A, C += 1; HL += 1
 mk_cmp:		cp	(hl)
@@ -917,26 +974,35 @@ mk_cmp:		cp	(hl)
 mkc1:		inc	l
 		ret
 smz:
+ IFDEF NES_FULL
+ ld a,(sp_line)
+ ld b,a
+ ENDIF
 smz1:		ld	a,(hl)
 		ld	(de),a
-		ld	a,l
-		add	a,16
-		ld	l,a
+		ld a,l
+		add a,16
+		ld l,a
 		ld	a,e
 		add	a,16
 		ld	e,a
 		ld	a,(hl)
 		ld	(de),a
-		ld	a,l
-		sub	15
-		ld	l,a
+		ld a,l
+		sub 15
+		ld l,a
 		ld	a,e
 		sub	15
 		ld	e,a
+ IFDEF NES_FULL
+ dec b
+ jp nz,smz1
+ ELSE
 		ld	a,(sp_line)
 		dec	a
 		ld	(sp_line),a
 		jp	nz,smz1
+ ENDIF
 		ret
 
 ; Начальное состояние масок слоёв Джо; таблицы поворота больше не нужны.
@@ -945,10 +1011,21 @@ smz1:		ld	a,(hl)
 ; sv_zc (столбец 0 пуст — левая половина пуста; 2 — правая пуста или X кратен 8). Z — спрайт пуст.
 trim_sprite:
 		ld	a,(sp_name)		; имя кратно 4 -> запись по 4 байта: имя
+ IFDEF NES_FULL
+ cp 128                    ; upper records were empty: native Joe bypasses this table
+ jp c,ts_trim_lookup
+ xor a                     ; Z = empty, including every discarded high record
+ ret
+ts_trim_lookup:
+		ld	l,a
+		ld	h,spr_trim/256     ; page-aligned table: no 16-bit base addition
+ ASSERT (spr_trim&255) == 0
+ ELSE
 		ld	l,a
 		ld	h,0
 		ld	de,spr_trim
 		add	hl,de
+ ENDIF
 		ld	a,(hl)			; первая
 		cp	0xFF
 		ret	z
@@ -1303,11 +1380,15 @@ ck_repaint:	ld	a,1
 		ld	(hl),0
 		call	draw1
 ck_count:
+ IFDEF NES_FULL
+ call pace_charge
+ ELSE
  ld a,b
  or a
  ld a,1
  jp nz,ck_units
  ld a,4
+ ENDIF
 ck_units:	ld	hl,cr_units
 		add	a,(hl)
 		ld	(hl),a
@@ -1325,7 +1406,12 @@ ck2:		ld	a,(ex_any)		; клетки откладывались?
 		call	cells_rect
 ck9:		pop	hl
 		ld	a,(cr_units)
+ IFDEF NES_FULL
+ck_limit:
+ cp PACE_BUDGET
+ ELSE
 		cp	4
+ ENDIF
 		jp	c,ck0
 		ld	a,(hl)
 		cp	1
@@ -1429,14 +1515,22 @@ ps_names:
  IFDEF NES_FULL
  ; The NES start and most rooms use the two spider poses. Cache them before
  ; the eight rolling-skull poses when the full room pack reduces free RAM.
- db 0x2C,0x30,0x0C,0x10,0x14,0x18,0x1C,0x20,0x24,0x28,0xFF
+ ; Only these four poses obtain masks with this room/art budget. The other
+ ; rolling-skull poses retain their original source and the uncached path.
+ db 0x2C,0x30,0x0C,0x14,0xFF
  ELSE
  db 0x0C,0x10,0x14,0x18,0x1C,0x20,0x24,0x28,0x2C,0x30,0x68,0x78,0xFF
  ENDIF
  IFDEF NES_FULL
-PS_N equ 10
+PS_N equ 4
  ELSE
 PS_N equ 12
+ ENDIF
+ IFDEF NES_ENEMY_SEEDS
+PS_SHIFTS equ 4
+PS_SEED_POSES equ 4
+ ELSE
+PS_SHIFTS equ 8
  ENDIF
 ; ps_find: для спрайта sp_k — враг (цвет не 6, 11) с готовыми сдвигами: ps_lo/hi/r[k] := блок, R; Z.
 ; Иначе ps_hi[k] := 0, NZ
@@ -1445,6 +1539,11 @@ ps_find:	ld	a,(sp_k)
 		ld	l,a
 		ld	h,ps_hi/256
 		ld	(hl),0
+ IFDEF NES_ENEMY_SEEDS
+ ld a,(sp_x)
+ and 1
+ jp nz,psf_n
+ ENDIF
 		ld	a,(sp_cr)
 		cp	6
 		jp	z,psf_n
@@ -1470,13 +1569,18 @@ ps_find:	ld	a,(sp_k)
  cp b
  jp nz,psf_n
  ENDIF
-		ld	a,c			; ps_tab + 2 * (8 * номер + s)
+		ld	a,c			; ps_tab + 2 * (PS_SHIFTS * name + shift index)
 		add	a,a
 		add	a,a
+ IFNDEF NES_ENEMY_SEEDS
 		add	a,a
+ ENDIF
 		ld	l,a
 		ld	a,(sp_x)
 		and	7
+ IFDEF NES_ENEMY_SEEDS
+ rrca
+ ENDIF
 		add	a,l
 		ld	l,a
 		ld	h,0
@@ -1524,6 +1628,7 @@ joe_load:
 
  ENDIF
 
+ IFNDEF NES_STABLE_COLORS
  ld de,joe_source0
  ld hl,joe_runtime0
  ld bc,joe_end0-joe_source0
@@ -1536,6 +1641,15 @@ joe_load:
  ld hl,joe_runtime2
  ld bc,joe_end2-joe_source2
  call copy_de_hl
+ ELSE
+ ; Install the bonus-only palette code in the unused sprite-record tail.
+ ; Legacy high-RAM restore destinations hold permanent colour art.
+ ld de,nt_bonus_palette_source
+ ld hl,nt_bonus_palette
+ ld bc,nt_bonus_palette_end-nt_bonus_palette
+ call copy_de_hl
+joe_load_done:
+ ENDIF
  ret
 game_init:	ld	hl,0x7000
 		ld	de,ram0_pk
@@ -1588,8 +1702,13 @@ mask_keys_init:
 ; строка пуста, если пусты обе половины; всё пусто — первая = FF. Пересчёт — trim_build (при смене комнаты).
 trim_build:
 		ld	de,spr_trim
-		ld	c,64
-tb0:		ld	a,64
+ IFDEF NES_FULL
+SPR_TRIM_COUNT equ 32
+ ELSE
+SPR_TRIM_COUNT equ 64
+ ENDIF
+		ld	c,SPR_TRIM_COUNT
+tb0:		ld	a,SPR_TRIM_COUNT
 		sub	c
 		add	a,a
 		add	a,a
@@ -1706,7 +1825,13 @@ ps_build:	ld	hl,ps_idx
  ENDIF
 		ld	hl,ps_names
 		ld	c,0
-pbd0:		ld	a,(hl)
+pbd0:
+ IFDEF NES_ENEMY_SEEDS
+ ld a,c
+ cp PS_SEED_POSES
+ ret z
+ ENDIF
+		ld	a,(hl)
 		cp	0xFF
 		ret	z
 		push	hl
@@ -1764,9 +1889,14 @@ pbd7:		ld	(ps_m),a
 		ld	a,c
 		add	a,a
 		add	a,a
+ IFNDEF NES_ENEMY_SEEDS
 		add	a,a
+ ENDIF
 		ld	b,a
 		ld	a,(ps_s)
+ IFDEF NES_ENEMY_SEEDS
+ rrca
+ ENDIF
 		add	a,b
 		ld	l,a
 		ld	h,0
@@ -1851,6 +1981,9 @@ pbd4:		ld	a,(ps_r0)		; столбцы: DE, DE + R, DE + 2R
 		dec	b
 		jp	nz,pbd2
 pbd5:		ld	a,(ps_s)
+ IFDEF NES_ENEMY_SEEDS
+ inc a
+ ENDIF
 		inc	a
 		ld	(ps_s),a
 		cp	8
@@ -2070,7 +2203,12 @@ cover_dirty:	push	hl
 ; Исходники разделяются между кадрами; DE/BC сохраняются.
 sprite_source:	rrca
 		and	0x7E
+ IFDEF NES_FULL
+ sub 6
+ cp 20
+ ELSE
  cp 64
+ ENDIF
  ld hl,shape_00
  ret nc
 		ld	l,a
@@ -2083,7 +2221,12 @@ sprite_source:	rrca
 
 
 ; Нативный враг: дескриптор — L, столбец, строки, пустые столбцы; без PPS/PPD/RST.
-enemy_native_put:	ld	a,l
+enemy_native_put:
+ IFDEF NES_FULL
+ call enemy_ink_plane
+ ld (en_paint_plane+1),a
+ ENDIF
+ ld a,l
 		sub	5
 		ld	l,a
 		push	hl
@@ -2158,6 +2301,7 @@ en_paint_col:	ld	a,(en_zero)
 		ld	a,(sv_col)
 		cp	32
 		ret	nc
+en_paint_plane:
 		add	a,0x80
 		ld	h,a
 		ld	a,(sv_lo)
@@ -2205,6 +2349,10 @@ en_load:	ld	a,(hl)
 		ret
 
 enemy_restore:	push	bc
+ IFDEF NES_FULL
+ call enemy_ink_plane
+ ld (en_restore_plane+1),a
+ ENDIF
 		ld	a,l
 		add	a,9
 		ld	l,a
@@ -2235,6 +2383,7 @@ en_restore_col:	ld	a,(en_zero)
 		ld	a,c
 		cp	32
 		jp	nc,en_restore_done
+en_restore_plane:
 		add	a,0x80
 		ld	h,a
 		ld	a,(sv_lo)
@@ -2246,6 +2395,26 @@ en_restore_next:	inc	c
 		jp	nz,en_restore_col
 en_restore_done:	pop	bc
 		ret
+
+ IFDEF NES_FULL
+NES_GREEN_SPIDERS equ 1
+; HL points anywhere in an old/current record. Select its saved/rendered plane.
+; Both spider poses stay one-plane sprites (8000); shared white skulls use C000.
+enemy_ink_plane:
+ push hl
+ ld a,l
+ and 0xF0
+ or 3
+ ld l,a
+ ld a,(hl)
+ sub 0x2C
+ cp 8
+ sbc a,a
+ and 0x40
+ xor 0xC0
+ pop hl
+ ret
+ ENDIF
 
 enemy_entries:
 		dw	enemy_mix+8*(16-0)
@@ -2301,6 +2470,18 @@ rotate_select:	push	af
 		add	a,8
 		call	add_hl_a
 		ld	(rotate_byte+1),hl
+ IFDEF NES_FULL
+ ; The startup builder keeps using rotate_byte. Runtime mask rows enter
+ ; their own inline chains, avoiding CALL/RET for both halves of every row.
+ push de
+ ld de,smk_rotate0_end-rotate_0
+ add hl,de
+ ld (smk_rotate0+1),hl
+ ld de,smk_rotate1_end-smk_rotate0_end
+ add hl,de
+ ld (smk_rotate1+1),hl
+ pop de
+ ENDIF
 		pop	hl
 		pop	af
 		ret
@@ -2604,9 +2785,19 @@ band_emit:
  IFNDEF STRICT
  call nes_service
  ENDIF
+ IFDEF NES_FULL
+ ; Independent bands can be ordered by current age, without touching unions.
+ call band_marked
+ call sort_marked
+ ld de,cr_list
+ ld hl,ml
+ ld a,(ml_n)
+ ld b,a
+ ELSE
 		ld	de,cr_list
 		ld	hl,band_order
 		ld	b,SPR_MAX
+ ENDIF
 be0:		ld	a,(hl)
 		cp	1
 		jp	z,be_next
@@ -2786,10 +2977,15 @@ gq3:		ld	a,e
 		ret
 
 
-sort_r0:	cp 2
-		jp nc,ub_r0
-		xor a
-		ret
+sort_r0:
+ IFDEF NES_FULL
+ jp pace_priority
+ ELSE
+ cp 2
+ jp nc,ub_r0
+ xor a
+ ret
+ ENDIF
 
 ; Линейный катящийся враг: при задержке вывода выбрать промежуточную позу
 ; на его же траектории, не дальше трёх пикселей от нарисованной. ОЗУ игры не меняется.

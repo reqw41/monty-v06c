@@ -46,14 +46,7 @@ ob2:		ld	d,a
 		scf
 		ret
 
-L_AA96:		ld	a,(0x7000)
-		or	4
-		ld	(0x7000),a
-		call	L_AEA7
-		ld	a,(0x7000)
-		and	0xFB
-		ld	(0x7000),a
-		ret
+
 
 
 ; L_A394: HL := 72C0 + 2 * (71A2), A := (HL)
@@ -107,26 +100,11 @@ L_A067:
  call snd_off
  ; There is no SAT Y=$D0 terminator in the 240-line field. Unused actors
  ; are hidden by colour; real Joe/enemies may legitimately pass through Y=208.
- ld hl,0x730B
- ld b,4
-nf_clear_actors:
- ld (hl),0
- ld a,4
- call add_hl_a
- dec b
- jp nz,nf_clear_actors
+ call nf_hide_actors
  ld hl,0x7086
  ld bc,15
  ld e,255
  call memfill
- ld hl,0x72C0
- ld bc,32
- ld e,0
- call memfill
- dec hl
- ld (hl),0xFE
- dec hl
- ld (hl),0xFE
  xor a
  ld (0x707A),a
  ld (0x71A2),a
@@ -174,14 +152,12 @@ nf_record:
  rrca
  rrca
  and 63
+ ld c,a
  ld hl,nf_type_flags
  call add_hl_a
  ld a,(hl)
  ld (nf_flags),a
- ld a,b
- rrca
- rrca
- and 63
+ ld a,c
  ld hl,nf_type_kind
  call add_hl_a
  ld a,(hl)
@@ -346,6 +322,7 @@ nf_next_pop:
  pop de
  jp nf_next
 nf_done:
+ call nphys_box_reset
  call L_A548
  jp L_AE83
 
@@ -587,7 +564,7 @@ nf_bit_have:
  pop af
  ret
 
-; Native HUD mirrors the six-row NES arrangement, with Joe's own hat sprite.
+; Native HUD mirrors the six-row NES arrangement and NES life icon.
 L_A548:
  call map_edit_begin
  call nf_hud_rebuild
@@ -698,57 +675,53 @@ L_AABB:
  push af
  push bc
  push de
- ; The left HUD panel has exactly five two-cell hat slots. Clamp only the
- ; indicator; the actual life count in 7049 is never changed here.
- ld de,0x81
- ld bc,10
- xor a
- call nt_fill
+ ; Five NES hats below inventory, then six below score. Eleven writes
+ ; bound the indicator without changing the life count in 7049.
  ld a,(0x7049)
- cp 2
- jp c,nfh_hats_done
+ or a
+ jp z,nfh_hats_count
  dec a
- cp 6
- jp c,nfh_hats_count
- ld a,5
 nfh_hats_count:
  ld b,a
+ ld de,VNT+0x81
 nfh_hats_loop:
- push bc
- ld a,0x6F
- ld bc,1
- call nt_fill
- inc de
- ld a,0x6E
- call nt_fill
- inc de
- pop bc
+ ld a,b
+ or a
+ jp z,nfh_hats_blank
  dec b
+ ld a,0x6F
+nfh_hats_blank:
+ ld (de),a
+ inc de
+ add a,a       ; 6F -> DE; blank 00 -> 00
+ ld (de),a
+ inc de
+ ld a,e
+ cp (VNT+0x8B)&255
+ jp z,nfh_hats_right
+ cp (VNT+0x9E)&255
  jp nz,nfh_hats_loop
+ ld a,1
+ ld (hud_dirty),a
 nfh_hats_done:
  pop de
  pop bc
  pop af
  ret
+nfh_hats_right:
+ ld de,VNT+0x92
+ jp nfh_hats_loop
 
- ; CY: candidate normal room belongs to the 99-room pyramid. BC is the
-; pending coordinate wrap and must survive. Floor 9 uses the bonus handler.
+ ; CY: candidate index addresses one of the 99 normal NES rooms.
+; NES horizontal exits increment/decrement the flat room index without
+; changing the floor, including 0,10 -> 0,11 (index 2 -> 3).
+; Preserve BC: it holds the pending coordinate wrap.
 nf_valid_room:
  ld a,(0x71A7)
  cp 9
  jp nc,nfv_no
- ld d,a
- ld a,8
- sub d
- ld e,a
- ld a,(0x71A8)
- cp e
- jp c,nfv_no
- ld a,11
- add a,d
- ld e,a
- ld a,(0x71A8)
- cp e
+ call L_A4B5
+ cp 99
  ret
 nfv_no:
  or a
@@ -760,14 +733,14 @@ nf_room_edge:
  ld (0x71A7),hl
  ld bc,0
  ld a,(0x7304)
- cp HUD_ROWS*8-17
+ cp 44
  jp c,nfe_top
- cp SCREEN_HEIGHT-17
+ cp 221
  jp c,nfe_x
- ld c,SCREEN_HEIGHT-18
+ ld c,220
  jp nfe_y
 nfe_top:
- ld c,HUD_ROWS*8-17
+ ld c,44
 nfe_y:
  ld hl,0x7304
  ld a,c
@@ -841,7 +814,7 @@ nfs_variant:
  ret
 nfs_variants:
  db 0x88,0x89,8,8,0x95,0x95,0xCE,0xCF
- db 0xD0,0xD1,0xD2,0xD3,0xD4,0xD5,8,8
+ db 0xD0,0xD1,0xD2,0xD3,0xD4,0xD5,0,0
 
 ; A physical tile row and C column -> VNT pointer; BC/DE preserved.
 nf_row_addr:
@@ -864,7 +837,7 @@ nf_draw_hud:
  xor a
  ld (hud_dirty),a
  ld de,VNT
- ld hl,0x80FF
+ ld hl,0x80FF-HUD_YSHIFT
  ld c,HUD_ROWS
 nfh_draw_row:
  ld b,32
@@ -891,4 +864,26 @@ nfh_draw_cell:
  ld l,a
  dec c
  jp nz,nfh_draw_row
+ ret
+
+; Shared room/treasure actor reset.
+nf_hide_actors:
+ ld hl,0x730B
+ ld b,4
+nf_clear_actors:
+ ld (hl),0
+ inc l
+ inc l
+ inc l
+ inc l
+ dec b
+ jp nz,nf_clear_actors
+ ld hl,0x72C0
+ ld bc,32
+ ld e,0
+ call memfill
+ dec hl
+ ld (hl),0xFE
+ dec hl
+ ld (hl),0xFE
  ret

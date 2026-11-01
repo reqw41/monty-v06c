@@ -7,7 +7,11 @@ L_9159:		ld	a,(hl)
 		inc	hl
 		ld	a,(hl)
 		ld	(0x7085),a
+		IFDEF NES_FULL
+ ld bc,0x1302             ; NES foot Y = top + 25, layer-2 anchor = top + 7
+ ELSE
 		ld	bc,0x1202
+ ENDIF
 		ld	hl,0x7057
 ; 916C: клетка (строка ceil((7084 + B) / 8), столбец ceil((7085 - 1 + C) / 8)) - 21h -> 71B0;
 ; тайлы 2 строки по 3 начиная с неё -> (HL). Выход: HL = 7000, DE = клетка, BC = 0203h.

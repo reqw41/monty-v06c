@@ -1,0 +1,52 @@
+; Original $A0E0: resolve a stationary body against a ledge/wall on the grid.
+nphys_idle_align:
+ ld a,(nphys_box_left)
+ ld b,a
+ ld a,(0x7305)
+ add a,b
+ ld b,a
+ ld a,(0x7304)
+ add a,14
+ ld c,a
+ call nphys_read
+ call nphys_solid
+ jp nz,nia_right
+ ld a,(nphys_previous_keys)
+ and 2
+ ret nz
+ ld a,(nphys_box_right)
+ ld b,a
+ ld a,(0x7305)
+ add a,b
+ sub 3
+ ld b,a
+ ld a,c
+ add a,4
+ ld c,a
+ call nphys_read
+ sub 0xB8
+ cp 3
+ ret c
+ ld b,6
+ jp nia_snap
+nia_right:
+ ld a,(nphys_previous_keys)
+ and 8
+ ret nz
+ ld a,(nphys_box_right)
+ ld b,a
+ ld a,(0x7305)
+ add a,b
+ inc a
+ ld b,a
+ call nphys_read
+ call nphys_solid
+ ret nz
+ ld b,2
+nia_snap:
+ ld a,(0x7305)
+ and 248
+ or b
+ ld (0x7301),a
+ ld (0x7305),a
+ jp L_9156

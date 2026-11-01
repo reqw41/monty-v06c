@@ -15,7 +15,9 @@ function invoke(m,name,{a=0,b=0,hl=0}={}) {
   c.sp=0x73BE;m.wr(c.sp,s.unit_trap&255);m.wr(c.sp+1,s.unit_trap>>8);c.pc=s[name];
   assert.notEqual(c.pc,undefined,name);
   let cycles=0;
-  for(let n=0;c.pc!==s.unit_trap;n++) {assert(n<100000,'native call did not return: '+name);c.instruction();cycles+=c.vcycles;}
+  // Game entry also builds the enemy cache after title-only music is stopped.
+  const maxInstructions=name==='nes_begin'?1000000:100000;
+  for(let n=0;c.pc!==s.unit_trap;n++) {assert(n<maxInstructions,'native call did not return: '+name);c.instruction();cycles+=c.vcycles;}
   c.pc=old.pc;c.sp=old.sp;c.iff=old.iff;c.iff_pending=old.pending;c.retrieve_flags(old.flags);c.regs.splice(0,8,...old.regs);m.onInstr=hook;
   return cycles;
 }

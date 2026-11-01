@@ -20,7 +20,7 @@ def main():
   for part in range(4):chars[(0xDA if n==8 else 0x18+4*n)+part]=(0x1f8 if n==0 else 0x1d0+4*n)+part
   chars[0x40+n]=0x160+n
  chars[0x4a]=0x183
- chars.update({0x6f:0x154,0x6e:0x155,0xf8:0x122,0xf9:0x1cd,0xfa:0x120,0xfb:0x121,0xfc:0x1ce,0xfd:0x1cf})
+ chars.update({0x6f:0x154,0xde:0x155,0xf8:0x122,0xf9:0x1cd,0xfa:0x120,0xfb:0x121,0xfc:0x1ce,0xfd:0x1cf})
  masks={t:bytes(sum(128>>x for x in range(8) if r.tiles[chrid][y][x]) for y in range(8)) for t,chrid in chars.items()}
  masks[0x38]=bytes(8)
  # Preserve both NES poses and both facings; the map tile IDs remain hazards.
@@ -56,20 +56,26 @@ def main():
    elif 0xd2<=t<=0xd5:chrid=0x118+(phase+t-0xd2)%4
    else:chrid=chars[t]
    frames.append(ptr(bytes(sum(128>>x for x in range(8) if r.tiles[chrid][y][x]) for y in range(8))))
- # Keep NES vertical beams. The horizontal beam uses the two fuller MSX
- # poses from C_85CA; repeat them across the existing four-phase selector.
+ # Keep NES vertical beams; horizontal platforms use the two original MSX
+ # masks. Their only animated byte is row 2 (C3 <-> 18).
  lasers=[[ptr(bytes(sum(128>>x for x in range(8) if r.tiles[n][y][x]) for y in range(8)))
           for n in (0x12d,0x12f,0x131,0x133)]]
- msx_horizontal=(bytes.fromhex('ff66c366ff000000'),bytes.fromhex('ff661866ff000000'))
- lasers.append([ptr(msx_horizontal[phase&1]) for phase in range(4)])
+ msx=(ROOT/'build/monty_entry.bin').read_bytes()
+ horizontal=[msx[0x85ca+8*i:0x85d2+8*i] for i in range(2)]
+ assert horizontal==[bytes([255,102,195,102,255,0,0,0]),bytes([255,102,24,102,255,0,0,0])]
+ lasers.append([ptr(horizontal[i&1]) for i in range(4)])
  assert len(strips)<256
- out=['; Generated NES CHR masks with the MSX horizontal laser for the 256x240 field.',f'FULL_ANIM_N equ {len(anim)}','anim_set: db '+','.join(map(str,anim))+',255','col0: db '+','.join(map(str,v0[0x2000:0x2020])),'raw_base:']
+ out=['; Generated NES CHR masks, with original two-phase MSX E8 platforms.',f'FULL_ANIM_N equ {len(anim)}','anim_set: db '+','.join(map(str,anim))+',255','col0: db '+','.join(map(str,v0[0x2000:0x2020])),
+      'raw_base_low equ $',' ORG 0xF950','raw_base_source:']
  for i in range(0,256,32):out.append(' db '+','.join(map(str,base[i:i+32])))
- out+=['raw_anim: db '+','.join(map(str,frames)),'full_laser_v: db '+','.join(map(str,lasers[0])),'full_laser_h: db '+','.join(map(str,lasers[1]))]
+ out+=[' ASSERT $ == 0xFA50',' IFDEF NES_STABLE_COLORS',
+       'raw_base equ nes_conveyor_end',' ELSE','raw_base equ video_raw_end',' ENDIF',
+       'raw_base_end equ raw_base+256',' ORG raw_base_low',
+       'raw_anim: db '+','.join(map(str,frames)),'full_laser_v: db '+','.join(map(str,lasers[0])),'full_laser_h: db '+','.join(map(str,lasers[1]))]
  transitions={};names=[]
  for old in range(4):
   for new in range(4):
-   changed=tuple(t for i,t in enumerate(anim[:fire_anim_count]) if frames[4*i+old]!=frames[4*i+new]);names.append(transitions.setdefault(changed,f'nf_delta_{len(transitions)}'))
+   changed=tuple(t for i,t in enumerate(anim[:fire_anim_count]) if (r.tiles[0x123+2*old+(t==0xae)]!=r.tiles[0x123+2*new+(t==0xae)] if t in (0xa8,0xae) else frames[4*i+old]!=frames[4*i+new]));names.append(transitions.setdefault(changed,f'nf_delta_{len(transitions)}'))
  inverse=list(strips)
  rowmask=lambda ids:sum(1<<y for y in range(8) if len({inverse[i][y] for i in ids})>1)
  out+=['full_anim_rowmask: db '+','.join(str(rowmask(frames[4*i:4*i+4])) for i in range(len(anim))), 'full_laser_rowmask: db '+','.join(str(rowmask(ids)) for ids in lasers)]
@@ -79,27 +85,27 @@ def main():
  for data in strips:out.append(' db '+','.join(map(str,data)))
  out+=['video_raw_end equ $',' ORG video_low_end']
  (ROOT/'src/native/gen/video_full.asm').write_text('\n'.join(out)+'\n')
- # Bricks and hats preserve their separate inks; colour 2 is the floor accent.
+ # Bricks and hats preserve their separate inks; colour 7 is the floor accent; Joe skin uses colour 3; red uses colour 2.
  def image(t,mapping):return bytes(sum(128>>x for x in range(8) if mapping[r.tiles[t][y][x]]&bit) for bit in (4,2,1) for y in range(8))
- sty=['; Full-size NES bricks, patterned ladder cap and Joe-derived 16x8 life hat.',
-      'style_bricks:',' db '+','.join(map(str,image(0x100,[0,3,2,6])+image(0x101,[0,3,2,6]))),
-      'style_vase:',' db '+','.join(map(str,b''.join(image(t,[0,3,2,6]) for t in range(0x113,0x117))))]
- # Use Joe's front-facing descent pose (NES state 5, phase 0), not the side-on idle hat.
- joe=next(f for f in json.loads((ROOT/'build/joe_nes/frames.json').read_text())['frames']
-          if f['state']==5 and f['phase']==0)
- assert joe['rows']==23
- # Omit the duplicate solid-red brim row 7; retain the green edge at row 11.
- hat=[joe['pixels'][i] for i in (3,4,5,6,8,9,10,11)]
- def hat_half(half,inks):
-  return [sum(128>>x for x in range(8) if inks[hat[y][(half*8+x)//2]]&bit)
-          for bit in (4,2,1) for y in range(8)]
- for directive,inks in [(' IFDEF NES_JOE_3COLOR',(0,2,3,1)),(' ELSE',(0,1,3,1))]:
-  sty += [directive,'style_hat:',' db '+','.join(map(str,hat_half(0,inks))),
-          'style_hat_right:',' db '+','.join(map(str,hat_half(1,inks)))]
- sty += [' ENDIF','style_accents: db '+','.join(str(encode(RGB[r.b(0xc5d5+i)])) for i in range(9))]
+ sty=['; Full-size NES bricks, patterned ladder cap and original NES 16x8 life hat.',
+      'style_bricks:',' db '+','.join(map(str,image(0x100,[0,2,7,6])+image(0x101,[0,2,7,6]))),
+      'style_vase:',' db '+','.join(map(str,b''.join(image(t,[0,2,7,6]) for t in range(0x113,0x117))))]
+ # NES CHR 154/155 are the dedicated life indicator, with red crown and white band.
+ def lower_one(data):return b''.join(bytes((0,))+data[plane*8:plane*8+7] for plane in range(3))
+ sty += ['style_hat:',' db '+','.join(map(str,lower_one(image(0x154,[0,2,1,1])))),
+         'style_hat_right:',' db '+','.join(map(str,lower_one(image(0x155,[0,2,1,1]))))]
+ # The nine floor accent bytes fit between the chain exit code and VNT.
+ sty += ['style_low_accents equ $',' ORG VNT-12',
+         'style_accents: db '+','.join(str(encode(RGB[r.b(0xc5d5+i)])) for i in list(range(9))+[0]),
+         ' ASSERT $ <= VNT',' ORG style_low_accents']
  fg=[6,2,6,2,2,2,2,2,2,2,0,0,2,2,1,6,6,6,1,2,6,2,6,2,1,6,2,2,2,2,1,6]
+ fg=[7 if ci==2 else ci for ci in fg]
  modes=[sum(((ci>>bit)&1)<<(2*bit) for bit in range(3)) for ci in fg]
- sty+=['full_modes: db '+','.join(map(str,modes))]
+ stable_fg=fg[:]
+ for group in (12,13,19,23,26):stable_fg[group]=2
+ stable_fg[19]=3  # ordinary jewels use the fixed Joe-skin orange
+ stable_modes=[sum(((ci>>bit)&1)<<(2*bit) for bit in range(3)) for ci in stable_fg]
+ sty+=[' IFDEF NES_STABLE_COLORS','full_modes: db '+','.join(map(str,stable_modes)), ' ELSE','full_modes: db '+','.join(map(str,modes)), ' ENDIF']
  (ROOT/'src/native/gen/style_full.asm').write_text('\n'.join(sty)+'\n')
  output=ROOT/'build/nes_full';output.mkdir(parents=True,exist_ok=True)
  (output/'graphics.json').write_text(json.dumps(dict(chars=chars,animations=anim,raw_strips=len(strips),raw_bytes=8*len(strips),floor_inks='black, white, accent, dark brown, cyan'),indent=2)+'\n')
