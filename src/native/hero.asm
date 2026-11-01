@@ -586,29 +586,48 @@ h929e:		ld	a,(0x73EE)		; влево / вправо / на месте
 		and	8
 		jp	z,h929f
 		ld	bc,0xFE00
+ IFDEF NES_FULL
+ jp nj_key
+ ELSE
 		call	L_90E3
 		jp	c,hs_89DC
 		jp	hs_89F6
+ ENDIF
 h929f:		ld	a,(0x73EE)
 		and	2
 		jp	z,h929g
 		ld	bc,0x0200
+ IFDEF NES_FULL
+nj_key:
+		call	L_90E3
+		jp	c,nj_jump
+		jp	hs_89F6
+ ELSE
 		call	L_90E3
 		jp	c,hs_89DC
 		jp	hs_89F6
+ ENDIF
 h929g:		ld	bc,0
 		call	L_90E3
-		jp	c,hs_89DC
  IFDEF NES_FULL
+ jp c,nj_jump
  call nphys_ground_floor
  jp c,nphys_walk_fall
  ELSE
+		jp	c,hs_89DC
 		call	L_911E
 		jp	c,hs_8A01
  ENDIF
 		xor	a
 		ld	bc,0
 		jp	hs_8992
+ IFDEF NES_FULL
+; NES проверяет опору раньше прыжка: на шаге, где начинается падение с края (третье обновление), прыжок не выполняется.
+nj_jump:
+ call nphys_ground_floor
+ jp c,nphys_walk_fall
+ jp hs_89DC
+ ENDIF
 hs_897C:	call	L_8B20
  IFDEF NES_FULL
  ld c,1
