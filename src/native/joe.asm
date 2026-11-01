@@ -50,6 +50,7 @@ jc_ladder:
  jp z,jc_end
  ld hl,jn_tick
  inc (hl)
+ call nes_ladder_step
  ld a,(hl)
  cp 8
  jp c,jc_end

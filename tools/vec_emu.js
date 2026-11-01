@@ -44,13 +44,27 @@ function mk(romPath, opt) {
   const cpu = new ctx.I8080(memory, io), tape = { advance: () => {}, sample: 0, reset: () => {} },
         v06c = new ctx.Vector06c(cpu, memory, io, ay, tape);
   v06c.bmp = new Uint32Array(576 * 288); v06c.displayFrame = () => {}; v06c.dbg = null;
+  // COVER=файл: накопление адресов выполненных команд (объединяется между процессами) для поиска мёртвого кода
+  let cov = null;
+  if (process.env.COVER) {
+    cov = new Uint8Array(65536);
+    process.on("exit", () => { try { const f = process.env.COVER; let o = fs.existsSync(f) ? fs.readFileSync(f) : Buffer.alloc(65536);
+      if (o.length !== 65536) o = Buffer.alloc(65536); for (let i = 0; i < 65536; i++) if (cov[i]) o[i] = 1; fs.writeFileSync(f, o); } catch (e) {} });
+  }
+  if (cov) { const oi = cpu.instruction.bind(cpu); cpu.instruction = function () { cov[cpu.pc] = 1; return oi.apply(null, arguments); }; }
   v06c.check_breakpoint = () => { if (m.onInstr) m.onInstr(cpu.pc); return false; };
   const IMG = new Uint8Array(fs.readFileSync(romPath)).subarray(0, 0x10000);
   if (IMG[0] !== 0xF3 || IMG[1] !== 0x31) throw new Error(romPath + ": загрузчик не `di / ld sp,imm`");
   memory.init_from_array(IMG, 0); memory.detach_boot && memory.detach_boot();
   const oread = memory.read.bind(memory), owrite = memory.write.bind(memory);
-  memory.read = function (a, s) { const v = oread(a, s); if (m.onRead) m.onRead(a & 0xffff, v); return v; };
-  memory.write = function (a, w, s) { if (m.onWrite) m.onWrite(a & 0xffff, w & 0xff); return owrite(a, w, s); };
+  let acc = null;
+  if (process.env.ACCESS) {
+    acc = new Uint8Array(65536);
+    process.on("exit", () => { try { const f = process.env.ACCESS; let o = fs.existsSync(f) ? fs.readFileSync(f) : Buffer.alloc(65536);
+      if (o.length !== 65536) o = Buffer.alloc(65536); for (let i = 0; i < 65536; i++) if (acc[i]) o[i] = 1; fs.writeFileSync(f, o); } catch (e) {} });
+  }
+  memory.read = function (a, s) { const v = oread(a, s); if (acc) acc[a & 0xffff] = 1; if (m.onRead) m.onRead(a & 0xffff, v); return v; };
+  memory.write = function (a, w, s) { if (acc) acc[a & 0xffff] = 1; if (m.onWrite) m.onWrite(a & 0xffff, w & 0xff); return owrite(a, w, s); };
   cpu.pc = 0; cpu.sp = IMG[2] | (IMG[3] << 8); cpu.iff = false;
   m.cpu = cpu; m.v06c = v06c; m.img = IMG; m.ctx = ctx;
   m.rd = a => memory.bytes[memory.tobank(a & 0xffff)];

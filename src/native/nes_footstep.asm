@@ -7,7 +7,5 @@ joe_footstep:
  ld a,(0x7076)
  or a
  ret z
- ld a,1
- out (0x00),a             ; PPI BSR: set PC0 without changing other bits
- ret
+ jp nes_step_sfx          ; шумовой щелчок (раньше — едва слышный BSR PC0)
  ASSERT $ <= 0xFE30

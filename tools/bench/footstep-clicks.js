@@ -1,4 +1,4 @@
-// Щелчки шагов (BSR PC0 через out 00h значением 01) в разных ситуациях: стоит, идёт, упёрся в стену, на ленте.
+// Щелчки шагов (шумовой эффект канала 2: записи в порт 09 при выключенной музыке) в разных ситуациях: стоит, идёт, упёрся в стену, на ленте.
 // B=build/quick node tools/bench/footstep-clicks.js
 'use strict';
 const path=require('path');process.chdir(path.resolve(__dirname,'../..'));
@@ -12,8 +12,9 @@ function run(label,room,setup,keyFn,N=300){
   if(pc!==s.L_A5D1)return;steps++;m.wr(0x7049,6);if(s.nes_amulet_ticks){m.wr(s.nes_amulet_ticks,200);m.wr(s.nes_amulet_ticks+1,0);}
   if(steps===50){m.wr(0x71A7,room[0]);m.wr(0x71A8,room[1]);m.wr(0x7079,9);}
   if(steps===150){m.outs.length=0;}
+  if(steps===60&&s.nes_mute)m.wr(s.nes_mute,255);   // музыка выключена: остаются только эффекты
   if(steps>150){keyFn(m,steps-150);const x=m.rd(0x7305);if(lastX>=0&&x!==lastX)moved++;lastX=x;states[m.rd(0x7079)]=(states[m.rd(0x7079)]||0)+1;}
-  if(steps===150+N){const o=m.outs;for(let i=0;i<o.length;i+=2)if(o[i]===0&&o[i+1]===1)clicks++;done=true;}
+  if(steps===150+N){const o=m.outs;for(let i=0;i<o.length;i+=2)if(o[i]===9)clicks++;done=true;}
  };
  let done=false;for(let f=0;!done&&f<5000;f++){if(f===10)m.keyboard.matrix[2]|=2;if(f===100)m.keyboard.matrix[2]&=~2;m.frame();}
  console.log(label.padEnd(34),'щелчков',String(clicks).padStart(3),'за',N,'шагов; шагов со сдвигом x:',moved,'состояния',JSON.stringify(states));

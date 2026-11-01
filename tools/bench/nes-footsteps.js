@@ -1,4 +1,5 @@
-// Foot plants drive PC0; idle, blocked walking, ladders and airborne poses stay silent.
+// Foot plants start the short noise click (nes_step_stream); idle, blocked walking and airborne poses stay silent;
+// ladder/rope poses click on every pose change (jn_tick 4, 8). joe_clock preserves all registers and flags.
 'use strict';
 const assert=require('node:assert/strict'),path=require('node:path');
 process.chdir(path.resolve(__dirname,'../..'));
@@ -15,21 +16,24 @@ function clock(){
  assert.equal(c.sp,0x73C0);
 }
 let cases=0,clicks=0;
+const fired=()=>{const hit=(m.rd(s.nes_n_ptr)|m.rd(s.nes_n_ptr+1)<<8)===s.nes_step_stream&&m.rd(s.nes_n_wait)===1;m.wr(s.nes_n_wait,0);m.wr(s.nes_n_ptr,0);m.wr(s.nes_n_ptr+1,0);return hit;};
 for(let state=0;state<=10;state++)for(const dx of [0,1,255]){
+ if(state===3||state===4)continue;   // лестница и канат — отдельная проверка ниже
  m.wr(0x7079,state);m.wr(0x7076,dx);m.wr(0x7077,0);
- m.wr(s.jn_tick,0);m.wr(s.jn_walk,0);let count=0;
+ m.wr(s.jn_tick,0);m.wr(s.jn_walk,0);m.wr(s.nes_n_wait,0);let count=0;
  for(let tick=1;tick<=48;tick++){
-  m.outs=[];m.io.PC=0xA8;clock();
-  if(m.outs.length){
-   assert.deepEqual(m.outs,[0,1]);assert.equal(state,1);assert.notEqual(dx,0);
-   assert.equal(tick%12,0);assert.equal(m.rd(s.jn_walk)&1,0);
-   assert.equal(m.io.PC,0xA9,'BSR preserves other port C bits');count++;
-  }else assert.equal(m.io.PC,0xA8);
+  clock();
+  if(fired()){
+   assert.equal(state,1);assert.notEqual(dx,0);
+   assert.equal(tick%12,0);assert.equal(m.rd(s.jn_walk)&1,0);count++;
+  }
  }
  assert.equal(count,state===1&&dx!==0?4:0);clicks+=count;cases++;
 }
-// IRQ must end the pulse even when keyboard scanning was not requested.
-m.wr(s.kb_req,0);m.cpu.pc=s.isr;m.cpu.sp=0x73BE;m.io.PC=0xA9;m.outs=[];
-for(let n=0;m.cpu.pc!==s.isr1;n++){assert(n<100,'ISR prefix hung');m.cpu.instruction();m.io.commit();}
-assert.deepEqual(m.outs,[0,0]);assert.equal(m.io.PC,0xA8);
-console.log(JSON.stringify({B,cases,clicks,footPlantPeriod:12,registersPreserved:true,irqClearsWithoutKeyboard:true}));
+// лестница и канат (состояния 3, 4) при движении: щелчок на каждой смене позы
+for(const state of [3,4]){
+ m.wr(0x7079,state);m.wr(0x7076,0);m.wr(0x7077,1);m.wr(s.jn_tick,0);m.wr(s.nes_n_wait,0);let count=0;
+ for(let tick=1;tick<=32;tick++){clock();if(fired())count++;}
+ assert.equal(count,8,'состояние '+state+': щелчок каждые 4 тика');clicks+=count;cases++;
+}
+console.log(JSON.stringify({B,cases,clicks,footPlantPeriod:12,ladderStepPeriod:4,registersPreserved:true}));

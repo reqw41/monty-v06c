@@ -83,7 +83,7 @@ npw_done:
  call L_8DD4
  push af
  call nphys_hazards
- call nphys_box_step
+ call nphys_box_step_wall
  pop af
  ret
 nphys_wall:

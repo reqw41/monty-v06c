@@ -524,6 +524,7 @@ sprite_sources_end:
  INCLUDE "nes_object_colors.asm"
  INCLUDE "nes_score.asm"
  INCLUDE "nes_landing_save.asm"
+ INCLUDE "nes_steps.asm"
  ENDIF
  ENDIF
  ENDIF
