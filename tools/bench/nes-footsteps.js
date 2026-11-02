@@ -1,5 +1,5 @@
 // Foot plants start the short noise click (nes_step_stream); idle, blocked walking and airborne poses stay silent;
-// ladder/rope poses click on every pose change (jn_tick 4, 8). joe_clock preserves all registers and flags.
+// ladder/rope climbing is silent (owner, 2.11). joe_clock preserves all registers and flags.
 'use strict';
 const assert=require('node:assert/strict'),path=require('node:path');
 process.chdir(path.resolve(__dirname,'../..'));
@@ -30,10 +30,10 @@ for(let state=0;state<=10;state++)for(const dx of [0,1,255]){
  }
  assert.equal(count,state===1&&dx!==0?4:0);clicks+=count;cases++;
 }
-// лестница и канат (состояния 3, 4) при движении: щелчок на каждой смене позы
+// лестница и канат (состояния 3, 4): без звука
 for(const state of [3,4]){
  m.wr(0x7079,state);m.wr(0x7076,0);m.wr(0x7077,1);m.wr(s.jn_tick,0);m.wr(s.nes_p_wait,0);let count=0;
  for(let tick=1;tick<=32;tick++){clock();if(fired())count++;}
- assert.equal(count,8,'состояние '+state+': щелчок каждые 4 тика');clicks+=count;cases++;
+ assert.equal(count,0,'состояние '+state+': на лестнице/канате тихо');clicks+=count;cases++;
 }
-console.log(JSON.stringify({B,cases,clicks,footPlantPeriod:12,ladderStepPeriod:4,registersPreserved:true}));
+console.log(JSON.stringify({B,cases,clicks,footPlantPeriod:12,ladder:'silent',registersPreserved:true}));

@@ -9,7 +9,7 @@ function call(name){const c=m.cpu;c.iff=false;c.iff_pending=0;c.sp=0x73be;c.pc=s
 const fired=()=>{const hit=m.rd(s.nes_p_ptr)|m.rd(s.nes_p_ptr+1)<<8;const f=hit===s.nes_step_stream&&m.rd(s.nes_p_wait)===1;m.wr(s.nes_p_wait,0);m.wr(s.nes_p_ptr,0);m.wr(s.nes_p_ptr+1,0);return f;};
 function clock(state,dx,dy,n){let c=0;m.wr(0x7079,state);m.wr(0x7076,dx);m.wr(0x7077,dy);m.wr(s.jn_tick,0);m.wr(s.jn_walk,0);m.wr(s.nes_p_wait,0);for(let i=0;i<n;i++){call('joe_clock');if(fired())c++;}return c;}
 const ladder=clock(3,0,1,32), ladderIdle=clock(3,0,0,32), walk=clock(1,2,0,48), stuck=clock(1,0,0,48), standing=clock(0,0,0,48);
-assert.equal(ladder,8,'лестница: щелчок при каждой смене позы (каждые 4 тика)');
+assert.equal(ladder,0,'лестница: без звука');
 assert.equal(ladderIdle,0,'на лестнице без движения тихо');
 assert.equal(walk,4,'ходьба: щелчок на чётных фазах каждые 12 тиков');
 assert.equal(stuck,0,'упор в стену (dX=0): тихо');

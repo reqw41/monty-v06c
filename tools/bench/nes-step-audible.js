@@ -13,5 +13,5 @@ m.onInstr=pc=>{
 };
 let f=0;for(;steps<450;f++){if(f===10)m.keyboard.matrix[2]|=2;if(f===100)m.keyboard.matrix[2]&=~2;m.frame();}
 const o=m.outs;const ports={};let hi=0,lo=0;
-for(let i=0;i+3<o.length;i+=2){ports[o[i].toString(16)]=(ports[o[i].toString(16)]||0)+1;if(o[i+1]===0x04&&o[i+3]===0x09&&o[i]===o[i+2])hi++;if(o[i+1]===0xD6&&o[i+3]===0x0F&&o[i]===o[i+2])lo++;}
-assert(hi>=20&&lo>=20,'шаги слышны: '+hi+'/'+lo);console.log(JSON.stringify({B,steps:300,tuk650:hi,tuk370:lo}));
+for(let i=0;i+3<o.length;i+=2){ports[o[i].toString(16)]=(ports[o[i].toString(16)]||0)+1;if(o[i+1]===0x98&&o[i+3]===0x3A&&o[i]===o[i+2])hi++;if(o[i+1]===0x20&&o[i+3]===0x4E&&o[i]===o[i+2])lo++;}
+assert(hi>=20&&lo>=20,'шаги слышны: '+hi+'/'+lo);console.log(JSON.stringify({B,steps:300,top100:hi,top75:lo}));
