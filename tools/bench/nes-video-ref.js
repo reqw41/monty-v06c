@@ -44,8 +44,8 @@ function cell(m,s,t,phase,belt,options={}){const p=pixels(t,phase,belt),indices=
  for(let y=0;y<8;y++)for(let x=0;x<8;x++)indices[y][x]=t===0xe8?(col===0?0:(((msx[0x85ca+8*(belt&1)+y]>>(7-x))&1)*(y===2?1:(s.NES_GREY_PLATFORMS?5:6)))):t===0xde||t===0x6f?[0,3,1,1][p[y][x]]:dark&&terrain?0:(t===8||t===11||(t>=0xc8&&t<=0xcb))?[0,3,7,6][p[y][x]]:t===0x38?3:objectMap?objectMap[p[y][x]]:p[y][x]?ink:0;
  if(s.CONVEYOR_TWO_INKS&&((t>=4&&t<=6)||(t>=0xb8&&t<=0xba)))
   for(let y=0;y<8;y++)for(let x=0;x<8;x++)indices[y][x]=dark&&terrain?0:[0,2,0,1][p[y][x]];
- if(s.rope_image&&(t===0x95||t===0x90)&&!dark)for(let y=0;y<8;y++)for(let x=0;x<8;x++) // колонна: белое 1..4, серое 5..6, перекладина
-  indices[y][x]=t===0x90&&y<2?1:x>=1&&x<=4?1:x>=5&&x<=6?5:0;
+ if(s.column_image&&(t===0xcc||t===0xcd)&&!dark)for(let y=0;y<8;y++)for(let x=0;x<8;x++) // колонна: белое 2..5, серое 6..7
+  indices[y][x]=x>=2&&x<=5?1:x>=6?5:0;
  if(s.NES_INK_SWAP23)for(let y=0;y<8;y++)for(let x=0;x<8;x++)if(indices[y][x]===2||indices[y][x]===3)indices[y][x]^=1;
  const out=[];for(const bit of [4,2,1])for(let y=0;y<8;y++)out.push(indices[y].reduce((a,v,x)=>a|((v&bit)?128>>x:0),0));return out;
 }
