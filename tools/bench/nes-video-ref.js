@@ -28,7 +28,7 @@ function cell(m,s,t,phase,belt,options={}){const p=pixels(t,phase,belt),indices=
  if(s.STABLE_OBJECT_COLORS){
   if([0x62,0x63,0xd0,0xd1,0xa8,0xae,0xa9,0xaf].includes(t))objectMap=[0,3,2,6];
   if([0x96,0x97,0x9a,0x9b,0xb0,0xb1,0xb2,0xb3,0xb4,0xb7,0xc0,0xc1,0xc2,0xc3,0xc5,0xc7].includes(t))objectMap=[0,1,3,6];
-  if(s.fsm_grey&&(t===0x96||t===0x97))objectMap=[0,5,3,6]; // мечи: белое лезвие — серый слот 5
+  if(s.fsm_grey&&[0x96,0x97,0x9a,0x9b].includes(t))objectMap=[0,5,3,6]; // мечи: белое лезвие — серый слот 5
  }
  if(s.STABLE_OBJECT_COLORS&&t===0x9c)ink=3; // red-door foot, independent of jewel ink
  const col=options.color===undefined?m.rd(s.room_colors+(t>>3)):options.color,dark=options.dark===undefined?m.rd(s.room_colors+1)===0x11:options.dark;

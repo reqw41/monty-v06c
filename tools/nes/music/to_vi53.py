@@ -507,7 +507,7 @@ def main():
     args.report.write_text(json.dumps(result, ensure_ascii=False, indent=2) + '\n')
     page_source = []
     for begin, end in [('PS_MORE', '0x7000'), ('joe_band_free_source', 'joe_latch_source'), ('sprite_sources_end', 'joe_high_free_end'),
-                       ('ps_heap', 'PS_TOP'), ('ps_boot_source+LIVE_CODE_BYTES', 'JOE_PICTURE2'), ('JOE_CACHE_END', 'ps_boot_source_end'), ('nes_snake_aux_end','sprite_table_free_end'),
+                       ('ps_heap', 'PS_TOP'), ('ps_boot_source+LIVE_CODE_BYTES', 'NES_SNAKE_CODE'), ('nes_snake_aux_end','sprite_table_free_end'),
                        ('ENEMY_CACHE_FREE','live_hi+256'), ('live_list+LIVE_N','0xFFFF')]:
         for i in range(5):
             page = f'((({begin})&0xFF00)+{256*i})'

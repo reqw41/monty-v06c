@@ -44,6 +44,8 @@ JOE_BACKGROUND equ 0xFA20
 ; Второй образ Джо (кэш двух образов) — окно в бывшем загрузочном источнике, вырезанное из пула сдвигов врагов.
 JOE_PICTURE2 equ 0x3700
 JOE_CACHE_END equ JOE_PICTURE2+0x120     ; образ 276 байт + ключи jn_key2/jn_old (joe_cache.asm)
+NES_HIT_CODE equ JOE_CACHE_END            ; столкновения NES (nes_hit.asm), до конца загрузочного источника
+NES_SNAKE_CODE equ 0x3660                 ; проверка змеи (nes_hit.asm), до второго образа Джо
  IFDEF NES_JOE_SP_RESTORE
 JOE_BACKGROUND_STRIDE equ 2
  ELSE

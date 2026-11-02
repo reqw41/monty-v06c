@@ -451,22 +451,13 @@ p8fd:		ld	a,d
 p8f2:		call	L_9156			; огонь/лазер под героем (9428)
 		ld	hl,0x71B0
 		inc	(hl)
-		ld	a,(0x7058)
 		IFDEF NES_FULL
-		cp	0xA0		; только неподвижная змея; огонь остаётся смертелен
-		jp	c,p8f_no_amulet
-		cp	0xA8
-		jp	nc,p8f_no_amulet
-		ld	b,a
-		ld	a,(nes_amulet_ticks)
-		ld	d,a
-		ld	a,(nes_amulet_ticks+1)
-		or	d
-		ld	a,b
-		ret	nz
-p8f_no_amulet:
+ call nes_snake_hit         ; змея — прямоугольники NES (nes_hit.asm); A = тайл под героем без змей
+ jp c,p8f_snake
  cp 0xD0
  jp nc,p8f3
+		ELSE
+		ld	a,(0x7058)
 		ENDIF
 		cp	0x40
 		jp	c,p8f3
@@ -480,6 +471,7 @@ p8f_no_amulet:
 		ld	a,b
 		and	7
 		ld	c,a			; original CPIR remainder (corner of the fire)
+p8f_kill:
 		ld	a,(0x704A)
 		or	a
 		ret	nz
@@ -493,6 +485,10 @@ p8f_no_amulet:
 		ld	c,0
 		ld	e,0
 		jp	L_8DA2
+		IFDEF NES_FULL
+p8f_snake:	ld	c,0			; (71B0) — левая верхняя клетка змеи
+		jp	p8f_kill
+		ENDIF
 p8f3:
 		IFNDEF	STRICT
 		call	it_pick			; допуск: в средней колонке предмета нет — соседняя (71B0 +- 1)
@@ -606,6 +602,11 @@ p9e9:		inc	hl
 		ld	hl,0x7304
 		ld	a,c
 		call	add_hl_a
+		IFDEF NES_FULL
+		call	nes_enemy_hit		; прямоугольники NES (nes_hit.asm)
+		jp	nc,p9ex
+		inc	hl
+		ELSE
 		ld	a,(0x7084)
 		ld	b,0x0D
 		call	L_91D1
@@ -615,6 +616,7 @@ p9e9:		inc	hl
 		ld	b,8
 		call	L_91D1
 		jp	nc,p9ex
+		ENDIF
 		inc	hl
 		inc	hl
 		ld	a,(hl)			; цвет 0 — враг уже снят
