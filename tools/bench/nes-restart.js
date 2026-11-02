@@ -4,7 +4,7 @@ const assert=require('assert/strict'),fs=require('fs'),path=require('path');proc
 const E=require('../vec_emu'),{symbols}=require('./logic-profile'),B=process.env.B||'build/native',s=symbols(B),m=E.mk(B+'/monty.bin');
 const title=fs.readFileSync('build/nes_title/title_screen.raw');
 assert.equal(title.length,0x6000);
-let steps=0,forced=0,restarts=0,entered=false,after=0,menus=0,overlays=0;
+const cold=fs.readFileSync(B+'/monty.bin');let musicPlayed=0,titleMusic=-1,steps=0,forced=0,restarts=0,entered=false,after=0,menus=0,overlays=0;
 const selected=[2,3];
 m.onInstr=pc=>{
  if(pc===s.go1){
@@ -30,11 +30,17 @@ m.onInstr=pc=>{
   }
   m.keyboard.matrix[7]|=128;
  }
+ if(pc===s.warm_restart&&titleMusic>=0){const p=m.rd(s.nes_m_ptr)|m.rd(s.nes_m_ptr+1)<<8;assert.notEqual(p,titleMusic,'title music played while waiting');musicPlayed++;titleMusic=-1;}
  if(pc===s.title_warm_menu&&menus===forced-1){
   for(let i=0;i<title.length;i++)assert.equal(m.rd(0x8000+i),title[i],`restored title byte ${i.toString(16)}`);
   assert.equal(m.rd(s.pal+2*s.NES_TITLE_TEXT_SLOT),173,'NES title ink');
   assert.equal(m.rd(s.cmap+15),s.NES_TITLE_TEXT_SLOT,'menu uses title credit ink');
   assert.equal(m.rd(s.pal+2),255,'white title rope');
+  // музыка заставки восстановлена (копия под E040) и играет
+  assert.equal(m.rd(s.nes_pitch_page),0xE0,'title pitch page after GAME OVER');
+  assert.equal(m.rd(s.nes_loop),1,'title loops');
+  for(let i=0;i<64;i++)assert.equal(m.rd(0xE040+i),cold[0xEC40+i],'title copy note table '+i);
+  titleMusic=m.rd(s.nes_m_ptr)|m.rd(s.nes_m_ptr+1)<<8;
   menus++;
   m.keyboard.matrix[7]&=~128;
   m.keyboard.matrix[2]|=1<<selected[menus-1];
@@ -62,4 +68,4 @@ assert.equal(overlays,2);assert.equal(menus,2);assert.equal(restarts,2);assert(a
 if(s.nt_jump_curve!==undefined)for(let i=0;i<s.nt_motion_end-s.nt_jump_curve;i++)
  assert.equal(m.rd(s.nt_jump_curve+i),m.img[s.nt_motion_source+i],'treasure jump survives GAME OVER');
 assert.equal(m.rd(0x71A6),3);assert.equal(m.rd(0x7017),0);
-console.log(JSON.stringify({B,restarts,selected,menus,overlays,stepsAfterSecond:after,level:m.rd(0x71A6),bootstrap:'title restored from permanent ZX0 stream'}));
+console.log(JSON.stringify({B,restarts,selected,menus,overlays,stepsAfterSecond:after,level:m.rd(0x71A6),musicPlayed,bootstrap:'title restored from permanent ZX0 stream'}));

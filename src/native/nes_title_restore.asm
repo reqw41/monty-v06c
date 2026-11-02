@@ -26,6 +26,7 @@ title_resume:
  ld (video_enabled),a
  ld (video_dirty),a
  ld (crit_pend),a
+ call nes_title_music
  ei
 title_warm_menu:
  ld hl,menu_txt

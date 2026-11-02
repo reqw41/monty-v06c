@@ -2,6 +2,12 @@
 	ORG 0xE840
 nes_notes:
 	dw 0,1918,2146,2280,2548,2709,2829,3044,3406,3607,3822,4291,4546,5109,5417,5739,6075,6812,10218,11479,12149,13624,15314,18210,20436,21643,22930
+TITLE_COPY equ 57408
+TITLE_COPY_ORDER equ 58426
+TITLE_COPY_LOOP equ 58428
+TITLE_COPY_ZX0 equ 694
+	INCLUDE "nes_title_music.asm"
+	ASSERT $ == nes_notes + 54 + 750
 nes_treasure_order:
 	dw game_phrase_8,game_phrase_7,game_phrase_9,game_phrase_2,game_phrase_10,game_phrase_7,game_phrase_11,game_phrase_2,game_phrase_12,game_phrase_6,game_phrase_13,game_phrase_1,game_phrase_14,game_phrase_6,game_phrase_15,game_phrase_1,game_phrase_16,game_phrase_4,game_phrase_17,game_phrase_3,game_phrase_18,game_phrase_4,game_phrase_19,game_phrase_3,game_phrase_20,game_phrase_5,game_phrase_21,game_phrase_0,game_phrase_22,game_phrase_5,game_phrase_23,game_phrase_0
 	dw 0
@@ -11,48 +17,6 @@ game_phrase_1:
 	db 35,84,84,35,90,78,35,96,84,35,90,90,43,84,84,35,78,90,0
 game_phrase_2:
 	db 35,84,84,35,88,76,35,94,84,35,88,88,43,84,84,35,76,88,0
-game_phrase_3:
-	db 35,82,82,35,86,78,35,90,82,35,86,86,43,82,82,35,78,86,0
-game_phrase_4:
-	db 35,78,78,35,72,72,35,78,68,35,82,72,35,78,78,43,82,72,0
-game_phrase_8:
-	db 31,64,64,64,39,66,92,116,43,70,88,35,76,80,35,70,74,0
-game_phrase_10:
-	db 27,70,94,39,66,88,102,43,70,84,35,76,76,35,70,70,0
-game_phrase_12:
-	db 35,70,94,39,66,88,108,43,72,84,35,78,76,35,72,70,0
-game_phrase_14:
-	db 35,72,96,39,66,90,104,43,72,84,35,78,78,35,72,72,0
-game_phrase_20:
-	db 35,72,90,39,70,86,114,43,74,82,35,80,78,35,74,72,0
-game_phrase_22:
-	db 35,74,98,39,70,92,106,43,74,88,35,80,80,35,74,74,0
-game_phrase_5:
-	db 35,80,70,35,88,74,35,80,80,43,88,74,0
-game_phrase_6:
-	db 35,78,66,35,84,72,35,78,78,43,84,72,0
-game_phrase_7:
-	db 35,76,66,35,84,70,35,76,76,43,84,70,0
-game_phrase_16:
-	db 27,72,96,39,68,90,104,43,72,84,0
-game_phrase_18:
-	db 27,72,90,39,68,86,100,43,72,82,0
-game_phrase_11:
-	db 39,88,76,110,0
-game_phrase_15:
-	db 39,90,78,108,0
-game_phrase_19:
-	db 39,86,78,112,0
-game_phrase_23:
-	db 39,92,80,110,0
-game_phrase_13:
-	db 35,90,78,0
-game_phrase_17:
-	db 35,86,78,0
-game_phrase_21:
-	db 35,92,80,0
-game_phrase_9:
-	db 35,88,76,0
 nes_high_end:
 	ASSERT $ <= 0xEBE0
 	ORG 0xEC40
@@ -229,3 +193,53 @@ nes_effect_end:
 	ASSERT $ <= 0xF000
 	ENT
 nes_effect_source_end:
+	ORG 62208
+nes_reloc_boot:
+	DISP 256
+game_phrase_3:
+	db 35,82,82,35,86,78,35,90,82,35,86,86,43,82,82,35,78,86,0
+game_phrase_4:
+	db 35,78,78,35,72,72,35,78,68,35,82,72,35,78,78,43,82,72,0
+game_phrase_8:
+	db 31,64,64,64,39,66,92,116,43,70,88,35,76,80,35,70,74,0
+game_phrase_10:
+	db 27,70,94,39,66,88,102,43,70,84,35,76,76,35,70,70,0
+game_phrase_12:
+	db 35,70,94,39,66,88,108,43,72,84,35,78,76,35,72,70,0
+game_phrase_14:
+	db 35,72,96,39,66,90,104,43,72,84,35,78,78,35,72,72,0
+game_phrase_20:
+	db 35,72,90,39,70,86,114,43,74,82,35,80,78,35,74,72,0
+game_phrase_22:
+	db 35,74,98,39,70,92,106,43,74,88,35,80,80,35,74,74,0
+game_phrase_5:
+	db 35,80,70,35,88,74,35,80,80,43,88,74,0
+game_phrase_6:
+	db 35,78,66,35,84,72,35,78,78,43,84,72,0
+game_phrase_7:
+	db 35,76,66,35,84,70,35,76,76,43,84,70,0
+game_phrase_16:
+	db 27,72,96,39,68,90,104,43,72,84,0
+game_phrase_18:
+	db 27,72,90,39,68,86,100,43,72,82,0
+game_phrase_11:
+	db 39,88,76,110,0
+game_phrase_15:
+	db 39,90,78,108,0
+game_phrase_19:
+	db 39,86,78,112,0
+game_phrase_23:
+	db 39,92,80,110,0
+	ENT
+	ORG 63760
+nes_reloc_vectors:
+	DISP 8
+game_phrase_13:
+	db 35,90,78,0
+game_phrase_17:
+	db 35,86,78,0
+game_phrase_21:
+	db 35,92,80,0
+game_phrase_9:
+	db 35,88,76,0
+	ENT
