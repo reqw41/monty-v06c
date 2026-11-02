@@ -21,12 +21,12 @@ for(let dy=-30;dy<=12;dy++)for(let dx=-16;dx<=16;dx++){
  for(const p of [0x7300,0x7304]){m.wr(p+1,jx);}m.wr(0x7304,jy);m.wr(0x7300,jy-3);m.wr(s.nphys_box_left,box[0]);m.wr(s.nphys_box_top,box[1]);m.wr(s.nphys_box_right,box[2]);
  call('L_8F5F');const dead=m.rd(0x7079)===8,want=hit(sx+3,sx+13,sy+9,sy+16,jx,jy);
  assert.equal(dead,want,`snake dx=${dx} dy=${dy}`);snakeCases++;if(dead)snakeHits++;}
-// движущийся враг (череп/паук, [1,7,15,16])
+// движущийся враг (череп/паук, [1,7,15,16]; спрайт с (x+1,y+1))
 room(10);const eb=m.memory.bytes.slice();let enemyCases=0,enemyHits=0;
 for(let dy=-26;dy<=12;dy+=2)for(let dx=-18;dx<=18;dx++){
  m.memory.bytes.set(eb);m.wr(0x71b2,255);const jx=120,jy=94;m.wr(0x7305,jx);m.wr(0x7304,jy);m.wr(0x7301,jx);m.wr(0x7300,jy-3);
  m.wr(s.nphys_box_left,box[0]);m.wr(s.nphys_box_top,box[1]);m.wr(s.nphys_box_right,box[2]);
  const ex=jx+dx,ey=jy+dy;m.wr(0x7308,ey);m.wr(0x7309,ex);
- call('L_91E5');const dead=m.rd(0x7049)===5,want=hit(ex+1,ex+15,ey+8,ey+17,jx,jy);
+ call('L_91E5');const dead=m.rd(0x7049)===5,want=hit(ex+2,ex+16,ey+8,ey+17,jx,jy);
  assert.equal(dead,want,`enemy dx=${dx} dy=${dy}`);enemyCases++;if(dead)enemyHits++;}
 console.log(JSON.stringify({B,snakeCases,snakeHits,enemyCases,enemyHits,rule:'NES $A47D boxes'}));

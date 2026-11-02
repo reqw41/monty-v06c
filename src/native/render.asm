@@ -236,7 +236,8 @@ uc1:		add	a,(hl)
 
  ENDIF
 
-; cell_colors: A = тайл -> D = цвет точек, E = цвет фона (MSX, 0 -> 1)
+ IFNDEF NES_STYLE
+; cell_colors: A = тайл -> D = цвет точек, E = цвет фона (MSX, 0 -> 1) — только MSX-палитра
 cell_colors:
 		rrca
 		rrca
@@ -260,4 +261,5 @@ cc1:		ld	d,a
 		inc	a
 cc2:		ld	e,a
 		ret
+ ENDIF
 

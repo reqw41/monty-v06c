@@ -162,13 +162,6 @@ bclr:
  ld hl,raw_base
  ld bc,256
  call copy_de_hl
- ld de,nes_hit_source       ; столкновения NES (nes_hit.asm) — до построения сдвигов врагов
- ld hl,NES_HIT_CODE
- ld bc,nes_hit_source_mid-nes_hit_source
- call copy_de_hl
- ld hl,NES_SNAKE_CODE       ; DE = nes_hit_source_mid
- ld bc,nes_hit_source_end-nes_hit_source_mid
- call copy_de_hl
  ENDIF
  IFNDEF NES_FULL
 		call	ps_build		; готовые сдвиги кадров врагов
@@ -394,6 +387,7 @@ unit_fw:	push	af			; tools/unit.js: ожидание кадра = обработ
 		INCLUDE	"frame.asm"
 		INCLUDE	"enemy.asm"
 		INCLUDE	"collide.asm"
+		INCLUDE	"nes_hit.asm"		; столкновения как NES
 		INCLUDE	"hero.asm"
 		INCLUDE	"main.asm"
 		INCLUDE	"display.asm"
@@ -535,7 +529,6 @@ sprite_sources_end:
  INCLUDE "nes_landing_save.asm"
  INCLUDE "nes_steps.asm"
  INCLUDE "joe_cache.asm"
- INCLUDE "nes_hit.asm"
  ENDIF
  ENDIF
  ENDIF

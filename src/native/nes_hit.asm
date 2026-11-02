@@ -1,14 +1,9 @@
 ; Столкновения с врагами как в NES ($A47D): пересечение прямоугольников из заголовков метаспрайтов.
 ;   Джо: левый 7305+nphys_box_left, правый 7305+nphys_box_right, верх 7304-7+nphys_box_top, низ 7304+17 (высота 24);
-;   череп/паук (запись 7304+C: y, x; спрайт 16x16 с (x, y+1)): [1, 7, 15, 16] -> x+1..x+15, y+8..y+17;
+;   череп/паук (запись 7304+C: y, x; спрайт 16x16 с (x+1, y+1)): [1, 7, 15, 16] -> x+2..x+16, y+8..y+17;
 ;   змея (тайлы A0 A1/A2 A3, зеркально A5 A4/A7 A6; начало — левая верхняя клетка): [3, 9, 13, 16].
 ; Попадание (как CMP/BCS/BCC в NES): L < Джо.R, R >= Джо.L, T < Джо.B, B >= Джо.T (8-битные суммы).
-; Исходник лежит в образе с F100 (нули после темы заставки), при старте переносится в NES_HIT_CODE
-; (окно в бывшем загрузочном источнике, вырезано из пула сдвигов врагов вместе со вторым образом Джо).
- ORG 0xF100
- ASSERT nes_title_end <= $
-nes_hit_source:
- DISP NES_HIT_CODE
+; Код — в основной цепочке (game.asm, после collide.asm). hb_* — 4 байта состояния в одной странице (ASSERT ниже).
 hb_l: db 0
 hb_r: db 0
 hb_t: db 0
@@ -68,16 +63,16 @@ nes_enemy_hit:
  ld c,a
  inc hl
  ld a,(hl)
- inc a
+ add a,2                    ; спрайт начинается с x+1; прямоугольник [1,7,15,16] -> x+2..x+16
  ld d,a
  add a,14
  ld e,a
  call nes_box_hit
  pop hl
  ret
- ENT
-nes_hit_source_mid:
- DISP NES_SNAKE_CODE
+; Проверка змеи — в хвосте кэша тайлов (TILE_CAP 81: образы 81..86 не нужны ни одной комнате), постоянная память.
+nes_hit_chain_return equ $
+ ORG TILE_IMAGES+24*TILE_CAP
 ; Неподвижная змея. CY = попадание: (71B0) = её левая верхняя клетка. Иначе A = тайл под героем (0x7058),
 ; змеиный (A0..A7) заменён нулём — старой проверки по клетке под героем больше нет.
 nes_snake_hit:
@@ -167,9 +162,7 @@ nsh_found:
  ld (0x71B0),hl
  scf
  ret
- ENT
-nes_hit_source_end:
- ASSERT NES_HIT_CODE+(nes_hit_source_mid-nes_hit_source) <= 0x38B1
- ASSERT NES_SNAKE_CODE+(nes_hit_source_end-nes_hit_source_mid) <= JOE_PICTURE2
- ASSERT $ <= 0xF200
+nes_snake_hit_end:
+ ASSERT nes_snake_hit_end <= 0xE828
+ ORG nes_hit_chain_return
  ASSERT (hb_l&0xFF00) == (hb_b&0xFF00)

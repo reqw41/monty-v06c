@@ -73,11 +73,15 @@ en_f2:		ld	h,d
 		ld	a,(hl)
 		or	a
 		jp	z,en_c1
+		IFNDEF NES_FULL
 		ld	a,(0x704A)
 		or	a
 		ld	a,0x0F
 		jp	z,en_c0
 		dec	a
+		ELSE
+		ld	a,0x0F
+		ENDIF
 en_c0:		ld	(hl),a
 en_c1:		ld	h,d
 		ld	l,e
@@ -135,11 +139,15 @@ en_b1:		add	a,b
 		ld	a,(hl)
 		or	a
 		jp	z,en_b2
+		IFNDEF NES_FULL
 		ld	a,(0x704A)
 		or	a
 		ld	a,0x0C
 		jp	z,en_b2a
 		ld	a,0x0E
+		ELSE
+		ld	a,0x0C
+		ENDIF
 en_b2a:		ld	(hl),a
 en_b2:		dec	hl
 		ld	a,(hl)

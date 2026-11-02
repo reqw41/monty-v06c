@@ -25,7 +25,7 @@ TILE_IMAGES equ 0xE000
  IFDEF STRICT
 TILE_CAP equ 120
  ELSE
-TILE_CAP equ 87
+TILE_CAP equ 81                           ; максимум нужных образов — 81 (комнаты 1,9 и 1,10; tile-cache-use.js), сокровищница 53
  ENDIF
  IFDEF NES_FULL
 NTS equ 0xEB40
@@ -42,10 +42,10 @@ SPR_SLOTS equ 0xF900
 JOE_PICTURE equ SPR_SLOTS
 JOE_BACKGROUND equ 0xFA20
 ; Второй образ Джо (кэш двух образов) — окно в бывшем загрузочном источнике, вырезанное из пула сдвигов врагов.
-JOE_PICTURE2 equ 0x3700
+; Загрузочный источник (ps_boot_source..ps_boot_source_end, sprites.asm) движется вместе с цепочкой кода, поэтому
+; окно задаётся относительно него: первая страница после живого кода (LIVE_CODE_BYTES). Проверки — в joe_cache.asm.
+JOE_PICTURE2 equ (ps_boot_source+LIVE_CODE_BYTES+255)&0xFF00
 JOE_CACHE_END equ JOE_PICTURE2+0x120     ; образ 276 байт + ключи jn_key2/jn_old (joe_cache.asm)
-NES_HIT_CODE equ JOE_CACHE_END            ; столкновения NES (nes_hit.asm), до конца загрузочного источника
-NES_SNAKE_CODE equ 0x3660                 ; проверка змеи (nes_hit.asm), до второго образа Джо
  IFDEF NES_JOE_SP_RESTORE
 JOE_BACKGROUND_STRIDE equ 2
  ELSE

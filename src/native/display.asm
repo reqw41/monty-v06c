@@ -1055,10 +1055,14 @@ dal_style_row:
  call style_gap
  ENDIF
  ENDIF
+ IFDEF NES_FULL
+		ret				; строк-меток (row_dirty) в NES_FULL нет: переполнение списка обходит все строки
+ ELSE
 		ld	hl,row_dirty
 		ld bc,SCREEN_ROWS
 		ld	e,0
 		jp	memfill
+ ENDIF
 ; da_img: C = режимы, DE = графика -> (tile_dst): 3 плоскости по 8 байт (сверху вниз)
 da_img:		ld	hl,(tile_dst)
 		ld	a,c
@@ -1381,6 +1385,10 @@ dl8:		pop	hl
 		jp	nz,dl1
 		ld	a,(dl_k)
 		ld	(dl_n),a
+ IFDEF NES_FULL
+		ret
+dl_full:	call	draw_rows		; переполнение: все строки (вывод — где PND = 1)
+ ELSE
 		or	a
 		ret	nz
 		ld	hl,row_dirty		; список пуст — и строки
@@ -1392,6 +1400,7 @@ dl_full:	ld	hl,row_dirty		; переполнение: все строки (вы�
 		ld	e,1
 		call	memfill
 		call	draw_rows
+ ENDIF
 		xor	a
 		ld	(dl_ovf),a
 		ld	(dl_n),a
@@ -1400,9 +1409,8 @@ dl_full:	ld	hl,row_dirty		; переполнение: все строки (вы�
 ; draw_rows: в отмеченных строках перерисовать клетки, ждущие вывода (PND; выровнена так же, как VNT)
 draw_rows:
  IFDEF NES_FULL
- ld a,HUD_ROWS
+ ld a,HUD_ROWS			; все строки поля (меток строк нет; отложенные под спрайтами клетки вернёт восстановление спрайтов)
  ld (rr_r),a
- ld hl,row_dirty+HUD_ROWS
  ELSE
 		xor a
 		ld (rr_r),a
@@ -1412,6 +1420,7 @@ dr0:
  IFNDEF STRICT
  call nes_service
  ENDIF
+ IFNDEF NES_FULL
 		ld a,(hl)
 		or	a
 		jp	z,dr9
@@ -1419,6 +1428,7 @@ dr0:
 		xor	a
 		ld	(dr_skip),a
 		push	hl
+ ENDIF
  IFDEF NES_FULL
  ld c,0
  ld a,(rr_r)
@@ -1452,12 +1462,16 @@ dr2:		inc	l
 		inc	e
 		dec	b
 		jp	nz,dr1
+ IFNDEF NES_FULL
 		pop	hl
 		ld	a,(dr_skip)		; отложенные клетки — строка остаётся отмеченной
 		or	a
 		jp	z,dr9
 		ld	(hl),1
 dr9:		inc	hl
+ ELSE
+dr9:
+ ENDIF
 		ld	a,(rr_r)
 		inc	a
 		ld	(rr_r),a

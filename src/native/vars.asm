@@ -19,7 +19,9 @@ snake_shown:	ds	1
 snake_tick:	ds	1
  ENDIF
 kbmat:		ds	8
+ IFNDEF NES_FULL
 row_dirty:	ds	SCREEN_ROWS
+ ENDIF
  IFNDEF NES_FULL
 drew_any:	ds	1
  ENDIF

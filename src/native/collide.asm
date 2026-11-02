@@ -252,10 +252,12 @@ L_91D1:		sub	(hl)
 		inc	a
 p91d:		cp	b
 		ret
-; L_91D9: цвет группы 14h := A
+ IFNDEF NES_FULL
+; L_91D9: цвет группы 14h := A (мигание при таймере факела MSX)
 L_91D9:		ld	e,0x14
 		ld	c,1
 		jp	room_color_fill
+ ENDIF
 ; L_92A2: снять/поставить флаг взятия объекта по месту HL (старший байт) в списке 72C0 (на уровнях 4+ при
 ; 7000 бит 3 — нет)
 L_92A2:		ld	a,(0x71A6)
@@ -472,9 +474,11 @@ p8f2:		call	L_9156			; огонь/лазер под героем (9428)
 		and	7
 		ld	c,a			; original CPIR remainder (corner of the fire)
 p8f_kill:
+		IFNDEF NES_FULL
 		ld	a,(0x704A)
 		or	a
 		ret	nz
+		ENDIF
 		ld	a,(0x7000)
 		or	8
 		ld	(0x7000),a
@@ -524,8 +528,10 @@ p8f4:		ld	a,c
 		cp	4
 		jp	nc,p8f5
 		call	L_906D			; факел
-		ld	a,0xA0
+		IFNDEF NES_FULL
+		ld	a,0xA0			; MSX: таймер факела (NES: факел постоянный, таймер только у амулета)
 		ld	(0x704A),a
+		ENDIF
 		ld	a,0x8C
 		jp	L_901B
 p8f5:		cp	8
@@ -558,7 +564,8 @@ p9e5:
 		ld	a,(0x7079)
 		cp	8
 		ret	nc
-		ld	a,(0x704A)
+		IFNDEF NES_FULL
+		ld	a,(0x704A)		; MSX: таймер факела — мигание цвета группы 14h, по истечении факел снимается
 		or	a
 		jp	z,p9e7
 		dec	a
@@ -571,14 +578,17 @@ p9e6:		ld	a,0xC0			; кончился
 		call	L_91D9
 		xor	a
 		ld	(0x704A),a
-p9e7:		ld	a,0x8C			; амулет — снять (если есть)
+p9e7:		ld	a,0x8C			; факел — снять (если есть)
 		call	L_908F
 		call	z,L_909C
-p9e8:		call	L_92D1
+p9e8:
+		ENDIF
+		call	L_92D1
+		IFNDEF NES_FULL
 		ld	a,(0x704A)
 		or	a
 		ret	nz
-		IFDEF NES_FULL
+		ELSE
 		ld	a,(nes_amulet_ticks)
 		ld	b,a
 		ld	a,(nes_amulet_ticks+1)

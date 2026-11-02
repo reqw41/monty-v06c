@@ -253,7 +253,8 @@ cp1:		ld	a,(hl)
 		or	DIRTY_COLOR
 		ld	(video_dirty),a
 		jp	np_x
-; room_color_fill: E = группа, C = число, A = цвет
+ IFNDEF NES_FULL
+; room_color_fill: E = группа, C = число, A = цвет (только мигание таймера факела MSX)
 room_color_fill:	call	map_edit_begin
 		call	room_color_fill_inner
 		jp	map_edit_end
@@ -273,6 +274,7 @@ cf1:		ld	(hl),b
 		or	DIRTY_COLOR
 		ld	(video_dirty),a
 		jp	np_x
+ ENDIF
 
 ; dl_add (mark_row): HL = адрес клетки в VNT -> в список изменённых клеток (dlist, до DL_MAX; больше — dl_ovf,
 ; вывод тогда по всем строкам). Регистры, кроме A, сохраняются
