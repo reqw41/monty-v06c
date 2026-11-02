@@ -49,7 +49,11 @@ eb1:		ld	c,a			; 7 * ряд
 		ld	a,(0x71A7)
 		cp	b
 		ret	c
+ IFDEF NES_FULL
+		ld	a,0x8C			; NES: темноту снимает факел (предмет 0C -> 8C); 53 здесь — амулет с таймером
+ ELSE
 		ld	a,0x53
+ ENDIF
 		call	L_908F
 		ret	c
 		ld	a,(0x705F)

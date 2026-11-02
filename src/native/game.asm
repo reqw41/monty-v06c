@@ -509,6 +509,9 @@ sprite_sources_end:
 		INCLUDE "nes_sound.asm"
 		INCLUDE "nes_boot.asm"
 		INCLUDE "nes_alloc.asm"
+ IFDEF NES_FULL
+		INCLUDE "nes_skull_ink.asm"
+ ENDIF
  IFDEF NES_ENEMY_SEEDS
  INCLUDE "nes_enemy_seeds.asm"
  ENDIF

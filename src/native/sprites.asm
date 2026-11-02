@@ -840,7 +840,11 @@ spr_put:
  ld a,l
  add a,14
  ld l,a
+ IFDEF NES_FULL
+ call en_mark               ; +14 := 02h (C000, белый череп) или 82h (8000: паук; череп при амулете) — nes_skull_ink.asm
+ ELSE
  ld (hl),2
+ ENDIF
  ld a,b
  or a
  jp nz,enemy_native_put
@@ -2399,22 +2403,8 @@ en_restore_done:	pop	bc
 
  IFDEF NES_FULL
 NES_GREEN_SPIDERS equ 1
-; HL points anywhere in an old/current record. Select its saved/rendered plane.
-; Both spider poses stay one-plane sprites (8000); shared white skulls use C000.
-enemy_ink_plane:
- push hl
- ld a,l
- and 0xF0
- or 3
- ld l,a
- ld a,(hl)
- sub 0x2C
- cp 8
- sbc a,a
- and 0x40
- xor 0xC0
- pop hl
- ret
+; enemy_ink_plane (nes_skull_ink.asm, FEC0): plane from record byte +14 written by en_mark when the
+; sprite was drawn: 02h -> C000 (white skull), 82h -> 8000 (spider, or a skull while the amulet protects Joe).
  ENDIF
 
 enemy_mix:

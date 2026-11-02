@@ -26,7 +26,7 @@
 | [`rom/Monty-v06c.mgl`](rom/Monty-v06c.mgl) | ярлык MiSTer (ждёт `games/VECTOR06/Monty-v06c.c00`) |
 
 Остальные файлы в `rom/` — промежуточные сборки (`Monty-v06c-nes3-fixN.r0m`), история правок по ним —
-в `docs/BUGS.md`. Текущий образ соответствует `Monty-v06c-nes3-fix22.r0m`.
+в `docs/BUGS.md`. Текущий образ соответствует `Monty-v06c-nes3-fix23.r0m`.
 
 ## Управление
 

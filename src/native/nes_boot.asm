@@ -87,6 +87,10 @@ nes_begin:
 	ld hl,0xEF00
 	ld bc,nes_effect_source_end-nes_effect_source
 	call copy_de_hl
+	ld de,nes_skull_source     ; плоскость врагов (en_mark/enemy_ink_plane) — в FEC0, поверх отработавшего распаковщика
+	ld hl,NES_SKULL_CODE
+	ld bc,nes_skull_source_end-nes_skull_source
+	call copy_de_hl
 	ld de,nes_platform_source
 	ld hl,style_pal
 	ld bc,nes_platform_source_end-nes_platform_source

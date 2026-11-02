@@ -8,7 +8,7 @@ const boot=m.memory.bytes.slice();let cases=0;
 function call(name,hl,b=0){const c=m.cpu;c.iff=false;c.iff_pending=0;c.pc=s[name];c.sp=0x73be;c.regs[4]=hl>>8;c.regs[5]=hl&255;c.regs[0]=b;m.wr(c.sp,s.unit_trap&255);m.wr(c.sp+1,s.unit_trap>>8);for(let n=0;c.pc!==s.unit_trap;n++){assert(n<200000,name+' hung');c.instruction();}}
 for(const nm of [0x2c,0x30,0x0c,0x28])for(const rows of [1,8,16])for(const cached of [false,true])for(const col of [8,31])for(const reuse of [false,true]){
  m.memory.bytes.set(boot);const k=2,rec=s.spr_rec+16*k,next=s.spr_new+16*k,page=s.SPR_SLOTS+256*k,lo=170;
- m.wr(s.sp_k,k);m.wr(s.sp_mpage,page>>8);m.wr(s.en_reuse,0);m.wr(rec+3,nm);m.wr(next+3,nm);
+ m.wr(s.sp_k,k);m.wr(s.sp_mpage,page>>8);m.wr(s.en_reuse,0);m.wr(rec+3,nm);m.wr(next+3,nm);if(s.en_mark!==undefined)m.wr(rec+14,[0x2c,0x30].includes(nm)?0x82:2); // плоскость теперь в записи (+14), её пишет spr_put через en_mark
  for(const [off,v]of [[9,lo],[10,col],[11,rows],[12,0]])m.wr(next+off,v);
  m.wr(s.ps_hi+k,cached?0xe0:0);m.wr(s.ps_lo+k,0);m.wr(s.ps_r+k,rows);
  const masks=Array.from({length:3},(_,x)=>Array.from({length:rows},(_,y)=>(0xa5^(x*29)^(y*17))&255));
