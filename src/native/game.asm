@@ -25,7 +25,7 @@ DIRTY_FIRE		equ	0x08
 DIRTY_SNAKE		equ	0x10			; two NES snake poses, independent of fire
 		DEFINE	NATIVE
 SPR_MAX		equ	6
-DL_MAX		equ	127			; список изменённых клеток (dlist, по 2 байта)
+DL_MAX		equ	64			; список изменённых клеток (dlist, по 2 байта; в игре максимум 33, хвост — образы колонны)
 dl_n		equ	0x7FA8
 dl_ovf		equ	0x7FA9
 dl_cnt		equ	0x7FAA
@@ -460,7 +460,9 @@ grp:		ds	SPR_MAX			; crit_plan: группы
 sprt_end:
 		ASSERT	sprt/256 == (sprt_end-1)/256
 		ORG	0x6800
-dlist:		ds	256			; список изменённых клеток (адреса в VNT)
+dlist:		ds	2*DL_MAX		; список изменённых клеток (адреса в VNT)
+		INCLUDE	"nes_rope.asm"
+		ASSERT	$ <= 0x6900
  IFDEF STRICT
 PS_MORE equ video_raw_end
  ELSE

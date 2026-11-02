@@ -170,6 +170,8 @@ style_image:
  call object_image_select
  ret c
  ENDIF
+ call rope_image
+ ret c
  ld a,(rr_t)
  IFDEF NES_FULL
  cp 0xC8
