@@ -17,8 +17,6 @@ nes_m2 equ 0xEBF1
 nes_pole_div equ 0xEBF2
 nes_noise_div equ 0xEBF4
 nes_last_frame equ 0xEBF6
-nes_mute equ 0xEBF7          ; 0 — музыка играет, FF — выключена клавишей M
-nes_mkey equ 0xEBF8          ; клавиша M при прошлом кадре (0/20h); должен идти сразу за nes_mute
 
 	ORG 0xF600
 nes_prepare_core:
@@ -180,12 +178,6 @@ nes_pitch:
 	inc l
 	ld h,(hl)
 	ld l,a
-	ld a,(nes_mute)		; музыка выключена — пауза (SFX идут через nes_raw*)
-	or a
-	ret z
-	xor a
-	ld h,a
-	ld l,a
 	ret
 nes_out0:
 	call nes_pitch
@@ -245,18 +237,23 @@ nes_select:
 	xor a
 	ld (snd_busy),a
 	ret
+; Музыки пирамиды нет: старт уровня запускает пустой одноразовый порядок — он глушит заставку/сокровищницу.
 nes_pyramid:
 	push hl
-	ld hl,nes_pyramid_order
+	ld hl,nes_silent
+	push af
+	xor a
 	jp nes_cue
+nes_silent:
+	dw nes_silent+2,0
 nes_treasure:
 	push hl
 	ld hl,nes_treasure_order
-nes_cue:
 	push af
+	ld a,1		; сокровищница играет по кругу
+nes_cue:
 	push bc
 	push de
-	ld a,1		; vm fix: in-game themes loop too
 	call nes_select
 	pop de
 	pop bc
@@ -320,18 +317,6 @@ nes_legacy_step:
 	ret z
 	inc (hl)
 	call nes_update_pole
-	ld a,(kbmat+5)		; клавиша M (Vector: ряд 5, бит 20h) включает и выключает музыку по нажатию
-	and 0x20
-	ld b,a
-	ld hl,nes_mkey
-	sub (hl)		; 20h — нажата только что
-	ld (hl),b
-	cp 0x20
-	jp nz,nes_legacy_step
-	dec l
-	ld a,(hl)
-	cpl
-	ld (hl),a
 	jp nes_legacy_step
 nes_pole_start:
 	ld a,1

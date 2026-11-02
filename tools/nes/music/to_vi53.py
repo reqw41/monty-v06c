@@ -348,7 +348,7 @@ def main():
                                   threshold=threshold, transpositions=transpositions,
                                   states=states)
     title = [t for t in data['tracks'] if t['id'] == 'title']
-    game = [t for t in data['tracks'] if t['id'] in ('pyramid', 'treasure')]
+    game = [t for t in data['tracks'] if t['id'] in ('treasure',)]  # тема пирамиды вырезана (память под скорость)
     notes, blocks, orders, dictionary = compile_group(game, converted, 'game')
     title_notes, title_blocks, title_orders, title_dictionary = compile_group(title, {'title': title_loop}, 'title')
     # The initial silence occurs once. Loop from the first note, carrying the

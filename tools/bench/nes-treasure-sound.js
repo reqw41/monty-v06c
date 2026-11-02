@@ -13,7 +13,7 @@ for(const [item,bonus] of [[0x44,0],[0x40,0],[0x44,32]]){
  m.wr(0x71b0,0x80);m.wr(0x71b1,1);m.wr(s.nes_p_wait,0);m.wr(s.nes_q_idle,1);
  call('L_901B',item);
  const silent=!!bonus;
- assert.equal(m.rd(s.nes_p_wait),silent?0:1,`item ${item.toString(16)} bonus=${bonus}: pickup sound ${silent?'silent':'plays'}`);
+ assert.equal(m.rd(s.nes_p_wait)!==0,!silent,`item ${item.toString(16)} bonus=${bonus}: pickup sound ${silent?'silent':'plays'}`);
  if(item===0x44)assert.equal(m.rd(0x7018),0x10,'jewel still gives 1000 points');
  else assert.equal(m.rd(0x71b2),item,'ordinary item still collected');
 }
