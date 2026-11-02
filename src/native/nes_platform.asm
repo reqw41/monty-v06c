@@ -8,7 +8,7 @@ NES_INK_SWAP23 equ 1
 NES_SHARED_WHITE equ 1
 NES_WHITE_CHAINS equ 1
 NES_MONO_SNAKE equ 1
-style_pal: db 0,0,255,255,4,4,103,103,32,32,173,173,160,160,103,103   ; слот 5 — серый ADh (мечи)
+style_pal: db 0,0,255,255,4,4,102,102,32,32,173,173,160,160,102,102   ; слот 3 — кожа Джо 66h (было 67h, ярче); слот 5 — серый ADh; слот 7 по умолчанию = кожа (в сокровищнице: кожа поверх золота)
 MSX_PLATFORM_ROWS equ 4
 MSX_PLATFORM_INK equ 1
 MSX_PLATFORM_BODY_INK equ 6

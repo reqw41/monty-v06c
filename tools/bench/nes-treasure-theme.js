@@ -10,7 +10,7 @@ m.wr(s.video_enabled,1);m.wr(0x71a7,0);m.wr(0x705f,0);m.wr(s.nes_amulet_ticks,0)
 assert.equal(ordinary[0],0);assert.equal(ordinary[4],32);assert.equal(m.rd(s.full_modes+19),5);checkCode();
 for(const row of [9,10,18,25]){
  m.wr(0x71a7,row);m.wr(0x705f,0x20);m.wr(s.nes_amulet_ticks,255);m.wr(s.nes_amulet_ticks+1,1);call('pal_build');
- const bonus=palette();assert.deepEqual(bonus,[s.TREASURE_BLUE,255,4,103,s.TREASURE_GOLD,255,4,103]);
+ const bonus=palette();assert.deepEqual(bonus,[s.TREASURE_BLUE,255,4,102,s.TREASURE_GOLD,255,4,102]); // слоты 3 и 7 — кожа 66h
  assert.equal(m.rd(s.full_modes+19),0x10,'gold is one plane');assert.equal(m.rd(s.nes_snake_palette),0xc9);
  for(let ink=1;ink<=3;ink++)assert.equal(bonus[ink|4],ordinary[ink],'Joe RGB over gold, ink '+ink);
  for(let f=0;f<64;f++){m.wr(s.frames,f);call('nes_snake_palette');assert.deepEqual(palette(),bonus,'amulet must not animate the gold slot');}
