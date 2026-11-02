@@ -26,7 +26,7 @@ for(let row=0;row<9;row++){
    for(let y=0;y<8;y++)for(let x=0;x<8;x++)pixels[8*Math.floor(i/cols)+y][8*(i%cols)+x]=[4,2,1].reduce((a,bit,p)=>a+((m.rd(base+8*p+y)&(128>>x))?bit:0),0);
   }
   const rgbBytes=pixels.flat().map(ci=>pal[ci]);
-  if(s.STABLE_OBJECT_COLORS){assert(!pixels.flat().some(ci=>ci===7||ci===5),name+' depends on room/snake ink');if(baseline.has(name))assert.deepEqual(rgbBytes,baseline.get(name),name+' colour varies between room rows');else baseline.set(name,rgbBytes);}
+  if(s.STABLE_OBJECT_COLORS){assert(!pixels.flat().some(ci=>ci===7||(ci===5&&!s.fsm_grey)),name+' depends on room/snake ink') /* слот 5 — постоянный серый */;if(baseline.has(name))assert.deepEqual(rgbBytes,baseline.get(name),name+' colour varies between room rows');else baseline.set(name,rgbBytes);}
   if(row===0)images.push({name,cols,tiles,context,phase,pixels,palette:pal});cases++;
  }
 }

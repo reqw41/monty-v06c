@@ -28,6 +28,7 @@ function cell(m,s,t,phase,belt,options={}){const p=pixels(t,phase,belt),indices=
  if(s.STABLE_OBJECT_COLORS){
   if([0x62,0x63,0xd0,0xd1,0xa8,0xae,0xa9,0xaf].includes(t))objectMap=[0,3,2,6];
   if([0x96,0x97,0x9a,0x9b,0xb0,0xb1,0xb2,0xb3,0xb4,0xb7,0xc0,0xc1,0xc2,0xc3,0xc5,0xc7].includes(t))objectMap=[0,1,3,6];
+  if(s.fsm_grey&&(t===0x96||t===0x97))objectMap=[0,5,3,6]; // мечи: белое лезвие — серый слот 5
  }
  if(s.STABLE_OBJECT_COLORS&&t===0x9c)ink=3; // red-door foot, independent of jewel ink
  const col=options.color===undefined?m.rd(s.room_colors+(t>>3)):options.color,dark=options.dark===undefined?m.rd(s.room_colors+1)===0x11:options.dark;
@@ -40,7 +41,7 @@ function cell(m,s,t,phase,belt,options={}){const p=pixels(t,phase,belt),indices=
  if((t>=4&&t<=6)||(t>=0xb8&&t<=0xba))ink=2;
  if(s.LADDER_IN_JOE_PLANES&&[0x10,0x11,0x88,0x89].includes(t))ink=1;
  if(t===0xe0||t===0xe8)ink=col===0?0:t===0xe0&&s.NES_WHITE_CHAINS?1:col===0x40?m.rd(s.cmap+4):m.rd(s.cmap+10);
- for(let y=0;y<8;y++)for(let x=0;x<8;x++)indices[y][x]=t===0xe8?(col===0?0:(((msx[0x85ca+8*(belt&1)+y]>>(7-x))&1)*(y===2?1:6))):t===0xde||t===0x6f?[0,3,1,1][p[y][x]]:dark&&terrain?0:(t===8||t===11||(t>=0xc8&&t<=0xcb))?[0,3,7,6][p[y][x]]:t===0x38?3:objectMap?objectMap[p[y][x]]:p[y][x]?ink:0;
+ for(let y=0;y<8;y++)for(let x=0;x<8;x++)indices[y][x]=t===0xe8?(col===0?0:(((msx[0x85ca+8*(belt&1)+y]>>(7-x))&1)*(y===2?1:(s.NES_GREY_PLATFORMS?5:6)))):t===0xde||t===0x6f?[0,3,1,1][p[y][x]]:dark&&terrain?0:(t===8||t===11||(t>=0xc8&&t<=0xcb))?[0,3,7,6][p[y][x]]:t===0x38?3:objectMap?objectMap[p[y][x]]:p[y][x]?ink:0;
  if(s.CONVEYOR_TWO_INKS&&((t>=4&&t<=6)||(t>=0xb8&&t<=0xba)))
   for(let y=0;y<8;y++)for(let x=0;x<8;x++)indices[y][x]=dark&&terrain?0:[0,2,0,1][p[y][x]];
  if(s.NES_INK_SWAP23)for(let y=0;y<8;y++)for(let x=0;x<8;x++)if(indices[y][x]===2||indices[y][x]===3)indices[y][x]^=1;

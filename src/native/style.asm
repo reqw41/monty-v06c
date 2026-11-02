@@ -296,8 +296,9 @@ fsm_default:
  ld a,c
  or a
  ret z
- ld c,0x14              ; MSX E8 uses the cyan chain ink, index 6
+ ld c,0x11              ; MSX E8 (исчезающие платформы): серый слот 5 (владелец, 2.11), было голубой 6
  ret
+NES_GREY_PLATFORMS equ 1
 fsm_other_belt:
  cp 0xF0
  ret c
@@ -310,6 +311,7 @@ fsm_regular:
  ret
 fsm_not_snake:
  IFDEF NES_LADDER_LOW
+LADDER_IN_JOE_PLANES equ 1
  ; Лестницы (группы 2 и 17 full_modes) и верёвки — белые в плоскости C000 Джо. Мечи (96 97) — серый слот 5 = 8000+C000.
  cp 0x96
  jp z,fsm_grey
