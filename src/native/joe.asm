@@ -177,8 +177,12 @@ js_death_phase:
  ld c,24
  ld b,13
  jp z,js_div
+ IFDEF NES_FULL
+ jp js_fall_fire            ; NES death_burst: 3 кадра по 9 тиков (было по 40 — в 4,4 раза медленнее)
+ ELSE
  ld c,40
  ld b,20
+ ENDIF
 js_div:
  cp c
  jp c,js_b

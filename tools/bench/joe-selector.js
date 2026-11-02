@@ -35,13 +35,14 @@ for(const direction of [2,254]){
   for(const tile of [0x98,0xD8])check(4,12,{0x7058:tile});
   for(let timer=0;timer<=112;timer++){
     check(8,13+Math.floor((112-timer)/24),{0x70A9:timer,[s.jn_fire]:0});
-    check(8,20+Math.floor((112-timer)/40),{0x70A9:timer,[s.jn_fire]:1});
+    if(!full)check(8,20+Math.floor((112-timer)/40),{0x70A9:timer,[s.jn_fire]:1}); // NES_FULL: огонь — death_burst по 9 тиков (ниже)
     if(full){
       const tumble=timer>=83?5:timer>=53?6:18;
       const burst=timer>=104?20:timer>=95?21:timer>=86?22:18;
       check(9,tumble,{0x70A9:timer,[s.jn_fire]:0});
       check(10,tumble,{0x70A9:timer,[s.jn_fire]:0});
       check(10,burst,{0x70A9:timer,[s.jn_fire]:1});
+      check(8,burst,{0x70A9:timer,[s.jn_fire]:1});
     } else check(10,5+((timer>>3)&1),{0x70A9:timer});
   }
   if(!full)check(9,18);
