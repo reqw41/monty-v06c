@@ -3,6 +3,10 @@
 nes_menu:
  xor a
  ld (video_enabled),a       ; title colours cannot be changed by gameplay
+ ld hl,jn_key2              ; второй образ кэша Джо пуст (joe_cache.asm)
+ ld bc,5
+ ld e,0xFF
+ call memfill
 	INCLUDE "gen/music_reloc_late.asm"
 	ld hl,nes_m_ptr
 	ld bc,32

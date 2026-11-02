@@ -310,16 +310,12 @@ fsm_regular:
  ret
 fsm_not_snake:
  IFDEF NES_LADDER_LOW
-LADDER_IN_JOE_PLANES equ 1
- ; White ladder and its cap live entirely in Joe's C000 plane.
- cp 0x10
- jp z,fsm_white
- cp 0x11
- jp z,fsm_white
- cp 0x88
- jp z,fsm_white
- cp 0x89
- jp z,fsm_white
+ ; Серые лестницы (10 11, 88 89 — группы 2 и 17 full_modes) и верёвки (90 95): слот 5 = 8000+C000.
+ ; Джо не пишет 8000 (NES_JOE_BLEND80), поэтому поверх них его цвета смещаются на +4 (проба владельца).
+ cp 0x90
+ jp z,fsm_grey
+ cp 0x95
+ jp z,fsm_grey
  ENDIF
  cp 0x38
  ld c,8                  ; solid red body, palette index 2
@@ -363,6 +359,8 @@ fsm_chain_white:
  or a
  ret z
 fsm_white: ld c,1
+ ret
+fsm_grey: ld c,0x11
  ret
  INCLUDE "gen/style_full.asm"
  ELSE

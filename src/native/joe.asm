@@ -440,7 +440,7 @@ joe_copy_second:
 joe_prepare:
  ld a,1
  ld (spr_new+14),a
- ld hl,jn_key
+ call jn_pre                ; HL = jn_key; прежний ключ — в jn_old (joe_cache.asm)
  ld c,0
  ld a,(jn_frame)
  call mk_cmp
@@ -457,8 +457,7 @@ joe_prepare:
  call mk_cmp
  ld a,(jn_rows_count)
  call mk_cmp
- ld a,c
- or a
+ call jn_cache              ; Z — образ готов (тот же или второй в кэше)
  ret z
  IFDEF NES_FULL
  call jn_visual_x
@@ -808,7 +807,8 @@ jn_put_initial:
  ld hl,0
  add hl,sp
  ld (jn_stack),hl
- ld sp,JOE_PICTURE
+jn_put_sp:
+ ld sp,JOE_PICTURE          ; страница — текущий образ кэша (joe_cache.asm)
 jn_put_background:
  ld de,JOE_BACKGROUND
  ld hl,spr_rec+7

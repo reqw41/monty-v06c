@@ -104,6 +104,7 @@ def main():
  stable_fg=fg[:]
  for group in (12,13,19,23,26):stable_fg[group]=2
  stable_fg[19]=3  # ordinary jewels use the fixed Joe-skin orange
+ for group in (2,17):stable_fg[group]=5  # лестницы 10 11 / 88 89 — серый слот 5 (8000+C000)
  stable_modes=[sum(((ci>>bit)&1)<<(2*bit) for bit in range(3)) for ci in stable_fg]
  sty+=[' IFDEF NES_STABLE_COLORS','full_modes: db '+','.join(map(str,stable_modes)), ' ELSE','full_modes: db '+','.join(map(str,modes)), ' ENDIF']
  (ROOT/'src/native/gen/style_full.asm').write_text('\n'.join(sty)+'\n')

@@ -16,11 +16,11 @@ function clock(){
  assert.equal(c.sp,0x73C0);
 }
 let cases=0,clicks=0;
-const fired=()=>{const hit=(m.rd(s.nes_n_ptr)|m.rd(s.nes_n_ptr+1)<<8)===s.nes_step_stream&&m.rd(s.nes_n_wait)===1;m.wr(s.nes_n_wait,0);m.wr(s.nes_n_ptr,0);m.wr(s.nes_n_ptr+1,0);return hit;};
+const fired=()=>{const hit=(m.rd(s.nes_p_ptr)|m.rd(s.nes_p_ptr+1)<<8)===s.nes_step_stream&&m.rd(s.nes_p_wait)===1;m.wr(s.nes_p_wait,0);m.wr(s.nes_p_ptr,0);m.wr(s.nes_p_ptr+1,0);return hit;};
 for(let state=0;state<=10;state++)for(const dx of [0,1,255]){
  if(state===3||state===4)continue;   // лестница и канат — отдельная проверка ниже
  m.wr(0x7079,state);m.wr(0x7076,dx);m.wr(0x7077,0);
- m.wr(s.jn_tick,0);m.wr(s.jn_walk,0);m.wr(s.nes_n_wait,0);let count=0;
+ m.wr(s.jn_tick,0);m.wr(s.jn_walk,0);m.wr(s.nes_p_wait,0);let count=0;
  for(let tick=1;tick<=48;tick++){
   clock();
   if(fired()){
@@ -32,7 +32,7 @@ for(let state=0;state<=10;state++)for(const dx of [0,1,255]){
 }
 // лестница и канат (состояния 3, 4) при движении: щелчок на каждой смене позы
 for(const state of [3,4]){
- m.wr(0x7079,state);m.wr(0x7076,0);m.wr(0x7077,1);m.wr(s.jn_tick,0);m.wr(s.nes_n_wait,0);let count=0;
+ m.wr(0x7079,state);m.wr(0x7076,0);m.wr(0x7077,1);m.wr(s.jn_tick,0);m.wr(s.nes_p_wait,0);let count=0;
  for(let tick=1;tick<=32;tick++){clock();if(fired())count++;}
  assert.equal(count,8,'состояние '+state+': щелчок каждые 4 тика');clicks+=count;cases++;
 }

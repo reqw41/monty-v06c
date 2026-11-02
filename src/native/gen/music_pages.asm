@@ -279,73 +279,143 @@
 	ENDIF
 	ENDIF
 	ENDIF
-	IF (((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+0) < (ps_boot_source_end)
+	IF (((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+0) < (JOE_PICTURE2)
 	IF ((((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+0)+256) > (ps_boot_source+LIVE_CODE_BYTES)
 	IF (((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+0) < (ps_boot_source+LIVE_CODE_BYTES)
 	dw ps_boot_source+LIVE_CODE_BYTES
 	ELSE
 	dw (((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+0)
 	ENDIF
-	IF ((((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+0)+256) > (ps_boot_source_end)
-	dw ps_boot_source_end
+	IF ((((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+0)+256) > (JOE_PICTURE2)
+	dw JOE_PICTURE2
 	ELSE
 	dw ((((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+0)+256)
 	ENDIF
 	ENDIF
 	ENDIF
-	IF (((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+256) < (ps_boot_source_end)
+	IF (((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+256) < (JOE_PICTURE2)
 	IF ((((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+256)+256) > (ps_boot_source+LIVE_CODE_BYTES)
 	IF (((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+256) < (ps_boot_source+LIVE_CODE_BYTES)
 	dw ps_boot_source+LIVE_CODE_BYTES
 	ELSE
 	dw (((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+256)
 	ENDIF
-	IF ((((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+256)+256) > (ps_boot_source_end)
-	dw ps_boot_source_end
+	IF ((((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+256)+256) > (JOE_PICTURE2)
+	dw JOE_PICTURE2
 	ELSE
 	dw ((((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+256)+256)
 	ENDIF
 	ENDIF
 	ENDIF
-	IF (((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+512) < (ps_boot_source_end)
+	IF (((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+512) < (JOE_PICTURE2)
 	IF ((((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+512)+256) > (ps_boot_source+LIVE_CODE_BYTES)
 	IF (((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+512) < (ps_boot_source+LIVE_CODE_BYTES)
 	dw ps_boot_source+LIVE_CODE_BYTES
 	ELSE
 	dw (((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+512)
 	ENDIF
-	IF ((((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+512)+256) > (ps_boot_source_end)
-	dw ps_boot_source_end
+	IF ((((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+512)+256) > (JOE_PICTURE2)
+	dw JOE_PICTURE2
 	ELSE
 	dw ((((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+512)+256)
 	ENDIF
 	ENDIF
 	ENDIF
-	IF (((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+768) < (ps_boot_source_end)
+	IF (((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+768) < (JOE_PICTURE2)
 	IF ((((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+768)+256) > (ps_boot_source+LIVE_CODE_BYTES)
 	IF (((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+768) < (ps_boot_source+LIVE_CODE_BYTES)
 	dw ps_boot_source+LIVE_CODE_BYTES
 	ELSE
 	dw (((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+768)
 	ENDIF
-	IF ((((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+768)+256) > (ps_boot_source_end)
-	dw ps_boot_source_end
+	IF ((((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+768)+256) > (JOE_PICTURE2)
+	dw JOE_PICTURE2
 	ELSE
 	dw ((((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+768)+256)
 	ENDIF
 	ENDIF
 	ENDIF
-	IF (((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+1024) < (ps_boot_source_end)
+	IF (((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+1024) < (JOE_PICTURE2)
 	IF ((((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+1024)+256) > (ps_boot_source+LIVE_CODE_BYTES)
 	IF (((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+1024) < (ps_boot_source+LIVE_CODE_BYTES)
 	dw ps_boot_source+LIVE_CODE_BYTES
 	ELSE
 	dw (((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+1024)
 	ENDIF
-	IF ((((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+1024)+256) > (ps_boot_source_end)
-	dw ps_boot_source_end
+	IF ((((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+1024)+256) > (JOE_PICTURE2)
+	dw JOE_PICTURE2
 	ELSE
 	dw ((((ps_boot_source+LIVE_CODE_BYTES)&0xFF00)+1024)+256)
+	ENDIF
+	ENDIF
+	ENDIF
+	IF (((JOE_CACHE_END)&0xFF00)+0) < (ps_boot_source_end)
+	IF ((((JOE_CACHE_END)&0xFF00)+0)+256) > (JOE_CACHE_END)
+	IF (((JOE_CACHE_END)&0xFF00)+0) < (JOE_CACHE_END)
+	dw JOE_CACHE_END
+	ELSE
+	dw (((JOE_CACHE_END)&0xFF00)+0)
+	ENDIF
+	IF ((((JOE_CACHE_END)&0xFF00)+0)+256) > (ps_boot_source_end)
+	dw ps_boot_source_end
+	ELSE
+	dw ((((JOE_CACHE_END)&0xFF00)+0)+256)
+	ENDIF
+	ENDIF
+	ENDIF
+	IF (((JOE_CACHE_END)&0xFF00)+256) < (ps_boot_source_end)
+	IF ((((JOE_CACHE_END)&0xFF00)+256)+256) > (JOE_CACHE_END)
+	IF (((JOE_CACHE_END)&0xFF00)+256) < (JOE_CACHE_END)
+	dw JOE_CACHE_END
+	ELSE
+	dw (((JOE_CACHE_END)&0xFF00)+256)
+	ENDIF
+	IF ((((JOE_CACHE_END)&0xFF00)+256)+256) > (ps_boot_source_end)
+	dw ps_boot_source_end
+	ELSE
+	dw ((((JOE_CACHE_END)&0xFF00)+256)+256)
+	ENDIF
+	ENDIF
+	ENDIF
+	IF (((JOE_CACHE_END)&0xFF00)+512) < (ps_boot_source_end)
+	IF ((((JOE_CACHE_END)&0xFF00)+512)+256) > (JOE_CACHE_END)
+	IF (((JOE_CACHE_END)&0xFF00)+512) < (JOE_CACHE_END)
+	dw JOE_CACHE_END
+	ELSE
+	dw (((JOE_CACHE_END)&0xFF00)+512)
+	ENDIF
+	IF ((((JOE_CACHE_END)&0xFF00)+512)+256) > (ps_boot_source_end)
+	dw ps_boot_source_end
+	ELSE
+	dw ((((JOE_CACHE_END)&0xFF00)+512)+256)
+	ENDIF
+	ENDIF
+	ENDIF
+	IF (((JOE_CACHE_END)&0xFF00)+768) < (ps_boot_source_end)
+	IF ((((JOE_CACHE_END)&0xFF00)+768)+256) > (JOE_CACHE_END)
+	IF (((JOE_CACHE_END)&0xFF00)+768) < (JOE_CACHE_END)
+	dw JOE_CACHE_END
+	ELSE
+	dw (((JOE_CACHE_END)&0xFF00)+768)
+	ENDIF
+	IF ((((JOE_CACHE_END)&0xFF00)+768)+256) > (ps_boot_source_end)
+	dw ps_boot_source_end
+	ELSE
+	dw ((((JOE_CACHE_END)&0xFF00)+768)+256)
+	ENDIF
+	ENDIF
+	ENDIF
+	IF (((JOE_CACHE_END)&0xFF00)+1024) < (ps_boot_source_end)
+	IF ((((JOE_CACHE_END)&0xFF00)+1024)+256) > (JOE_CACHE_END)
+	IF (((JOE_CACHE_END)&0xFF00)+1024) < (JOE_CACHE_END)
+	dw JOE_CACHE_END
+	ELSE
+	dw (((JOE_CACHE_END)&0xFF00)+1024)
+	ENDIF
+	IF ((((JOE_CACHE_END)&0xFF00)+1024)+256) > (ps_boot_source_end)
+	dw ps_boot_source_end
+	ELSE
+	dw ((((JOE_CACHE_END)&0xFF00)+1024)+256)
 	ENDIF
 	ENDIF
 	ENDIF

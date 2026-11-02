@@ -41,6 +41,9 @@ SPR_SLOTS equ 0xF900
 ; The 23-row Joe image can cross F9FF. Background remains inside page FA.
 JOE_PICTURE equ SPR_SLOTS
 JOE_BACKGROUND equ 0xFA20
+; Второй образ Джо (кэш двух образов) — окно в бывшем загрузочном источнике, вырезанное из пула сдвигов врагов.
+JOE_PICTURE2 equ 0x3700
+JOE_CACHE_END equ JOE_PICTURE2+0x120     ; образ 276 байт + ключи jn_key2/jn_old (joe_cache.asm)
  IFDEF NES_JOE_SP_RESTORE
 JOE_BACKGROUND_STRIDE equ 2
  ELSE
