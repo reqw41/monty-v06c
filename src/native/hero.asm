@@ -159,6 +159,10 @@ L_8DA2:		call jn_capture_death
 		call	L_AC1A
 		ld	a,8
 		ld	(0x7079),a
+ IFDEF NES_FULL
+		xor	a			; счётчик прыжка 7072 — заново: гибель отменяет прыжок (после гибели в прыжке оставался 0Fh/80h).
+		ld	(0x7072),a		; НЕ при входе в комнату (L_8E7E): прыжок через границу комнаты продолжается, а 7072=0 в состоянии 2 —
+ ENDIF					; это бесконечное «падение» без опоры (регрессия fix20)
 		ld	a,0x70
 		ld	(0x70A9),a
  IFNDEF NES_FULL
@@ -212,8 +216,6 @@ p8d3:		ld	b,e
 ; Snapshot respawn state, both attributes and fall origin.
 L_8E7E:
  IFDEF NES_FULL
- xor a
- ld (0x7072),a              ; счётчик прыжка/края — заново (после гибели в прыжке оставался 0Fh/80h)
  ld hl,(0x7076)
  ld a,l
  ld l,h
