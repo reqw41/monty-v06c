@@ -212,6 +212,8 @@ p8d3:		ld	b,e
 ; Snapshot respawn state, both attributes and fall origin.
 L_8E7E:
  IFDEF NES_FULL
+ xor a
+ ld (0x7072),a              ; счётчик прыжка/края — заново (после гибели в прыжке оставался 0Fh/80h)
  ld hl,(0x7076)
  ld a,l
  ld l,h
