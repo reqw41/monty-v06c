@@ -7,7 +7,7 @@ function call(name){const c=m.cpu;c.iff=false;c.iff_pending=0;c.sp=0x73be;c.pc=s
 const accents=[5,103,186,5,159,234,96,196,173];
 for(let row=0;row<9;row++){
  m.wr(0x71a7,row);call('style_palette');
- for(const [ink,rgb]of [[1,255],[2,4],[3,103],[4,32]])for(let pair=0;pair<2;pair++)assert.equal(m.rd(s.pal+2*ink+pair),rgb,`Joe ink ${ink}, row ${row}`);
+ for(const [ink,rgb]of [[1,255],[2,4],[3,102],[4,32]])for(let pair=0;pair<2;pair++)assert.equal(m.rd(s.pal+2*ink+pair),rgb,`Joe ink ${ink}, row ${row}`);
  for(let pair=0;pair<2;pair++)assert.equal(m.rd(s.pal+14+pair),accents[(row+1)%9],`unchanged room hue, row ${row}`);
 }
-console.log(JSON.stringify({B,roomRows:9,joeBaseInks:{white:255,skin:103,red:4},roomAccentSlot:7,originalRoomHuesPreserved:true}));
+console.log(JSON.stringify({B,roomRows:9,joeBaseInks:{white:255,skin:102,red:4},roomAccentSlot:7,originalRoomHuesPreserved:true}));

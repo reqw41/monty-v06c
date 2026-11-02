@@ -18,7 +18,7 @@ for(let half=0;half<2;half++)for(let plane=0;plane<3;plane++)for(let y=0;y<8;y++
 for(let f=0;f<560;f++){if(f===10)m.keyboard.matrix[2]|=2;if(f===100)m.keyboard.matrix[2]&=~2;m.frame();}
 assert.deepEqual(Array.from({length:9},(_,i)=>m.rd(s.style_accents+i)),
  [5,103,186,5,159,234,96,196,173],'room accent table survives boot');
-assert.equal(m.rd(s.pal+6),103,'fixed skin palette');
+assert.equal(m.rd(s.pal+6),102,'fixed skin palette'); // кожа 66h (fix21)
 assert.equal(m.rd(s.pal+14),103,'start-room accent palette');
 function call(name,{a=0,de=0}={}){const c=m.cpu;c.iff=false;c.iff_pending=0;c.pc=s[name];c.sp=0x73BE;c.regs[7]=a;c.regs[2]=de>>8;c.regs[3]=de&255;m.wr(c.sp,s.unit_trap&255);m.wr(c.sp+1,s.unit_trap>>8);for(let n=0;c.pc!==s.unit_trap;n++){assert(n<1000000,name+' hung');c.instruction();}}
 let scorePlaneWrites=0;
