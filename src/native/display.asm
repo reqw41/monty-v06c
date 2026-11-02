@@ -718,18 +718,22 @@ fl_hbase:	add	a,0x80
 		ld	hl,(tile_src)
 		ex	de,hl
 fl_write:	jp	fl_slow
+; Общий писатель плоскостей — холодный путь (по сканеру всех комнат не выполняется ни разу): циклы вместо развёрток.
+; Клетка 8 строк выровнена: L на входе ≡ 7 (mod 8), после 8 dec l снова ≡ 7 — это и есть условие выхода.
 fl_slow:	ld	a,(fl_pm)
 		ld	b,a
 flp0:		ld	a,b			; плоскость: бит 7 маски
 		add	a,a
 		ld	b,a
 		jp	nc,flp2
-		REPT	8
-		ld	a,(de)
+flp_row:	ld	a,(de)
 		ld	(hl),a
 		inc	de
 		dec	l
-		ENDR
+		ld	a,l
+		and	7
+		cp	7
+		jp	nz,flp_row
 		ld	a,l
 		add	a,8
 		ld	l,a
@@ -741,9 +745,12 @@ flp1:		ld	a,b			; (пропуск бита между плоскостями)
 		add	a,0x20
 		ld	h,a
 		jp	flp0
-flp2:		REPT	8
-		inc	de
-		ENDR
+flp2:		ld	a,e			; плоскость не пишется: источник += 8
+		add	a,8
+		ld	e,a
+		ld	a,d
+		adc	a,0
+		ld	d,a
 		jp	flp1
 flp3:		jp	flt5
 flt_q:		ld	a,(hl)
@@ -889,20 +896,23 @@ fl_dual_same:	push	bc
 		ENDR
 		pop	bc
 		jp	flp3
+; Две плоскости, вторая инверсией — холодный путь (в NES_FULL не встречается): цикл, выход по L ≡ 7 (mod 8).
 fl_dual_inv:	push	bc
 		ld	a,h
 		add	a,0x20
 		ld	b,a
 		ld	c,l
-		REPT	8
-		ld	a,(de)
+fdi_row:	ld	a,(de)
 		ld	(hl),a
 		cpl
 		ld	(bc),a
 		inc	de
 		dec	l
 		dec	c
-		ENDR
+		ld	a,l
+		and	7
+		cp	7
+		jp	nz,fdi_row
 		pop	bc
 		jp	flp3
 
