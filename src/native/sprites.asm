@@ -2273,22 +2273,23 @@ en_mask_ready:	ld	(en_mask),a
 		add	a,9
 		ld	l,a
 		call	en_load
-		ld	a,(st_rows)
-		add	a,a
-		ld	hl,enemy_entries
-		ld	c,a
+		; entry = mix + step*(16-rows); keep unrolled bodies for speed
 		ld	a,(en_reuse)
 		or	a
-		jp	z,en_table_ready
-		ld	hl,enemy_repaint_entries
-en_table_ready:	ld	a,c
-		call	add_hl_a
-		ld	e,(hl)
-		inc	hl
-		ld	d,(hl)
-		ex	de,hl
-		ld	(en_mix_call+1),hl
-		jp	en_entry_ready
+		ld	hl,enemy_mix
+		ld	de,8
+		jp	z,en_mix_base
+		ld	hl,enemy_repaint_mix
+		ld	de,6
+en_mix_base:	ld	a,(st_rows)
+		ld	b,a
+		ld	a,16
+		sub	b
+		jp	z,en_mix_set
+en_mix_mul:	add	hl,de
+		dec	a
+		jp	nz,en_mix_mul
+en_mix_set:	ld	(en_mix_call+1),hl
 en_entry_ready:	ld	a,(sp_mpage)
 		ld	b,a
 		ld	c,0
@@ -2416,24 +2417,6 @@ enemy_ink_plane:
  ret
  ENDIF
 
-enemy_entries:
-		dw	enemy_mix+8*(16-0)
-		dw	enemy_mix+8*(16-1)
-		dw	enemy_mix+8*(16-2)
-		dw	enemy_mix+8*(16-3)
-		dw	enemy_mix+8*(16-4)
-		dw	enemy_mix+8*(16-5)
-		dw	enemy_mix+8*(16-6)
-		dw	enemy_mix+8*(16-7)
-		dw	enemy_mix+8*(16-8)
-		dw	enemy_mix+8*(16-9)
-		dw	enemy_mix+8*(16-10)
-		dw	enemy_mix+8*(16-11)
-		dw	enemy_mix+8*(16-12)
-		dw	enemy_mix+8*(16-13)
-		dw	enemy_mix+8*(16-14)
-		dw	enemy_mix+8*(16-15)
-		dw	enemy_mix+8*(16-16)
 enemy_mix:
 		REPT	16
 		ld	a,(hl)
@@ -2447,10 +2430,6 @@ enemy_mix:
 		ENDR
 		ret
 
-enemy_repaint_entries:
-		DUP	17, n
-		dw	enemy_repaint_mix+6*(16-n)
-		EDUP
 enemy_repaint_mix:
 		REPT	16
 		ld	a,(de)
