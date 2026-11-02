@@ -2,18 +2,7 @@
 ; Preserve the old semantic vocabulary for climbing and hazards. Only the
 ; hero's wall/floor decisions inspect the original decorative tile here.
 ; NES $9F7A gives two walking updates over the edge before gravity starts.
-nphys_ground_floor:
- ld hl,0x7072
- call L_911E
- jp nc,npg_floor
- inc (hl)
- ld a,(hl)
- cp 3
- ccf
- ret
-npg_floor:
- ld (hl),0
- ret
+; nphys_ground_floor — в nes_column.asm (хвост dlist), место здесь — под рост кадров Джо.
 nes_floor_at:
  ; Original NES left/right foot points; raw cap 0C is a floor, rope 0D is not.
  push bc

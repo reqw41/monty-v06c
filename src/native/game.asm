@@ -25,7 +25,7 @@ DIRTY_FIRE		equ	0x08
 DIRTY_SNAKE		equ	0x10			; two NES snake poses, independent of fire
 		DEFINE	NATIVE
 SPR_MAX		equ	6
-DL_MAX		equ	64			; список изменённых клеток (dlist, по 2 байта; в игре максимум 33, хвост — образ колонны)
+DL_MAX		equ	34			; список изменённых клеток (dlist, по 2 байта; в игре максимум 33, хвост — образ колонны)
 dl_n		equ	0x7FA8
 dl_ovf		equ	0x7FA9
 dl_cnt		equ	0x7FAA

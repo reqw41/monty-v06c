@@ -44,6 +44,15 @@ def main():
      logical.append(l)
     lo=sum((v&1)<<(7-x) for x,v in enumerate(logical));hi=sum(((v>>1)&1)<<(7-x) for x,v in enumerate(logical));packed += [lo,hi];pixels.append(logical)
    data.append((label,packed));records.append(dict(id=len(records),state=state,phase=phase,rows=a.height,pixels=pixels,policy='fit burst to 16x23' if state==11 else 'NES anchor Y=1..23'))
+ # Вспышка смерти (состояние 11): серый дым. Индекс NES 2 -> 3 (белый, плоскость C000); на экране под ним
+ # joe_burst_grey добавляет 8000 -> слот 5 (серый). Каждая фаза включает предыдущую: следов в 8000 не остаётся.
+ prev=None
+ for f in records:
+  if f['state']!=11:continue
+  f['pixels']=[[3 if v else 0 for v in row] for row in f['pixels']]
+  if prev:f["pixels"]=[[3 if (a or b) else 0 for a,b in zip(r1,r0)] for r1,r0 in zip(f['pixels'],prev)]
+  prev=f['pixels']
+  data[f['id']]=(data[f['id']][0],[b for row in f['pixels'] for b in (sum((v&1)<<(7-x) for x,v in enumerate(row)),sum(((v>>1)&1)<<(7-x) for x,v in enumerate(row)))])
  # Deduplicate complete eight-logical-pixel rows; mirrored rows share the dictionary.
  unique=list(dict.fromkeys([tuple(row) for f in records for row in f['pixels']]))
  for row in list(unique):

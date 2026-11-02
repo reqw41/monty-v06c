@@ -256,9 +256,7 @@ nt_bonus_palette:
  ld (pal+12),hl
  ld a,0x10                 ; jewels: only the 8000 plane
  ld (full_modes+19),a
- ld a,0xC9                 ; enemies are absent: stop their palette animation
- ld (nes_snake_palette),a
- ret
+ jp nt_bonus_tail          ; nes_steps.asm (FBC4): слот 5 белый, анимация змей стоп
 nt_bonus_palette_end:
  ASSERT $ <= 0x6680
  ENT

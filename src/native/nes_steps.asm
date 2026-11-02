@@ -32,5 +32,13 @@ nphys_box_step_wall:
  xor a
  ld (0x7079),a
  ret
+; Хвост палитры сокровищницы (nt_bonus_palette, nes_treasure.asm): слот 5 — белый (белое Джо поверх золота в 8000;
+; в игре слот 5 серый), врагов нет — анимация палитры змей стоп.
+nt_bonus_tail:
+ ld hl,0xFFFF
+ ld (pal+10),hl
+ ld a,0xC9
+ ld (nes_snake_palette),a
+ ret
 nes_steps_end:
  ASSERT nes_steps_end <= 0xFBD0

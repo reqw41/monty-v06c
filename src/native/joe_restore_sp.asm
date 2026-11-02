@@ -2,6 +2,7 @@
 ; IRQ owns the stack throughout, just as in joe_put. Preserve caller BC.
  ASSERT JOE_BACKGROUND_STRIDE == 2
  push bc
+ call joe_burst_clean       ; снять 8000 под ушедшим облаком смерти (nes_column.asm); BC — свободен
  ld hl,0
  add hl,sp
  ld (jn_stack),hl

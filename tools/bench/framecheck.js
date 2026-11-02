@@ -10,7 +10,7 @@ module.exports=function(m,s,options={}) {
  function check(){
   const mask=Array.from({length:3},()=>new Uint8Array(8192)),bits=mask.map(()=>new Uint8Array(8192));
   for(let k=5;k>=0;k--){
-   if(s.jn_shown!==undefined&&k<2){if(k===0)joeRef(m,s,(x,y,ci)=>{const a=ad(x>>3,y),bit=128>>(x&7);for(let p=s.NES_JOE_BLEND_MODE?1:0;p<3;p++){mask[p][a]|=bit;if(ci&(4>>p))bits[p][a]|=bit;else bits[p][a]&=~bit;}});continue;}
+   if(s.jn_shown!==undefined&&k<2){if(k===0){const burst=s.joe_burst_grey!==undefined&&m.rd(0x7079)>=8&&[20,21,22].includes(m.rd(s.jn_shown));joeRef(m,s,(x,y,ci)=>{const a=ad(x>>3,y),bit=128>>(x&7);for(let p=s.NES_JOE_BLEND_MODE?1:0;p<3;p++){mask[p][a]|=bit;if(ci&(4>>p))bits[p][a]|=bit;else bits[p][a]&=~bit;}if(burst&&(ci&1)){mask[0][a]|=bit;bits[0][a]|=bit;}});}/* серый дым смерти: 8000 под белыми точками (joe_burst_grey) */continue;}
    const a=s.spr_rec+16*k;if(!m.rd(a))continue;
    const top=(m.rd(a+1)+1)&255,x0=m.rd(a+2),nm=m.rd(a+3)&252,col=m.rd(a+4)&15,ci=m.rd(s.cmap+col),hero=col===6||col===11,enemyInk=(s.NES_ORANGE_SPIDERS||s.NES_GREEN_SPIDERS)&&[0x2c,0x30].includes(nm)?(s.NES_SHARED_WHITE?4:2):(s.NES_SHARED_WHITE?1:4);
    for(let y=0;y<16&&top+y<height;y++){if(s.SCREEN_HEIGHT===240&&top+y<48)continue;for(let half=0;half<2;half++){const b=REF.sprite(nm,half,y);

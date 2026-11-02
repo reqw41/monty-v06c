@@ -1020,7 +1020,7 @@ jn_put_repeat:
  jp nz,jn_put_col
  ld hl,(jn_stack)
  ld sp,hl
- ret
+ jp joe_burst_grey          ; вспышка смерти — серая (nes_column.asm)
 
 joe_restore:
  IFDEF NES_JOE_SP_RESTORE
