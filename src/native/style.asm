@@ -178,8 +178,8 @@ style_image:
  jp c,sti_no_vase
  cp 0xCC
  jp nc,sti_no_vase
- ld a,(room_colors+1)
- cp 0x11
+ ld a,(room_colors+1)		; темнота: группа 1 = 00 (таблица C_8EF5 -> C_ABCD)
+ or a
  ret z
  ld a,(rr_t)
  sub 0xC8
@@ -216,7 +216,7 @@ sti_no_vase:
  ret
 sti_brick:
  ld a,(room_colors+1)
- cp 0x11
+ or a
  ret z
  ld a,(rr_t)
  ld de,style_bricks
@@ -262,30 +262,43 @@ stg_side:
  ret
  ENDIF
  IFDEF NES_FULL
+; Темнота (группа 1 = 00): гаснут тайлы фоновых палитр NES 0 и 3 — кирпичи и полы 00–03, 07–17, лестницы 88–95,
+; закрытые двери B0/B7/C0/C7, вазы и колонны C8–CD, D6/D7. Остаются палитры 1–2: конвейеры 4–6 и B8–BA, огонь 38 и
+; D2–D5, цепи, лазеры, ленты, двери открытые (fix24; сверка по палитрам комнат NES — docs/BUGS.md).
 full_style_modes:
  ld a,(room_colors+1)
- cp 0x11
+ or a
  jp nz,fsm_lit
  ld a,b
  cp 0x18
- jp c,fsm_dark
- cp 0x38
- jp z,fsm_dark
+ jp nc,fsm_hi
+ sub 4				; 00–03 -> FC–FF, 04–06 -> 0–2 (видны), 07–17 -> 3–13
+ cp 3
+ jp nc,fsm_dark
+ jp fsm_lit
+fsm_hi:
  cp 0x88
  jp c,fsm_lit
  cp 0x96
  jp c,fsm_dark
  cp 0xC8
- jp c,fsm_lit
+ jp c,fsm_door
  cp 0xCE
  jp c,fsm_dark
- cp 0xD2
+ cp 0xD6
  jp c,fsm_lit
  cp 0xD8
  jp nc,fsm_lit
 fsm_dark:
  ld c,0
  ret
+fsm_door:				; 96–C7: гаснут только B0/B7/C0/C7
+ cp 0xB0
+ jp c,fsm_lit
+ and 0x0F
+ jp z,fsm_dark
+ cp 7
+ jp z,fsm_dark
 fsm_lit:
  ld a,b
  jp nes_color_modes

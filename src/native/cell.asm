@@ -145,11 +145,23 @@ tile_build:	ld	(tile_i),a
 tbuild0:	ld	a,(tile_i)
 		call	tile_addr
 		ld	(tile_dst),hl
+ IFDEF NES_FULL
+ call dc_tile			; режимы первыми: C = 0 — клетка гаснет в темноте, готовые образы (двери B0/B7/C0/C7,
+ ld a,c				; кирпичи, вазы) не берутся; иначе — как раньше (fix24)
+ or a
+ push bc
+ push de
+ call nz,style_image
+ pop de
+ pop bc
+ jp c,tbuild_styled
+ ELSE
  IFDEF NES_STYLE
  call style_image
  jp c,tbuild_styled
  ENDIF
 		call	dc_tile
+ ENDIF
 		call	da_img
  IFDEF NES_FULL
  IFDEF NES_STABLE_COLORS

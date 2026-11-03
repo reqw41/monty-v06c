@@ -31,8 +31,9 @@ function cell(m,s,t,phase,belt,options={}){const p=pixels(t,phase,belt),indices=
   if(s.fsm_grey&&[0x96,0x97,0x9a,0x9b].includes(t))objectMap=[0,5,3,6]; // мечи: белое лезвие — серый слот 5
  }
  if(s.STABLE_OBJECT_COLORS&&t===0x9c)ink=3; // red-door foot, independent of jewel ink
- const col=options.color===undefined?m.rd(s.room_colors+(t>>3)):options.color,dark=options.dark===undefined?m.rd(s.room_colors+1)===0x11:options.dark;
- const terrain=t<0x18||t===0x38||(t>=0x88&&t<=0x95)||(t>=0xc8&&t<=0xcd)||(t>=0xd2&&t<=0xd7);
+ const col=options.color===undefined?m.rd(s.room_colors+(t>>3)):options.color,dark=options.dark===undefined?m.rd(s.room_colors+1)===0:options.dark;
+ // темнота NES: палитры 0 и 3 (кирпичи, полы, лестницы, закрытые двери, вазы, колонны); конвейеры 4–6, огонь 38/D2–D5 видны (fix24)
+ const terrain=(t<0x18&&!(t>=4&&t<=6))||(t>=0x88&&t<=0x95)||[0xb0,0xb7,0xc0,0xc7].includes(t)||(t>=0xc8&&t<=0xcd)||t===0xd6||t===0xd7;
  if(t===0xca||t===0xcb)ink=7;if(t===0xcc||t===0xcd)ink=1;if(t===0xd6||t===0xd7)ink=6;
  if(t>=0xa0&&t<=0xa7)ink=s.NES_MONO_SNAKE?4:5;
  if(t>=0xd2&&t<=0xd5)ink=3;

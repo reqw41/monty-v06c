@@ -40,7 +40,7 @@ module.exports=function(m,s,options={}) {
  return {instruction(pc){
    if(pc===s.boot){started=false;critical.length=0;oldTile.fill(0);oldColor.fill(0);oldBelt.fill(0);}
    if(pc===s.da_blit||pc===s.fl_write){const hl=m.cpu.hl(),c=(hl>>8)&31,raw=top-(hl&255),logical=height===240?(raw<56?raw-8:raw-16):raw,r=logical/8;
-    if(Number.isInteger(r)&&r>=0&&r<rows){const i=32*r+c,t=m.rd(s.rr_t);oldTile[i]=t;oldBelt[i]=m.rd(s.belt_shown);oldDark[i]=m.rd(s.room_colors+1)===0x11;
+    if(Number.isInteger(r)&&r>=0&&r<rows){const i=32*r+c,t=m.rd(s.rr_t);oldTile[i]=t;oldBelt[i]=m.rd(s.belt_shown);oldDark[i]=m.rd(s.room_colors+1)===0;
      if(pc===s.da_blit||!m.rd(s.dc_pt))oldColor[i]=m.rd(s.room_colors+(t>>3));}
    }
    if(pc===s.L_A5D1)started=true;

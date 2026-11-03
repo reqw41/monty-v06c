@@ -32,6 +32,8 @@ oma_extra:
  add a,0x30
  ld l,a
  ret
+; CY = готовый образ предмета/двери скопирован. В темноте закрытые двери B0/B7/C0/C7 гаснут: tile_build не зовёт
+; style_image, когда full_style_modes дал режим 0 (fix24), поэтому проверки темноты здесь нет.
 object_image_select:
  ld a,(rr_t)
  cp 0x62

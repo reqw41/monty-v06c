@@ -14,6 +14,10 @@
 |---|---|---|
 | ![](docs/screenshots/room_1_9.png) | ![](docs/screenshots/room_5_6.png) | ![](docs/screenshots/room_8_3.png) |
 
+| Тёмная комната без факела | Та же комната с факелом |
+|---|---|
+| ![](docs/screenshots/room_8_9_dark.png) | ![](docs/screenshots/room_8_9_torch.png) |
+
 ## Готовые образы
 
 Образ памяти **с адреса 0x0000** (формат `.C00` / `.r0m`, 64 КБ): на MiSTer (ядро Vector-06C) открывается
@@ -26,7 +30,7 @@
 | [`rom/Monty-v06c.mgl`](rom/Monty-v06c.mgl) | ярлык MiSTer (ждёт `games/VECTOR06/Monty-v06c.c00`) |
 
 Остальные файлы в `rom/` — промежуточные сборки (`Monty-v06c-nes3-fixN.r0m`), история правок по ним —
-в `docs/BUGS.md`. Текущий образ соответствует `Monty-v06c-nes3-fix23.r0m`.
+в `docs/BUGS.md`. Текущий образ соответствует `Monty-v06c-nes3-fix24.r0m`.
 
 ## Управление
 
@@ -81,7 +85,7 @@ python3 tools/nes/build_splash.py --build build/quick --output rom/Monty-v06c.r0
 ## Документация
 
 - `docs/NES_NATIVE.md` — устройство NES-сборки: экран, Джо, кэш, звук, стенды.
-- `docs/BUGS.md` — журнал исправлений по образам fix1…fix22.
+- `docs/BUGS.md` — журнал исправлений по образам fix1…fix24.
 - `docs/FRAME_BUDGET.md`, `docs/MEMORY_HUNT.md`, `docs/VI53_MUSIC.md`, `docs/NES_MUSIC.md` — такты, память, музыка.
 - `docs/DISASM.md`, `docs/PORT_DESIGN.md` — ранний этап: разбор MSX/ColecoVision-версии, с которой порт начинался.
 

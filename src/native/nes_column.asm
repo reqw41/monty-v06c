@@ -6,8 +6,8 @@ column_image:
  and 0xFE
  cp 0xCC
  jp nz,ci_plain
- ld a,(room_colors+1)
- cp 0x11
+ ld a,(room_colors+1)		; темнота: группа 1 = 00
+ or a
  jp z,ci_plain
  ld hl,(tile_dst)           ; 8000: серая полоса (столбцы 6–7), A000: 0, C000: колонна (столбцы 2–7)
  ld de,8

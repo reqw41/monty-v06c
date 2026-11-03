@@ -21,7 +21,7 @@ function call(name,a=0){
  }
 }
 for(const dark of [false,true])for(const t of tiles){
- m.wr(s.room_colors+1,dark?0x11:0x31);m.wr(s.rr_t,t);m.wr(s.tile_frames,4);call('tile_build');
+ m.wr(s.room_colors+1,dark?0:0x31);m.wr(s.rr_t,t);m.wr(s.tile_frames,4);call('tile_build');
  const frames=[];
  for(let phase=0;phase<4;phase++){
   const got=Array.from({length:24},(_,i)=>m.rd(s.TILE_IMAGES+24*phase+i));
