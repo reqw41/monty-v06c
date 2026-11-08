@@ -44,6 +44,14 @@ enemy_ink_plane:
  xor 0xC1                   ; C0 / 80
  pop hl
  ret
+; The unchanged jump-end helper fits the remaining installer tail.
+nt_jump_ended:
+ ld a,0x81                  ; бит 7 — инерция прыжка, бит 0 — первый шаг падения
+ ld (0x7072),a
+ ld a,6
+ ld (0x7079),a
+ ret
+
 	ENT
 nes_skull_source_end:
  ASSERT nes_skull_source_end-nes_skull_source <= 0x40

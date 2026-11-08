@@ -34,14 +34,4 @@ nfp_return:
  pop hl
  pop bc
  ret
-; The ascent counter is otherwise zero throughout a fall. Its high bit marks
-; preserved jump momentum; standing already clears it at h929_floor.
-
-nt_jump_ended:
- ld a,0x81                  ; бит 7 — инерция прыжка, бит 0 — первый шаг падения
- ld (0x7072),a
- ld a,6
- ld (0x7079),a
- ret
-
 nes_terrain_end:
