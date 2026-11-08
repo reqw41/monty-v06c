@@ -395,6 +395,11 @@ draw_cell:
 		call	dc_scr
 		jp	da_blit
 
+ IFDEF NES_FULL
+; Only room/reset/colour-change paths use this entry in NES_FULL.
+; Share the general fill; its BC/DE/HL contract is the same for every caller.
+memfill_f equ memfill
+ ELSE
 ; Fill multiples of 16 without masking IRQ or changing SP; DE is preserved.
 memfill_f:
 		REPT	16
@@ -410,3 +415,5 @@ mff_count:	ld	a,b
 		or	c
 		jp	nz,memfill_f
 		ret
+
+ ENDIF
