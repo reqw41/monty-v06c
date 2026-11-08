@@ -1271,11 +1271,24 @@ cg1a:		push	hl			; tile_changed[8b .. 8b+7] := 1
 		ld	l,a
 		ld	h,tile_changed/256
 cg_mask:	ld	a,0xA8
+ IFDEF NES_FULL
+ ; Rare colour changes: tile_recolor preserves AF/BC/DE/HL.
+ push bc
+ ld b,8
+cg_tile:
+ ld (hl),a
+ call tile_recolor
+ inc l
+ dec b
+ jp nz,cg_tile
+ pop bc
+ ELSE
 		REPT	8
 		ld	(hl),a
 		call	tile_recolor
 		inc	l
 		ENDR
+ ENDIF
 		pop	hl
 		inc	c
 cg2:		inc	hl
