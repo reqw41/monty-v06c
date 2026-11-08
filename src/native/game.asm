@@ -520,6 +520,7 @@ sprite_sources_end:
  IFDEF NES_FULL
 		INCLUDE "nes_skull_ink.asm"
  IFDEF NES_FULL
+ INCLUDE "nes_ram0_boot.asm"
  INCLUDE "nes_roll_ps.asm"
  ENDIF
  ENDIF
