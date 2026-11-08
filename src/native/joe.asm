@@ -1262,10 +1262,10 @@ jn_delta equ spr_rec+25
 joe_step_gate:
  push af
  push hl
- ld a,(jn_epoch)
- ld hl,jn_last_epoch
+ ld a,(jn_epoch)              ; логика опережает картинку Джо не больше чем на 3 шага (было 2):
+ ld hl,jn_last_epoch           ; при пропуске подготовки экрана (frame_wait) мир не тормозит
  sub (hl)
- cp 2
+ cp 3
  jp nc,jsg_full
  ; The picture queued for the next IRQ is also subject to the deadline.
  ld a,(spr_rec+13)
@@ -1274,7 +1274,7 @@ joe_step_gate:
  ld a,(jn_epoch)
  ld hl,jn_ready_epoch
  sub (hl)
- cp 2
+ cp 3
  jp c,jsg_fast
 jsg_full:
  push bc

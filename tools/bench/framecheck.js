@@ -1,7 +1,7 @@
 // Every completed crit, including a deferred remainder. No global pending-work skip.
 // Follow tile/color/phase submission at drawing entry points, independently decode MSX pixels.
 // Every cell is checked, including pending cells against the background actually submitted.
-const REF=require('./video-ref'),joeRef=require('./joe-ref');
+const REF=require('./video-ref'),joeRef=require('./joe-ref'),HUD_FRAME=require('./hud-frame');
 module.exports=function(m,s,options={}) {
  const cells=s.NT_CELLS||768,rows=s.SCREEN_ROWS||24,height=s.SCREEN_HEIGHT||192,top=s.SCREEN_TOP??0xDF;
  const oldTile=new Uint8Array(cells),oldColor=new Uint8Array(cells),oldBelt=new Uint8Array(cells),oldDark=new Uint8Array(cells);
@@ -24,7 +24,7 @@ module.exports=function(m,s,options={}) {
   for(let i=0;i<cells;i++){
    const pending=s.SCREEN_HEIGHT===240&&i<192?0:m.rd(s.PND+i)&1;
 
-   const t=oldTile[i],col=oldColor[i],fg=m.rd(s.cmap+((col>>4)||1)),bg=m.rd(s.cmap+((col&15)||1));
+   const frameCell=s.SCREEN_HEIGHT===240&&i<192&&HUD_FRAME[i],t=frameCell||oldTile[i],col=frameCell?m.rd(s.room_colors+(frameCell>>3)):oldColor[i],fg=m.rd(s.cmap+((col>>4)||1)),bg=m.rd(s.cmap+((col&15)||1));
    const phases=REF.isAnimated(s,t)?4:1,c=i%32,r=i>>5;let ok=false;
    for(let f=0;f<phases&&!ok;f++){const bytes=REF.cell(m,s,t,f,oldBelt[i],{color:col,dark:!!oldDark[i]});if(s.NES_SCORE_TWO_TONE&&r===3&&((c>=18&&c<30)||(s.NES_LEVEL_TWO_TONE&&c>=14&&c<16))){bytes.fill(0,0,8);if(s.NES_INK_SWAP23)bytes.fill(0,16,24);}ok=true;
     for(let p=0;p<3&&ok;p++){const mode=((fg>>(2-p))&1)|(((bg>>(2-p))&1)<<1);

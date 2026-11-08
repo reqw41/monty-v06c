@@ -16,8 +16,8 @@ for(let i=0;i<s.PS_N*(s.PS_SHIFTS||8);i++){
 }
 const protectedBlocks=cache.slice();
 if(s.nes_seed_masks)protectedBlocks.push({a:s.nes_seed_masks,skip:s.nsm_page+1,bytes:Array.from({length:s.nes_seed_end-s.nes_seed_masks},(_,j)=>m.rd(s.nes_seed_masks+j))});
-assert(cache.length>=(s.PS_SEED_POSES?4*s.PS_SEED_POSES:29));let forced=false,warm=false,restarted=false,steps=0;
-if(s.NES_CHEAT_PACKED&&!s.PS_SEED_POSES)assert.equal(cache.length,32,'packed trainer must preserve all 32 shifts');
+assert(cache.length>=(s.PS_SEED_POSES?4*s.PS_SEED_POSES:(s.PS_BLOCKS||29)));let forced=false,warm=false,restarted=false,steps=0;
+if(s.NES_CHEAT_PACKED&&!s.PS_SEED_POSES)assert.equal(cache.length,s.PS_BLOCKS||32,'packed trainer must preserve every configured shift');
 m.onInstr=pc=>{
  if(pc===s.L_A5D1){steps++;if(!forced){forced=true;m.cpu.sp=s.GSTACK;m.cpu.pc=s.game_over;}}
  if(pc===s.go1)m.keyboard.matrix[7]=128;

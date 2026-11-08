@@ -75,6 +75,7 @@ spl_end:	ld	de,spl_z
  ENDIF
 spl_c:
  IFDEF NES_FULL
+ call spider_grid
 spl_band_y:
  ld a,(spr_force)
  or a
@@ -210,7 +211,6 @@ spl_ch:
  sub b
  cp 2
  jp c,spl_n
-		call	rolling_pose
 		ld	a,(de)			; виден: Y + 1 < 192, цвет без EC и не 0
 		inc	a
 		cp SCREEN_HEIGHT
@@ -269,14 +269,9 @@ spl2:		ld	(hl),a
 		ld	(hl),a
 		inc	l
 		inc	a
-		ld	b,a			; (B — счётчик, на время)
-		ld	a,c
-		and	7
-		ld	a,b
+		inc	a			; окно — всегда 3 столбца (trim_sprite)
 		pop	bc
 		push	bc
-		jp	z,spl3
-		inc	a
 spl3:		cp	32
 		jp	c,spl3a
 		ld	a,31
@@ -992,11 +987,16 @@ smz1:		ld	a,(hl)
 		ld	e,a
 		ld	a,(hl)
 		ld	(de),a
+		ld	a,e			; столбец 2 при s = 0 — нули (окно всегда 3 столбца)
+		add	a,16
+		ld	e,a
+		xor	a
+		ld	(de),a
 		ld a,l
 		sub 15
 		ld l,a
 		ld	a,e
-		sub	15
+		sub	31
 		ld	e,a
  IFDEF NES_FULL
  dec b
@@ -1070,12 +1070,9 @@ ts1:		ld	(st_rows),a
 		rrca
 		jp	nc,ts2
 		inc	b			; левая пуста — столбец 0 пуст
-ts2:		rrca
-		jp	c,ts3
-		ld	a,(sp_x)
-		and	7
-		jp	nz,ts4
-ts3:		ld	a,b			; правая пуста или X кратен 8 — столбец 2 пуст
+ts2:		rrca				; X кратен 8 — столбец 2 всё равно в окне (нули): место не меняется со сдвигом
+		jp	nc,ts4
+ts3:		ld	a,b			; правая пуста — столбец 2 пуст
 		or	4
 		ld	b,a
 ts4:		ld	a,b
@@ -1369,8 +1366,6 @@ ck0:		ld	a,(hl)
 		cp	2
 		jp	c,ck1
 		jp	z,ck2
-		cp	4
-		jp	z,ck_repaint
 		xor	a
 		ld	(en_reuse),a
 		call	draw1
@@ -1397,8 +1392,217 @@ ck_units:	ld	hl,cr_units
 		add	a,(hl)
 		ld	(hl),a
 		jp	ck9
-ck1:		call	restore1
+ck1:		ld	a,b			; враг один в группе (1,k)(2,k)(3,k), клетки не откладывались, место то же —
+		or	a			; повтор фона (как действие 4): без «фон назад», луч не застаёт пустого места
+		jp	z,ck1_rs
+		pop	hl
+		push	hl
+		ld	c,2
+ck1_sh:		ld	a,(hl)
+		cp	c
+		jp	nz,ck1_rs
+		inc	hl
+		ld	a,(hl)
+		cp	b
+		jp	nz,ck1_rs
+		inc	hl
+		inc	c
+		ld	a,c
+		cp	4
+		jp	nz,ck1_sh
+		ld	a,(ex_any)
+		or	a
+		jp	nz,ck1_rs
+		push	hl
+		call	place_cmp
+		pop	hl
+		or	a
+		jp	z,ck1_same
+		dec	a
+		jp	nz,ck1_rs
+		ex	(sp),hl			; место сдвинулось: замещение
+		call	en_move
+		jp	ck_count
+ck1_same:	ex	(sp),hl
+		jp	ck_repaint
+ck1_rs:		call	restore1
 		jp	ck9
+; place_cmp: B = номер (сохраняется) -> A: 0 — место то же (повтор фона), 1 — окно сдвинулось ровно на
+; столбец при тех же строках, без пустых столбцов (en_move, mv_dc = ±1), 2 — иначе.
+; Нарисован с фоном, новый готов, плоскость та же.
+mv_dc equ sp_y
+place_cmp:	ld	a,b
+		call	rec_ptr
+		ld	a,(hl)
+		or	a
+		jp	z,pc_no
+		ld	a,l
+		or	14
+		ld	l,a
+		ld	c,(hl)			; плоскость прежнего вывода
+		ld	a,c
+		or	a
+		jp	z,pc_no
+		ld	a,l
+		or	0x80
+		ld	l,a
+		ld	a,(hl)
+		or	a
+		jp	z,pc_no
+		ld	d,a
+		push	de
+		push	bc
+		call	en_mark
+		pop	bc
+		pop	de
+		ld	a,(hl)
+		ld	(hl),d
+		cp	c
+		jp	nz,pc_no
+		ld	a,l
+		sub	5
+		ld	e,a
+		ld	d,h			; DE = new +9
+		and	0x7F
+		ld	l,a			; HL = rec +9
+		ld	a,(de)
+		cp	(hl)
+		jp	nz,pc_no		; другая строка
+		inc	l
+		inc	e
+		ld	a,(de)
+		sub	(hl)
+		ld	c,a			; C = сдвиг по столбцам
+		inc	l
+		inc	e
+		ld	a,(de)
+		cp	(hl)
+		jp	nz,pc_no		; строк другое
+		inc	l
+		inc	e
+		ld	a,(de)
+		cp	(hl)
+		jp	nz,pc_no		; пустые столбцы другие
+		ld	a,c
+		or	a
+		ret	z			; то же место
+		ld	a,(de)
+		or	a
+		jp	nz,pc_no
+		ld	a,c
+		ld	(mv_dc),a
+		inc	a
+		cp	3
+		ld	a,1
+		ret	c
+pc_no:		ld	a,2
+		ret
+
+; en_move: B = номер (сохраняется); окно сдвинулось на столбец (mv_dc = ±1). Фон уходящего столбца — назад,
+; ячейка (столбцы подряд по R) сдвигается на столбец; вывод (en_reuse = 3): входящий столбец — фон в ячейку
+; и точки, два общих — фон из ячейки и точки. Ни один байт, где враг остаётся, не пустеет.
+mv_pl equ sp_x
+mv_t equ sp_name
+mv_c equ sp_ci
+mv_r equ sp_line
+en_move:	push	bc
+		call	cover_clear
+		ld	a,b
+		call	rec_ptr
+		ld	(hl),0			; не нарисован
+		call	enemy_ink_plane
+		ld	(mv_pl),a
+		ld	a,b
+		add	a,SPR_SLOTS/256
+		ld	(sp_mpage),a
+		ld	a,l
+		or	9
+		ld	l,a
+		ld	a,(hl)
+		ld	(mv_t),a
+		inc	l
+		ld	a,(hl)
+		ld	(mv_c),a
+		inc	l
+		ld	a,(hl)
+		ld	(mv_r),a
+		ld	c,a			; C = R
+		ld	hl,enemy_mix		; вход смеси для входящего столбца: enemy_mix + 8 * (16 - R)
+		ld	a,16
+		sub	c
+		add	a,a
+		add	a,a
+		push	af
+		add	a,a
+		call	add_hl_a
+		ld	(enp_mixc+1),hl
+		pop	af			; 4 * (16 - R) — вход st_rs
+		ld	hl,st_rs
+		call	add_hl_a
+		ld	(em_rs+1),hl
+		ld	e,0
+		ld	a,(mv_dc)		; уходит: dC = +1 — столбец 0 (ячейка 0, A = 0), -1 — столбец 2 (ячейка 2R)
+		dec	a
+		jp	z,em_l
+		ld	a,c
+		add	a,a
+		ld	e,a
+		ld	a,2
+em_l:		ld	hl,mv_c
+		add	a,(hl)
+		cp	32
+		jp	nc,em_sh
+		ld	hl,mv_pl
+		add	a,(hl)
+		ld	h,a
+		ld	a,(mv_t)
+		ld	l,a			; HL = экран
+		ld	a,(sp_mpage)
+		ld	d,a			; DE = ячейка
+em_rs:		call	st_rs
+em_sh:		ld	a,(sp_mpage)		; ячейка: сдвиг на столбец (2R байт)
+		ld	h,a
+		ld	d,a
+		ld	a,(mv_r)
+		ld	c,a
+		add	a,a
+		ld	b,a
+		ld	a,(mv_dc)
+		dec	a
+		jp	nz,em_dn
+		ld	l,c			; dC = +1: [R..3R) -> [0..2R)
+		ld	e,0
+em_up:		ld	a,(hl)
+		ld	(de),a
+		inc	l
+		inc	e
+		dec	b
+		jp	nz,em_up
+		ld	a,1			; входит столбец 2 (cl_n = 1)
+		jp	em_go
+em_dn:		ld	a,b			; dC = -1: [0..2R) -> [R..3R), с конца
+		dec	a
+		ld	l,a
+		add	a,c
+		ld	e,a
+em_dl:		ld	a,(hl)
+		ld	(de),a
+		dec	l
+		dec	e
+		dec	b
+		jp	nz,em_dl
+		ld	a,3			; входит столбец 0 (cl_n = 3)
+em_go:		ld	(mv_dc),a
+		ld	a,3
+		ld	(en_reuse),a
+		pop	bc
+		push	bc
+		call	draw1
+		xor	a
+		ld	(en_reuse),a
+		pop	bc
+		ret
+
 ck2:		ld	a,(ex_any)		; клетки откладывались?
 		or	a
 		jp	z,ck9
@@ -1418,9 +1622,7 @@ ck_limit:
  ENDIF
 		jp	c,ck0
 		ld	a,(hl)
-		cp	1
-		jp	z,ck_defer
-		cp	4
+		cp	1			; (действие 4 больше не выдаётся: повтор фона решает ck1)
 		jp	nz,ck0
 ck_defer:	ld	(cr_read),hl
 		ld	a,1
@@ -1521,12 +1723,16 @@ ps_names:
  ; the eight rolling-skull poses when the full room pack reduces free RAM.
  ; Only these four poses obtain masks with this room/art budget. The other
  ; rolling-skull poses retain their original source and the uncached path.
- db 0x2C,0x30,0x0C,0x14,0xFF
+ ; Катящийся череп — по схеме ZX: X чётный, поза — функция X, у каждой позы один сдвиг.
+ ; Его позы 28..10 собраны в два виртуальных кадра (ps_vtab, по сдвигам 0/2/4/6); 0C — общий с прыгающим.
+ db 0x2C,0x30,0x0C,0xFF
+ps_smask:	db	0x05,0x50,0xFF		; какие сдвиги строить: паук 2C — 0 и 2, 30 — 4 и 6 (spider_grid); 0C — все
  ELSE
  db 0x0C,0x10,0x14,0x18,0x1C,0x20,0x24,0x28,0x2C,0x30,0x68,0x78,0xFF
  ENDIF
  IFDEF NES_FULL
-PS_N equ 4
+PS_N equ 5
+PS_BLOCKS equ 2+2+8+7		; полный кэш: паук 2C и 30 по 2 сдвига, 0C — 8, катящийся череп — 7 поз по одному
  ELSE
 PS_N equ 12
  ENDIF
@@ -1777,6 +1983,19 @@ tb4:		ld	a,b
 		pop	bc
 		dec	c
 		jp	nz,tb0
+ IFDEF NES_FULL
+ ; Катящийся череп (10..28): общее окно строк 1..14 — у готовых образов один шаг, смена позы не меняет место.
+		ld	hl,spr_trim+0x10
+		ld	b,7
+tb_roll:	ld	(hl),1
+		inc	hl
+		ld	(hl),14
+		inc	hl
+		inc	hl
+		inc	hl
+		dec	b
+		jp	nz,tb_roll
+ ENDIF
 		ret
 
 ; lv_init: lv_idx и lv_tile (при загрузке)
@@ -1837,7 +2056,11 @@ pbd0:
  ENDIF
 		ld	a,(hl)
 		cp	0xFF
+ IFDEF NES_FULL
+		jp	z,ps_vbuild
+ ELSE
 		ret	z
+ ENDIF
 		push	hl
 		push	bc
 		ld	(ps_nm),a
@@ -1868,7 +2091,68 @@ pbd0:
 		ld	(hl),a
 		xor	a
 		ld	(ps_s),a
-pbd1:		ld	a,(ps_s)		; m = FFh >> s
+pbd1:
+ IFDEF NES_FULL
+		pop	bc			; сдвиг нужен? (ps_smask)
+		push	bc
+		ld	hl,ps_smask
+		ld	a,c
+		call	add_hl_a
+		ld	a,(ps_s)
+		ld	b,a
+		inc	b
+		ld	a,(hl)
+pbm:		rrca
+		dec	b
+		jp	nz,pbm
+		jp	nc,pbd8
+ ENDIF
+		call	ps_one
+		pop	bc
+		push	bc
+		call	ps_store
+pbd8:
+		ld	a,(ps_s)
+ IFDEF NES_ENEMY_SEEDS
+ inc a
+ ENDIF
+		inc	a
+		ld	(ps_s),a
+		cp	8
+		jp	nz,pbd1
+		pop	bc
+		pop	hl
+		inc	hl
+		inc	c
+		jp	pbd0
+; ps_store: C = номер, ps_s — сдвиг, HL = блок (0 — нет): ps_tab[8 * номер + s] := HL
+ps_store:	ld	a,h
+		or	l
+		ret	z
+		ex	de,hl
+		ld	a,c
+		add	a,a
+		add	a,a
+ IFNDEF NES_ENEMY_SEEDS
+		add	a,a
+ ENDIF
+		ld	b,a
+		ld	a,(ps_s)
+ IFDEF NES_ENEMY_SEEDS
+ rrca
+ ENDIF
+		add	a,b
+		ld	l,a
+		ld	h,0
+		add	hl,hl
+		ld	bc,ps_tab
+		add	hl,bc
+		ld	(hl),e
+		inc	hl
+		ld	(hl),d
+		ret
+; ps_one: блок 3R готового сдвига ps_s кадра ps_nm (первая строка ps_f, строк ps_r0) -> HL (0 — места нет)
+ps_one:		ld	a,(ps_s)		; m = FFh >> s
 		call	rotate_select
 		ld	b,a
 		ld	a,0xFF
@@ -1887,32 +2171,7 @@ pbd7:		ld	(ps_m),a
 		ld	(ps_dst),hl
 		ld	a,h			; места нет — у этого кадра масок готовых нет (ps_tab — 0)
 		or	l
-		jp	z,pbd5
-		pop	bc			; ps_tab[8 * номер + s] := HL
-		push	bc
-		ld	a,c
-		add	a,a
-		add	a,a
- IFNDEF NES_ENEMY_SEEDS
-		add	a,a
- ENDIF
-		ld	b,a
-		ld	a,(ps_s)
- IFDEF NES_ENEMY_SEEDS
- rrca
- ENDIF
-		add	a,b
-		ld	l,a
-		ld	h,0
-		add	hl,hl
-		ld	de,ps_tab
-		add	hl,de
-		ex	de,hl
-		ld	hl,(ps_dst)
-		ex	de,hl
-		ld	(hl),e
-		inc	hl
-		ld	(hl),d
+		ret	z
 		ld	a,(ps_nm)
 		call	sprite_source
 		ld	a,(ps_f)
@@ -1984,19 +2243,8 @@ pbd4:		ld	a,(ps_r0)		; столбцы: DE, DE + R, DE + 2R
 		pop	bc
 		dec	b
 		jp	nz,pbd2
-pbd5:		ld	a,(ps_s)
- IFDEF NES_ENEMY_SEEDS
- inc a
- ENDIF
-		inc	a
-		ld	(ps_s),a
-		cp	8
-		jp	nz,pbd1
-		pop	bc
-		pop	hl
-		inc	hl
-		inc	c
-		jp	pbd0
+		ld	hl,(ps_dst)
+		ret
 ; ps_alloc: A = байт -> HL = блок в одной странице (из ps_p; конец места — следующее место ps_rg); 0 — нет места
  IFDEF STRICT
 ps_alloc:	ld	c,a
@@ -2318,6 +2566,19 @@ en_paint_plane:
 		ld	a,(en_reuse)
 		or	a
 		jp	z,en_mix_call
+ IFDEF NES_FULL
+		cp	3			; замещение (en_move): входящий столбец — смесь с сохранением фона
+		jp	nz,enp_sw
+		ld	a,(cl_n)
+		push	hl
+		ld	hl,mv_dc
+		cp	(hl)
+		pop	hl
+		jp	nz,enp_sw
+enp_mixc:	call	enemy_mix
+		jp	en_paint_next
+enp_sw:
+ ENDIF
 		push	hl
 		ld	h,b
 		ld	l,c
@@ -2807,54 +3068,12 @@ be_next:	inc	l
 		ld	(de),a
 		ret
 
+; Повтор фона для того же места решает crit (ck1, same_place) — здесь всегда фон назад / клетки / вывод.
 band_actor:	ld	a,b
 		call	rec_ptr
 		ld	a,(hl)
 		or	a
 		jp	z,ba_draw
-		push	hl
-		ld	a,(ex_any)
-		or	a
-		jp	nz,ba_regular
-		ld	a,l
-		or	14
-		ld	l,a
-		ld	a,(hl)
-		cp	2
-		jp	nz,ba_regular
-		ld	a,l
-		or	0x80
-		ld	l,a
-		ld	a,(hl)
-		or	a
-		jp	z,ba_regular
-		ld	a,l
-		sub	5
-		ld	l,a
-		push	de
-		ld	d,h
-		ld	a,l
-		and	0x7F
-		ld	e,a
-		ld	c,4
-ba_compare:	ld	a,(de)
-		cp	(hl)
-		jp	nz,ba_changed
-		inc	l
-		inc	e
-		dec	c
-		jp	nz,ba_compare
-		pop	de
-		pop	hl
-		ld	a,4
-		ld	(de),a
-		inc	de
-		ld	a,b
-		ld	(de),a
-		inc	de
-		ret
-ba_changed:	pop	de
-ba_regular:	pop	hl
 		ld	a,1
 		ld	(de),a
 		inc	de
@@ -2956,50 +3175,35 @@ sort_r0:
  ret
  ENDIF
 
-; Линейный катящийся враг: при задержке вывода выбрать промежуточную позу
-; на его же траектории, не дальше трёх пикселей от нарисованной. ОЗУ игры не меняется.
-rolling_pose:	ld	a,(band_candidate)
-		or	a
-		ret	z
-		ld	a,l
-		and	0x70
-		cp	32
-		ret	c
-		push	hl
-		push	bc
-		ld	c,a
-		ld	l,a
-		ld	a,(hl)
-		or	a
-		jp	z,rp_done
-		inc	l
+; Паук по схеме ZX (только вывод; логика — точная): X чётный, поза по X — 2Ch при X & 4 = 0, иначе 30h.
+; DE -> атрибуты объекта; для паука — копия в sp_y..sp_ci (свободны до подготовки), DE -> копия. HL, B сохраняются.
+spider_grid:	inc	de
+		inc	de
 		ld	a,(de)
-		cp	(hl)
-		jp	nz,rp_done
-		inc	l
-		ld	b,(hl)
-		ld	a,c
-		or	0x82
-		ld	l,a
-		ld	a,(hl)
-		sub	b
-		jp	c,rp_left
-		cp	4
-		jp	c,rp_done
-		cp	9
-		jp	nc,rp_done
-		ld	a,b
-		add	a,3
-		jp	rp_set
-rp_left:	cpl
-		inc	a
-		cp	4
-		jp	c,rp_done
-		cp	9
-		jp	nc,rp_done
-		ld	a,b
-		sub	3
-rp_set:		ld	(hl),a
-rp_done:	pop	bc
+		dec	de
+		dec	de
+		cp	0x2C
+		ret	c
+		cp	0x34
+		ret	nc
+		push	hl
+		ld	hl,sp_y
+		ld	a,(de)
+		ld	(hl),a
+		inc	de
+		inc	hl
+		ld	a,(de)
+		and	0xFE
+		ld	(hl),a
+		inc	de
+		inc	hl
+		and	4
+		add	a,0x2C
+		ld	(hl),a
+		inc	de
+		inc	hl
+		ld	a,(de)
+		ld	(hl),a
+		ld	de,sp_y
 		pop	hl
 		ret

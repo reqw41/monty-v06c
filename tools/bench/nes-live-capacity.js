@@ -10,7 +10,7 @@ const cached=[];
 for(let i=0;i<s.PS_N*(s.PS_SHIFTS||8);i++){
  const a=m.rd(s.ps_tab+2*i)|m.rd(s.ps_tab+2*i+1)<<8,rows=m.rd(s.ps_rr+Math.floor(i/(s.PS_SHIFTS||8)));
  if(a){
-  const name=m.rd(s.ps_names+Math.floor(i/(s.PS_SHIFTS||8))),first=m.rd(s.spr_trim+name);
+  const ent=Math.floor(i/(s.PS_SHIFTS||8)),virt=s.ps_vtab!==undefined&&ent>=3,name=virt?m.rd(s.ps_vtab+4*(ent-3)+((i%8)>>1)):m.rd(s.ps_names+ent),first=m.rd(s.spr_trim+name); // виртуальные кадры катящегося черепа (ps_vtab): поза по сдвигу
   const bytes=Array.from({length:3*rows},(_,j)=>m.rd(a+j));
   for(let col=0;col<3;col++)for(let y=0;y<rows;y++){
    const raw=(original.sprite(name,0,first+y)<<16)|(original.sprite(name,1,first+y)<<8);
@@ -19,7 +19,7 @@ for(let i=0;i<s.PS_N*(s.PS_SHIFTS||8);i++){
   cached.push({a,bytes});
  }
 }
-assert(cached.length>=(s.PS_SEED_POSES?4*s.PS_SEED_POSES:29),'at least 29 prepared shifts');
+assert(cached.length>=(s.PS_SEED_POSES?4*s.PS_SEED_POSES:(s.PS_BLOCKS||29)),'every configured shift prepared');
 function call(name){
  const c=m.cpu;c.iff=false;c.iff_pending=0;c.pc=s[name];c.sp=0x73be;
  m.wr(c.sp,s.unit_trap&255);m.wr(c.sp+1,s.unit_trap>>8);

@@ -83,38 +83,20 @@ en_f2:		ld	h,d
 		ld	a,0x0F
 		ENDIF
 en_c0:		ld	(hl),a
-en_c1:		ld	h,d
-		ld	l,e
-		ld	a,(hl)
-		and	8
-		jp	z,en_81d
-		inc	hl			; катящийся: счётчик + 1; младшая тетрада 4 — кадр
-		inc	(hl)
-		ld	a,(hl)
-		and	0x0F
-		cp	4
+; Катящийся череп (бит 3 без бита 6) — схема ZX: X чётный, сдвиг на 2B через шаг, поза — функция X (en_87f).
+; Шаг без сдвига пропускает и проверки края/стены: иначе у края он развернулся бы дважды подряд.
+en_c1:		ld	a,(de)
+		and	0x48
+		cp	8
 		jp	nz,en_81d
+		ld	h,d
+		ld	l,e
+		inc	hl
 		ld	a,(hl)
-		and	0x80
+		xor	1			; бит 0 счётчика — чётность шага (бит 7 — скорость)
 		ld	(hl),a
-		dec	hl
-		ld	a,(hl)
-		and	0x80
-		ld	c,4
-		jp	nz,en_r1
-		ld	c,0xFC
-en_r1:		ld	hl,(en_sp)
-		inc	hl
-		inc	hl
-		ld	a,(hl)
-		add	a,c
-		cp	0x2C
-		jp	nz,en_r2
-		ld	a,0x0C
-en_r2:		cp	0x08
-		jp	nz,en_r3
-		ld	a,0x28
-en_r3:		ld	(hl),a
+		rrca
+		jp	nc,en_88f
 		jp	en_81d
 
 en_6b3:		ld	h,d
@@ -319,15 +301,37 @@ en_84d:		inc	hl
 		ld	a,b
 		add	a,b
 		ld	b,a
-en_84e:
+en_84e:		ld	a,(de)			; катящийся: шаг со сдвигом (en_c1) — на 2B
+		and	0x48
+		cp	8
+		jp	nz,en_87f
+		ld	a,b
+		add	a,a
+		ld	b,a
 en_87f:		ld	hl,(en_sp)		; Y -= C, X += B; X < 8 — направление наоборот
 		ld	a,(hl)
 		sub	c
 		ld	(hl),a
 		inc	hl
+		ld	a,(de)
+		and	0x48
+		cp	8
 		ld	a,b
+		jp	nz,en_87y
 		add	a,(hl)
+		and	0xFE			; катящийся: X чётный, поза = 28h - ((2X) & 1Ch)
 		ld	(hl),a
+		add	a,a
+		and	0x1C
+		cpl
+		add	a,0x29
+		inc	hl
+		ld	(hl),a
+		dec	hl
+		ld	a,(hl)
+		jp	en_87x
+en_87y:		add	a,(hl)
+en_87x:		ld	(hl),a
 		cp	8
 		call	c,en_flip
 en_88f:		ld	h,d

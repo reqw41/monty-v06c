@@ -1,5 +1,6 @@
 ; Generated NES CHR masks, with original two-phase MSX E8 platforms.
 FULL_ANIM_N equ 20
+FULL_ANIM_D2 equ 5
 anim_set: db 4,5,6,168,174,210,211,212,213,184,185,186,160,161,162,163,164,165,166,167,255
 col0: db 144,167,74,139,177,240,240,240,240,240,240,240,32,144,224,64,64,64,224,144,32,32,64,144,224,74,144,96,160,160,0,0
 raw_base_low equ $

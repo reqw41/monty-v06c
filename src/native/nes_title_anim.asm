@@ -4,10 +4,6 @@
 title_animate:
  push bc
  xor a
- ld (cmap+15),a
- ld hl,menu_txt
- ld de,MENU_POS
- call txt_draw
 title_scene_ready:
  ld (spr_rec+11),a
  ld a,128
@@ -54,12 +50,13 @@ title_walk_shown:
  ld (jn_skip),a
  ld a,23
  ld (jn_rows_count),a
-title_climb:
+title_climb:				; down the ladder in the game's ladder poses 8/9
  ld a,(spr_new+9)
- and 8
- ld a,10
- jp z,title_rope_pose
- ld a,19
+ rrca
+ rrca
+ rrca
+ and 1
+ add a,8
 title_rope_pose:
  call title_paint
 title_climb_shown:

@@ -23,7 +23,7 @@ joy_merge:
  ld a,(hl)
  or 0x80
  ld (hl),a
- jp joy_menu_fire
+ ret
  ASSERT kbmat/256 == (kbmat+7)/256
  ASSERT $ <= 0xF2F0
  ORG 0xF2F0

@@ -5,7 +5,7 @@ cheat_menu_keys:
  ld a,(kbmat+1)
  and 0x28                 ; Vector F1 = row 1 bit 3, F3 = bit 5
  cp 0x28
- jp nz,cheat_menu_digits
+ jp nz,menu_scan
 cheat_menu_on:
  ld b,1
  ld a,b

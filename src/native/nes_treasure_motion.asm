@@ -28,29 +28,6 @@ nt_jump_can_catch:
  ld a,(0x7072)
  cp 13                     ; original $A6B7: ignore rope grabs for first 3 rises
  ret
-; Shared cold/warm menu scanner in the spare tail, outside the cleared actors.
-cheat_menu_digits:
- ld a,(kbmat+2)
- and 14
- ret z
- ld b,255
-cheat_menu_digit_next:
- inc b
- rrca
- jp nc,cheat_menu_digit_next
-cheat_menu_normal:
- xor a
- jp cheat_menu_store
-; HL already points into kbmat. Only joystick Fire selects level 1 in menus.
-joy_menu_fire:
- ld l,(kbmat+2)&255
- ld a,(hl)
- and 14
- ret nz                    ; an explicit keyboard level takes priority
- ld a,(hl)
- or 2
- ld (hl),a
- ret
 nt_motion_end:
  ASSERT $ <= 0x7380
  ENT

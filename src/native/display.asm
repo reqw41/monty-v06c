@@ -952,43 +952,28 @@ dal0:		ld	(hl),0
 		ld	(dl_ovf),a
 		ld	(sprite_dirty),a
  IFDEF NES_FULL
- ld hl,0xEC00
+ ld hl,0xEC00			; HUD stays on screen: draw_all leaves it (and hud_dirty) alone
  ld bc,768
- xor a
- ld (hud_dirty),a
  ELSE
 		ld hl,PND
 		ld bc,768
  ENDIF
 		ld	e,0
 		call	memfill_f
- IFDEF NES_FULL
-; The title uses the whole raster. Clear the new HUD gap on every room redraw,
-; including a fresh level chosen after GAME OVER.
- ld hl,0x80C0
- ld b,96
-dal_gap_col:
- xor a
- ld c,8
-dal_gap_lo:
- ld (hl),a
- inc l
- dec c
- jp nz,dal_gap_lo
- inc h
- ld l,0xC0
- dec b
- jp nz,dal_gap_col
- ENDIF
 		ld	a,0xFF
 		ld	(da_t),a
+ IFDEF NES_FULL
+ ld de,FIELD_VNT			; только поле: рамка HUD статична, внутренность — nf_draw_hud
+ ld a,HUD_ROWS
+ ld (rr_r),a
+ xor a
+ ld (rr_c),a
+ ld hl,0x80FF-FIELD_YSHIFT-HUD_ROWS*8
+ ELSE
 		ld	de,VNT			; DE — клетка карты, HL — экран (столбец 0, верх строки 0)
  xor a
  ld (rr_r),a
  ld (rr_c),a
- IFDEF NES_FULL
- ld hl,0x80FF-HUD_YSHIFT
- ELSE
  IFDEF NES_STYLE
  ld hl,0x80E7
  ELSE

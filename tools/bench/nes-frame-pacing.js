@@ -62,7 +62,7 @@ for(const room of scenes)for(const moving of (process.env.MOVING?[process.env.MO
  const row={room:room.join(','),moving,frames:N,sps:50*poseTrace.length/N,steps:poseTrace.length,histogram:hist,context,maxIRQ,cachedShifts:shifts,motion,pixels:checker?checker.result():undefined,events:Object.fromEntries(Object.entries(events).map(([k,v])=>[k,v.length])),gaps:Object.fromEntries(Object.entries(gaps).map(([k,v])=>[k,summary(v)]))};
  assert(maxIRQ<59904,'atomic display work must fit in one physical frame');
  if(['1,9','7,2'].includes(row.room))assert(Object.keys(row.events).filter(k=>k.startsWith('enemy')).length>=2,'two live monsters must be covered');
- if(moving)assert(row.events.joe>40,'Joe must really redraw');assert(shifts>=+(process.env.CACHE_MIN||32),'keep full enemy cache');
+ if(moving)assert(row.events.joe>40,'Joe must really redraw');assert(shifts>=+(process.env.CACHE_MIN||s.PS_BLOCKS||32),'keep full enemy cache');
  if(live&&moving&&s.NES_SNAKE_LOCAL)assert(!row.events.liveListRebuild,'snake turns must not rebuild the resident room list');
  if(moving&&process.env.JOE_GAP_MAX)assert(row.gaps.joe.max<=+process.env.JOE_GAP_MAX,'Joe paint deadline exceeded');
  if(checker)assert.equal(row.pixels.bad,0,'every completed atomic group must preserve pixels');

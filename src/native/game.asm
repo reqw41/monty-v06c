@@ -274,7 +274,15 @@ frame_wait:
  call nes_poll
  pop af
  ENDIF
+ IFDEF NES_FULL
+		jp	nz,fw_np
+		ld	a,(nmi_pend)		; кадр уже прошёл (отстаём) — шаг логики без подготовки экрана: мир не замедляется,
+		or	a			; пока идёт Джо; экран догонит последнее положение на следующем шаге
+		call	z,disp_prep
+fw_np:
+ ELSE
 		call z,disp_prep
+ ENDIF
  ld a,1
  ld (jn_wait),a
 fw2:
@@ -511,6 +519,9 @@ sprite_sources_end:
 		INCLUDE "nes_alloc.asm"
  IFDEF NES_FULL
 		INCLUDE "nes_skull_ink.asm"
+ IFDEF NES_FULL
+ INCLUDE "nes_roll_ps.asm"
+ ENDIF
  ENDIF
  IFDEF NES_ENEMY_SEEDS
  INCLUDE "nes_enemy_seeds.asm"

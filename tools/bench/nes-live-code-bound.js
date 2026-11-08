@@ -8,7 +8,7 @@ for(let i=0;i<s.PS_N*(s.PS_SHIFTS||8);i++){
  const a=m.rd(s.ps_tab+2*i)|(m.rd(s.ps_tab+2*i+1)<<8),rows=m.rd(s.ps_rr+Math.floor(i/(s.PS_SHIFTS||8)));
  if(a)cache.push({a,bytes:Array.from({length:3*rows},(_,j)=>m.rd(a+j))});
 }
-if(s.STABLE_OBJECT_COLORS)assert(cache.length>=(s.PS_SEED_POSES?4*s.PS_SEED_POSES:29),'prepared enemy cache must retain at least 29 shifts');
+if(s.STABLE_OBJECT_COLORS)assert(cache.length>=(s.PS_SEED_POSES?4*s.PS_SEED_POSES:(s.PS_BLOCKS||29)),'prepared enemy cache must retain every configured shift');
 let max=-1,cases=0;m.onWrite=(a)=>{if(a>=s.live_code&&a<s.live_code+125)max=Math.max(max,a-s.live_code);};
 function call(){const c=m.cpu;c.iff=false;c.iff_pending=0;c.pc=s.fl_compile;c.sp=0x73be;m.wr(c.sp,s.unit_trap&255);m.wr(c.sp+1,s.unit_trap>>8);for(let n=0;c.pc!==s.unit_trap;n++){assert(n<100000,'compile hung');c.instruction();}}
 for(let rows=0;rows<256;rows++)for(let planes=0;planes<8;planes++){

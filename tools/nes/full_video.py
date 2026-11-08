@@ -65,7 +65,7 @@ def main():
  assert horizontal==[bytes([255,102,195,102,255,0,0,0]),bytes([255,102,24,102,255,0,0,0])]
  lasers.append([ptr(horizontal[i&1]) for i in range(4)])
  assert len(strips)<256
- out=['; Generated NES CHR masks, with original two-phase MSX E8 platforms.',f'FULL_ANIM_N equ {len(anim)}','anim_set: db '+','.join(map(str,anim))+',255','col0: db '+','.join(map(str,v0[0x2000:0x2020])),
+ out=['; Generated NES CHR masks, with original two-phase MSX E8 platforms.',f'FULL_ANIM_N equ {len(anim)}',f'FULL_ANIM_D2 equ {anim.index(0xd2)}','anim_set: db '+','.join(map(str,anim))+',255','col0: db '+','.join(map(str,v0[0x2000:0x2020])),
       'raw_base_low equ $',' ORG 0xF950','raw_base_source:']
  for i in range(0,256,32):out.append(' db '+','.join(map(str,base[i:i+32])))
  out+=[' ASSERT $ == 0xFA50',' IFDEF NES_STABLE_COLORS',
@@ -104,6 +104,7 @@ def main():
  stable_fg=fg[:]
  for group in (12,13,19,23,26):stable_fg[group]=2
  stable_fg[19]=3  # ordinary jewels use the fixed Joe-skin orange
+ for group in (2,17):stable_fg[group]=1  # ladders: white in Joe's C000 plane (58d294c, NES_LADDER_LOW)
  stable_modes=[sum(((ci>>bit)&1)<<(2*bit) for bit in range(3)) for ci in stable_fg]
  sty+=[' IFDEF NES_STABLE_COLORS','full_modes: db '+','.join(map(str,stable_modes)), ' ELSE','full_modes: db '+','.join(map(str,modes)), ' ENDIF']
  (ROOT/'src/native/gen/style_full.asm').write_text('\n'.join(sty)+'\n')

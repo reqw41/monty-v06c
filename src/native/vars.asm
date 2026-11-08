@@ -18,6 +18,9 @@ snake_frame:	ds	1
 snake_shown:	ds	1
 snake_tick:	ds	1
  ENDIF
+ IF (($+7)/256) != ($/256)		; nes_joystick reads kbmat within one page
+		ds	256-($&255)
+ ENDIF
 kbmat:		ds	8
  IFNDEF NES_FULL
 row_dirty:	ds	SCREEN_ROWS
@@ -107,6 +110,9 @@ band_ok:	ds	1
 ; Fill the alignment tail with independent scalar state.
 cheat_mode: ds 1
 cheat_l_down: ds 1
+hi_score: ds 3			; рекорд (BCD, старший байт первым): переживает GAME OVER
+menu_level: ds 1		; уровень на титуле (центр HUD)
+menu_keys: ds 1			; стрелки и огонь прошлого опроса меню
 nf_dist_hi: ds 1
 ; Physical-frame timestamps occupy the existing alignment tail.
 pace_enemy_stamp: ds 4      ; completed paints of physical actors 2..5
@@ -125,9 +131,9 @@ nf_kind: ds 1
 nf_enemy: ds 1
 nf_snake_count: ds 1
 nf_snake_offsets: ds 8		; four 2x2 snakes, VNT offsets
-nf_left: ds 2
+nf_inc_ret: ds 2		; object list include: return address
 nf_bitbyte: ds 1
-nf_bitcount: ds 1
+nf_inc_left: ds 1		; tokens left in the include
 nf_distance: ds 2
  ENDIF
 pvars_end:

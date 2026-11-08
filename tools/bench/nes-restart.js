@@ -2,7 +2,7 @@
 'use strict';
 const assert=require('assert/strict'),fs=require('fs'),path=require('path');process.chdir(path.resolve(__dirname,'../..'));
 const E=require('../vec_emu'),{symbols}=require('./logic-profile'),B=process.env.B||'build/native',s=symbols(B),m=E.mk(B+'/monty.bin');
-const title=fs.readFileSync('build/nes_title/title_screen.raw');
+const title=fs.readFileSync('build/nes_title/title_screen_full.raw');
 assert.equal(title.length,0x6000);
 const cold=fs.readFileSync(B+'/monty.bin');let musicPlayed=0,titleMusic=-1,steps=0,forced=0,restarts=0,entered=false,after=0,menus=0,overlays=0;
 const selected=[2,3];
@@ -32,7 +32,9 @@ m.onInstr=pc=>{
  }
  if(pc===s.warm_restart&&titleMusic>=0){const p=m.rd(s.nes_m_ptr)|m.rd(s.nes_m_ptr+1)<<8;assert.notEqual(p,titleMusic,'title music played while waiting');musicPlayed++;titleMusic=-1;}
  if(pc===s.title_warm_menu&&menus===forced-1){
-  for(let i=0;i<title.length;i++)assert.equal(m.rd(0x8000+i),title[i],`restored title byte ${i.toString(16)}`);
+  // HUD digits (level, record) are drawn over the restored title: rows 24..39, columns 14..29.
+  const hudDigit=i=>{const col=(i>>8)&31,y=255-(i&255);return (col>=14&&col<30&&y>=24&&y<40)||y>=8*s.TITLE_SCENE_ROW0;}; // + game-drawn scene (nes-title-font, nes-title-palette)
+  for(let i=0;i<title.length;i++)if(!hudDigit(i))assert.equal(m.rd(0x8000+i),title[i],`restored title byte ${i.toString(16)}`);
   assert.equal(m.rd(s.pal+2*s.NES_TITLE_TEXT_SLOT),173,'NES title ink');
   assert.equal(m.rd(s.cmap+15),s.NES_TITLE_TEXT_SLOT,'menu uses title credit ink');
   assert.equal(m.rd(s.pal+2),255,'white title rope');

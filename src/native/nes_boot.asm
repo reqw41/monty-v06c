@@ -41,11 +41,15 @@ nes_menu:
 	ENDIF
 	ld a,1
 	ld (pal_load),a
+ IFDEF NES_FULL
+	call title_hud
+	call title_scene_draw
+ ENDIF
 nm_wait:
 	call nes_poll
-	ld hl,menu_txt
-	ld de,MENU_POS
-	call txt_draw
+ IFDEF NES_FULL
+	call title_scene_fire
+ ENDIF
 	ld a,1
 	ld (kb_req),a
 	halt
@@ -74,11 +78,27 @@ nes_begin:
 	xor a
 	ld (nes_m_wait),a
 	call vi_off
+	IFDEF NES_FULL
+	; Clear the title below the static HUD (offsets C8..F7 = rows 8..55).
+	ld h,0x80
+nb_clear_col:
+	ld l,0xC8
+	xor a
+nb_clear_byte:
+	dec l
+	ld (hl),a
+	jp nz,nb_clear_byte
+	inc h
+	ld a,h
+	cp 0xE0
+	jp nz,nb_clear_col
+	ELSE
 	IFDEF NES_STYLE
 	ld hl,0x8000
 	ld bc,0x6000
 	ld e,0
 	call memfill_f
+	ENDIF
 	ENDIF
 	call nes_queue_reset
 	ld a,0xE8

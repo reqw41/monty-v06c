@@ -129,17 +129,42 @@ L_A067:
  ld d,(hl)
  ld a,0x90
  ld (nf_visibility),a
+ xor a
+ ld (nf_inc_left),a
+ jp nf_read
 nf_next:
+ ld a,(nf_inc_left)		; inside an include: back after its last token
+ or a
+ jp z,nf_read
+ dec a
+ ld (nf_inc_left),a
+ jp nz,nf_read
+ ld hl,(nf_inc_ret)
+ ex de,hl
+nf_read:
  ld a,(de)
  inc de
  or a
  jp z,nf_done
+ cp 0xFE				; FE, count, address: shared tokens of another list
+ jp z,nf_include
  cp 255
  jp nz,nf_record
  ld a,(de)
  inc de
  ld (nf_visibility),a
  jp nf_next
+nf_include:
+ ld a,(de)
+ ld (nf_inc_left),a
+ inc de
+ ex de,hl
+ ld e,(hl)
+ inc hl
+ ld d,(hl)
+ inc hl
+ ld (nf_inc_ret),hl
+ jp nf_read
 nf_record:
  ld b,a
  and 3
@@ -411,157 +436,118 @@ nf_open_white: db 0xC1,0xC2,0xC3,0xC5
 nf_open_blue: db 0xB1,0xB2,0xB3,0xB4
 nf_open_red: db 0xBC,0xBD,0xBE,0xBF
 
-; Bit LZ: fixed five-bit literals, near/far distances, variable run lengths.
+; Bit LZ (tools/nes/full_native.py): token 1 = match (distance class, length
+; class), 0 = literal: 0 -> 08, 10 -> 00, 11 + five bits -> nf_literals.
+; DE stream, HL output = FIELD_VNT; ends after 768 bytes (H reaches 7Fh).
 nf_unpack:
- ld bc,768
- push hl
- ld h,b
- ld l,c
- ld (nf_left),hl
- pop hl
- xor a
- ld (nf_bitcount),a
+ ld a,0x80			; empty bit buffer with its marker
+ ld (nf_bitbyte),a
 nfu_token:
  call nes_service
  call nf_bit1
  jp c,nfu_match
- ld b,5
- call nf_getbits
+ call nf_bit1
+ ld a,8
+ jp nc,nfu_put
+ call nf_bit1
+ ld a,0
+ jp nc,nfu_put
+ ld bc,nf_lit_tab
+ call nf_class
  push hl
  ld hl,nf_literals
- call add_hl_a
+ add hl,bc
  ld a,(hl)
  pop hl
+nfu_put:
  ld (hl),a
  inc hl
- call nfu_dec
- ret z
- jp nfu_token
+ jp nfu_end
 nfu_match:
- call nf_bit1
- jp c,nfu_dist_long
- ld b,5
- call nf_getbits
- ld c,a
- ld b,0
- jp nfu_distance
-nfu_dist_long:
- call nf_bit1
- jp c,nfu_dist_far
- ld b,8
- call nf_getbits
- ld c,a
- ld b,0
- jp nfu_distance
-nfu_dist_far:
- ld b,2
- call nf_getbits
- ld (nf_dist_hi),a
- ld b,8
- call nf_getbits
- ld c,a
- ld a,(nf_dist_hi)
- ld b,a
-nfu_distance:
- inc bc
+ ld bc,nf_dist_tab
+ call nf_class
  push hl
- ld h,b
- ld l,c
+ ld a,l				; source = output - distance
+ sub c
+ ld l,a
+ ld a,h
+ sbc a,b
+ ld h,a
  ld (nf_distance),hl
+ ld bc,nf_len_tab
+ call nf_class
  pop hl
- call nf_bit1
- jp c,nfu_len_long
- ld b,2
- call nf_getbits
- add a,3
- ld c,a
- ld b,0
- jp nfu_length
-nfu_len_long:
- call nf_bit1
- jp c,nfu_len_far
- ld b,5
- call nf_getbits
- add a,7
- ld c,a
- ld b,0
- jp nfu_length
-nfu_len_far:
- ld b,8
- call nf_getbits
- add a,39
- ld c,a
- ld b,0
- jp nc,nfu_length
- inc b
-nfu_length:
  push de
- push hl
+ ex de,hl
  ld hl,(nf_distance)
  ex de,hl
- pop hl
- ld a,l
- sub e
- ld e,a
- ld a,h
- sbc a,d
- ld d,a
 nfu_copy:
  ld a,(de)
  ld (hl),a
  inc de
  inc hl
- call nfu_dec
  dec bc
  ld a,b
  or c
  jp nz,nfu_copy
  pop de
- push hl
- ld hl,(nf_left)
+nfu_end:
  ld a,h
- or l
- pop hl
- ret z
- jp nfu_token
-nfu_dec:
+ cp (FIELD_VNT+768)/256
+ jp nz,nfu_token
+ ret
+ ASSERT ((FIELD_VNT+768)&255) == 0
+; BC = class table (bits | 80h on the last class, base word) -> BC = value.
+nf_class:
  push hl
- ld hl,(nf_left)
- dec hl
- ld (nf_left),hl
- ld a,h
- or l
- pop hl
- ret
-; B bits -> A, MSB first. DE is the compressed cursor; HL output survives.
-nf_getbits:
- ld c,0
-nf_getloop:
- call nf_bit1
- ld a,c
- rla
- ld c,a
- dec b
- jp nz,nf_getloop
- ret
-nf_bit1:
- ld a,(nf_bitcount)
+ ld h,b
+ ld l,c
+ncl_next:
+ ld a,(hl)
  or a
- jp nz,nf_bit_have
- ld a,(de)
- inc de
- ld (nf_bitbyte),a
- ld a,8
- ld (nf_bitcount),a
-nf_bit_have:
+ jp m,ncl_this
+ call nf_bit1
+ jp nc,ncl_this
+ inc hl
+ inc hl
+ inc hl
+ jp ncl_next
+ncl_this:
+ ld a,(hl)
+ and 0x7F
+ ld b,a
+ inc hl
+ push hl
+ ld hl,0
+ncl_bits:
+ dec b
+ jp m,ncl_base
+ add hl,hl
+ call nf_bit1
+ jp nc,ncl_bits
+ inc l
+ jp ncl_bits
+ncl_base:
+ ex (sp),hl
+ ld c,(hl)
+ inc hl
+ ld b,(hl)
+ pop hl
+ add hl,bc
+ ld b,h
+ ld c,l
+ pop hl
+ ret
+; Next stream bit -> carry. The buffer keeps a marker bit below the data.
+nf_bit1:
  ld a,(nf_bitbyte)
  add a,a
+ jp nz,nfb_have
+ ld a,(de)
+ inc de
+ rla
+nfb_have:
  ld (nf_bitbyte),a
- push af
- ld a,(nf_bitcount)
- dec a
- ld (nf_bitcount),a
- pop af
  ret
 
 ; Native HUD mirrors the six-row NES arrangement and NES life icon.
@@ -569,24 +555,13 @@ L_A548:
  call map_edit_begin
  call nf_hud_rebuild
  jp map_edit_end
+; The frame is static on screen (drawn by the title); VNT keeps only the
+; inner cells: inventory, level, score and hats.
 nf_hud_rebuild:
- ld de,nf_hud_rle
  ld hl,VNT
-nfh_unpack:
- ld a,(de)
- inc de
- or a
- jp z,nfh_ready
- ld b,a
- ld a,(de)
- inc de
-nfh_run:
- ld (hl),a
- inc hl
- dec b
- jp nz,nfh_run
- jp nfh_unpack
-nfh_ready:
+ ld bc,HUD_ROWS*32
+ ld e,0
+ call memfill
  ld a,1
  ld (hud_dirty),a
  call L_AEFE
@@ -836,12 +811,17 @@ nf_row_addr:
 nf_draw_hud:
  xor a
  ld (hud_dirty),a
- ld de,VNT
- ld hl,0x80FF-HUD_YSHIFT
- ld c,HUD_ROWS
+ ld de,VNT+2*32+1
+ ld hl,0x81FF-HUD_YSHIFT-2*8
+ ld c,3
 nfh_draw_row:
- ld b,32
+ ld b,30
 nfh_draw_cell:
+ ld a,h
+ cp 0x8C
+ jp z,nfh_frame
+ cp 0x91
+ jp z,nfh_frame
  ld a,(de)
  push de
  push hl
@@ -853,12 +833,15 @@ nfh_draw_cell:
  pop hl
  call da_blit
  pop de
+nfh_frame:
  inc de
  inc h
  dec b
  jp nz,nfh_draw_cell
  call nes_service
- ld h,0x80
+ inc de
+ inc de
+ ld h,0x81
  ld a,l
  sub 8
  ld l,a

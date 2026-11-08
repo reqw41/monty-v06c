@@ -21,7 +21,7 @@ for(let name=128;name<256;name+=4){call(m,s,'sprite_source',name);const hl=m.cpu
 call(m,s,'trim_build');check();
 for(let name=0;name<128;name+=4){call(m,s,'sprite_source',name);const hl=m.cpu.regs[4]*256+m.cpu.regs[5];let first=255,last=0,left=0,right=0;
  for(let y=0;y<16;y++){const l=m.rd(hl+y),r=m.rd(hl+16+y);left|=l;right|=r;if(l|r){if(first===255)first=y;last=y;}}
- assert.deepEqual([m.rd(s.spr_trim+name),m.rd(s.spr_trim+name+1),m.rd(s.spr_trim+name+2)],[first,last,(!left?1:0)|(!right?2:0)]);records++;
+ assert.deepEqual([m.rd(s.spr_trim+name),m.rd(s.spr_trim+name+1),m.rd(s.spr_trim+name+2)],[s.PS_BLOCKS&&name>=0x10&&name<=0x28?1:first,s.PS_BLOCKS&&name>=0x10&&name<=0x28?14:last,(!left?1:0)|(!right?2:0)] /* катящийся череп: общее окно 1..14 */);records++;
 }
 const base=process.env.BASE,old=base?E.mk(base+'/monty.bin'):null,os=base?symbols(base):null;if(old){for(let f=0;f<120;f++)old.frame();call(old,os,'trim_build');}
 let delta=null;
@@ -39,6 +39,6 @@ for(let name=0;name<256;name+=4)for(const rows of[1,8,16])for(const y of[0,47,48
 check();
 const live=E.mk(B+'/monty.bin');for(let f=0;f<560;f++){if(f===10)live.keyboard.matrix[2]=2;if(f===100)live.keyboard.matrix[2]=0;live.frame();}
 let shifts=0;for(let i=0;i<s.PS_N*(s.PS_SHIFTS||8);i++)if(live.rd(s.ps_tab+2*i)||live.rd(s.ps_tab+2*i+1))shifts++;
-assert.equal(shifts,s.PS_N*(s.PS_SHIFTS||8),'every configured enemy shift must be prepared');
+assert.equal(shifts,s.PS_BLOCKS||s.PS_N*(s.PS_SHIFTS||8),'every configured enemy shift must be prepared');
 for(let i=0;i<code.length;i++)assert.equal(live.rd(s.cheat_code_begin+i),code[i],'boot/cache damaged trainer code');
 console.log(JSON.stringify({B,emptySources,records,trimCases:cases,trainerBytes:code.length,lowCacheBytes:s.PS_TOP-s.ps_heap,cachedShifts:shifts,trimCycleDelta:delta}));
