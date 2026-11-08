@@ -195,6 +195,22 @@ td3:		ld	a,c			; плоскость: точки или пусто
 		ld	c,a
 		push	de
 		push	hl
+		IFDEF NES_FULL
+; GAME OVER is cold. DCR preserves the plane-selection carry, including
+; the zero plane after XOR A; keep the outer plane counter and ink in BC.
+		push bc
+		ld b,8
+td_row:
+		ld a,(de)
+		jp c,$+4
+		xor a
+		ld (hl),a
+		inc de
+		dec l
+		dec b
+		jp nz,td_row
+		pop bc
+		ELSE
 		REPT	8
 		ld	a,(de)
 		jp	c,$+4
@@ -203,6 +219,7 @@ td3:		ld	a,c			; плоскость: точки или пусто
 		inc	de
 		dec	l
 		ENDR
+		ENDIF
 		pop	hl
 		pop	de
 		ld	a,h
