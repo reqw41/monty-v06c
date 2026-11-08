@@ -1080,6 +1080,48 @@ dai_p:		and	3			; (циклы по 8 байт — развёрнуты)
 		ld	a,0xFF
 		jp	daif
 dai0:		xor	a
+ IFDEF NES_FULL
+; Cache construction only; preserve BC (the lighting mode) and source DE.
+daif:
+ push bc
+ ld b,8
+daif_row:
+ ld (hl),a
+ inc hl
+ dec b
+ jp nz,daif_row
+ pop bc
+ ret
+daip:
+ push bc
+ push de
+ ld b,8
+daip_row:
+ ld a,(de)
+ ld (hl),a
+ inc hl
+ inc de
+ dec b
+ jp nz,daip_row
+ pop de
+ pop bc
+ ret
+dain:
+ push bc
+ push de
+ ld b,8
+dain_row:
+ ld a,(de)
+ cpl
+ ld (hl),a
+ inc hl
+ inc de
+ dec b
+ jp nz,dain_row
+ pop de
+ pop bc
+ ret
+ ELSE
 daif:		REPT	8
 		ld	(hl),a
 		inc	hl
@@ -1104,6 +1146,7 @@ dain:		push	de
 		ENDR
 		pop	de
 		ret
+ ENDIF
 ; da_blit: готовые три плоскости -> HL, без запрета прерываний и смены SP.
 da_blit:	push	hl
 		ld	hl,(tile_src)
