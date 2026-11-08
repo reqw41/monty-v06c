@@ -3,7 +3,15 @@
 set -eu
 cd "$(dirname "$0")/../.."
 B=${B:-build/quick}
+# Paired builds can reuse the same freshly generated NES references.
+# Default behavior still regenerates every reference from the source ROM.
+if [ "${REUSE_REFERENCES:-0}" = 1 ]; then
+  for n in ledge wall wall2 ropejump belt wall3 walljump; do
+    test -s "build/nes-physics-audit/$n-reference.json"
+  done
+else
 for g in physics_ledge_reference physics_wall_reference physics_wall2_reference physics_ropejump_reference physics_belt_reference physics_wall3_reference physics_walljump_reference; do python3 tools/nes/$g.py >/dev/null; done
+fi
 for n in ledge wall wall2 ropejump; do
   IGNORE_DEATH=1 B=$B VERIFY=1 REF=build/nes-physics-audit/$n-reference.json OUT=build/nes-physics-audit/$n-native.json node tools/bench/nes-physics-audit.js | tail -1 | cut -c1-90
 done
