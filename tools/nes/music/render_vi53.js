@@ -56,7 +56,15 @@ function render(events,seconds){
 
 function prepare(id){
   const m=E.mk(dir+'/monty.bin');for(let f=0;f<200;f++)m.frame();
-  assert(m.cpu.pc>=s.nm_wait&&m.cpu.pc<s.nes_begin,'not in native menu');
+  // Stop at a menu boundary, not halfway through nes_poll/title_scene_fire:
+  // resetting decoder state while resuming its old stack corrupts playback.
+  const park=0xE3D0,saved=Array.from({length:3},(_,i)=>m.rd(park+i));
+  m.wr(park,0xC3);m.wr(park+1,park&255);m.wr(park+2,park>>8);
+  let parked=false;
+  m.onInstr=pc=>{if(pc===s.nm_wait){parked=true;m.cpu.pc=park;m.cpu.iff=false;m.cpu.iff_pending=0;}};
+  for(let f=0;!parked&&f<600;f++)m.frame();
+  assert(parked,'not in native menu');m.onInstr=null;
+  saved.forEach((v,i)=>m.wr(park+i,v));m.cpu.pc=s.nm_wait;m.cpu.iff=true;
   if(id!=='title'&&!process.env.SKIP_BEGIN)invoke(m,'nes_begin');
   for(let a=s.nes_m_ptr;a<s.nes_m_ptr+32;a++)m.wr(a,0);
   m.wr(s.nes_m1,64);m.wr(s.nes_m2,64);m.wr(s.nes_pitch_page,0xE8);invoke(m,'vi_off');

@@ -347,6 +347,7 @@ def main():
     parser.add_argument('input', type=Path, nargs='?', default=Path('build/nes/music/music.json'))
     parser.add_argument('--output', type=Path, default=Path('src/native/gen'))
     parser.add_argument('--report', type=Path, default=Path('build/nes/music/vi53/conversion.json'))
+    parser.add_argument('--pyramid', action='store_true', help='include the restored pyramid theme in a trial build')
     parser.add_argument('--threshold', type=int, default=3)
     parser.add_argument('--no-align', action='store_true', help='quantise to 50 Hz by absolute time (repeats of the original drift apart)')
     parser.add_argument('--no-clean', action='store_true', help='keep driver artefacts (pitch scoops, quiet envelope tails)')
@@ -375,7 +376,8 @@ def main():
                                   threshold=threshold, transpositions=transpositions,
                                   states=states)
     title = [t for t in data['tracks'] if t['id'] == 'title']
-    game = [t for t in data['tracks'] if t['id'] in ('treasure',)]  # тема пирамиды вырезана (память под скорость)
+    game_ids = ('pyramid', 'treasure') if args.pyramid else ('treasure',)
+    game = [t for t in data['tracks'] if t['id'] in game_ids]
     notes, blocks, orders, dictionary = compile_group(game, converted, 'game')
     title_notes, title_blocks, title_orders, title_dictionary = compile_group(title, {'title': title_loop}, 'title')
     # The initial silence occurs once. Loop from the first note, carrying the
@@ -395,13 +397,16 @@ def main():
             f'TITLE_COPY equ {TITLE_COPY}\nTITLE_COPY_ORDER equ {title_b["order"]}\nTITLE_COPY_LOOP equ {title_b["loop"]}\nTITLE_COPY_ZX0 equ {title_b["size"]}\n',
             '\tINCLUDE "nes_title_music.asm"\n\tASSERT $ == nes_notes + %d + %d\n' % (2 * len(notes), TITLE_MUSIC_BYTES)]
     low = ['; Generated: permanent streams that did not fit E840..EBFF.\n']
-    # FB97..FBD0 (joe0) занят nes_steps.asm: область схлопнута
+    if args.pyramid:
+        low.append(' DEFINE NES_PYRAMID_MUSIC\n')
+    # FB97..FBD0: steps; FCC0..FCD0/FD95..FDD0: Joe cache;
+    # FEC0..FF00: skull ink; EFC8..F000: platform code. None is music RAM.
     music_code = 0xE840 + 2 * len(notes)    # nes_title_music (код+копия темы) занимает TITLE_MUSIC_BYTES, дальше — потоки игры
     regions = [(music_code + TITLE_MUSIC_BYTES, 0xEBE0, 'high'),
                (0x0100, 0x01E0, 'boot'), (8, 0x38, 'vectors'),
-               (0xFBD0, 0xFBD0, 'joe0'), (0xFCC1, 0xFCD0, 'joe1'),
-               (0xFD95, 0xFDD0, 'joe2'), (0xFEC0, 0xFED0, 'joe3'),
-               (0xEFC8, 0xF000, 'effect_tail')]
+               (0xFBD0, 0xFBD0, 'joe0'), (0xFCD0, 0xFCD0, 'joe1'),
+               (0xFDD0, 0xFDD0, 'joe2'), (0xFED0, 0xFED0, 'joe3'),
+               (0xEFC8, 0xEFC8, 'effect_tail')]
     placements = {name: [] for start, end, name in regions}
     cursors = {name: start for start, end, name in regions}
     used = 2 * len(notes)

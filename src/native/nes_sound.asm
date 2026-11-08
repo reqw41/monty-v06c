@@ -237,6 +237,19 @@ nes_select:
 	xor a
 	ld (snd_busy),a
 	ret
+ IFDEF NES_PYRAMID_MUSIC
+; Both in-game themes loop; all caller registers are preserved by nes_cue.
+nes_pyramid:
+ push hl
+ ld hl,nes_pyramid_order
+ jp nes_cue
+nes_treasure:
+ push hl
+ ld hl,nes_treasure_order
+nes_cue:
+ push af
+ ld a,1
+ ELSE
 ; Музыки пирамиды нет: старт уровня запускает пустой одноразовый порядок — он глушит заставку/сокровищницу.
 nes_pyramid:
 	push hl
@@ -252,6 +265,7 @@ nes_treasure:
 	push af
 	ld a,1		; сокровищница играет по кругу
 nes_cue:
+ ENDIF
 	push bc
 	push de
 	call nes_select
