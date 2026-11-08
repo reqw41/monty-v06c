@@ -855,12 +855,16 @@ fl_sel_done:	ld	(fl_write+1),hl
 		ret
 
 fl_fast1:
+ IFDEF NES_FULL
+ call da_blit_plane
+ ELSE
 		REPT	8
 		ld	a,(de)
 		ld	(hl),a
 		inc	de
 		dec	l
 		ENDR
+ ENDIF
 		jp	flp3
 
 fl_fast3:
@@ -1159,12 +1163,16 @@ da_blit:	push	hl
  jp c,score_blit_zero
  ENDIF
  ENDIF
+ IFDEF NES_FULL
+ call da_blit_plane
+ ELSE
 		REPT	8
 		ld	a,(de)
 		ld	(hl),a
 		inc	de
 		dec	l
 		ENDR
+ ENDIF
  IF plane == 0
 da_blit_first_advance:
  ENDIF
@@ -1182,6 +1190,19 @@ da_blit_last_advance:
 		sub	0x60
 		ld	h,a
 		ret
+
+ IFDEF NES_FULL
+; One unrolled strip shared by the three planes of the ordinary tile blit.
+; fl_fast1 shares it too; fl_fast3 and dual-plane animation stay inline.
+da_blit_plane:
+		REPT	8
+		ld	a,(de)
+		ld	(hl),a
+		inc	de
+		dec	l
+		ENDR
+ ret
+ ENDIF
 
 ; force_tiles: A = старший байт таблицы флагов (256 байт по тайлам) — клетки с отмеченными тайлами к перерисовке
 force_tiles:
