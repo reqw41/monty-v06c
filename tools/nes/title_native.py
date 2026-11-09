@@ -109,12 +109,7 @@ def main():
                 for xx in range(8):
                     if r.tiles[hud_chr[t]][yy][xx]:p[(i%32)*8+xx,8+(i//32)*8+yy]=colors.index(0x1c)
     assert not any(p[x,y] for x in range(256) for y in list(range(8))+list(range(56,64))), 'HUD gaps must stay black'
-    # Immutable roof positions: reading VRAM here would also see the Joe pose
-    # that remains visible while the next image is prepared.
-    roof=[255-next(y for y in range(160,240) if any(p[x,y] for x in range(c*8,min((c+width)*8,256))))+22
-          for c in range(23,32) for width in (2,3)]
-    (ROOT/'src/native/gen/title_roof.asm').write_text('; Static roof top L, columns 23..31: aligned / shifted 16-pixel Joe.\n'
-                                                  'title_roof_rows: db '+','.join(map(str,roof))+'\n')
+    # Title Joe walks the scene with the hero's own physics (nes_title_anim.asm): no roof table.
     for y in range(8*SCENE_ROW0,240):
         for x in range(256):p[x,y]=0
     asm=['; Original NES title, RLE $D9E9/$DB12 and CHR bank 1.']

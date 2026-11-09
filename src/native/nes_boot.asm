@@ -71,6 +71,12 @@ nm_wait:
  ENDIF
 	jp gs2
 nes_begin:
+	push bc
+	ld de,nes_skull_source     ; FEC0 до анимации титула: её прыжок (движок игры) кончается в nt_jump_ended
+	ld hl,NES_SKULL_CODE
+	ld bc,nes_skull_source_end-nes_skull_source
+	call copy_de_hl
+	pop bc
 	call title_animate
 	push bc
 	ld a,1
@@ -106,10 +112,6 @@ nb_clear_byte:
 	ld de,nes_effect_source
 	ld hl,0xEF00
 	ld bc,nes_effect_source_end-nes_effect_source
-	call copy_de_hl
-	ld de,nes_skull_source     ; плоскость врагов (en_mark/enemy_ink_plane) — в FEC0, поверх отработавшего распаковщика
-	ld hl,NES_SKULL_CODE
-	ld bc,nes_skull_source_end-nes_skull_source
 	call copy_de_hl
 	ld de,nes_platform_source
 	ld hl,style_pal

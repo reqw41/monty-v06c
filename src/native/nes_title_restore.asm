@@ -291,7 +291,7 @@ ts_fix:
 ; unpacked into the free room field buffer and drawn by the game's own image
 ; builder (full_style_modes, style_image, da_img, da_blit) - no tile cache.
 ; The fire top (D2) cycles the game's four phases every 8 frames.
-TT_MAP equ FIELD_VNT
+TT_MAP equ FIELD_VNT+12*32	; the game's own rows for these lines: hero physics reads them (nes_title_anim.asm)
 TT_IMG equ TT_MAP+32*(30-TITLE_SCENE_ROW0)
  ASSERT TT_IMG+24 <= FIELD_VNT+768
 title_scene_fire:
@@ -469,39 +469,6 @@ tz_elias_backtrack:
  jp tz_elias_loop
 
  IFDEF NES_JOE_BLEND80
-; Leap from the last roof step, cross the shaft while above the brick edge,
-; then catch the rope with hands below its cap. Use the ordinary NES jump pose.
-title_jump:
- ld hl,title_jump_path
-title_jump_next:
- ld a,(hl)
- or a
- ret z
- inc hl
- ld b,a
- and 63
- add a,64
- ld (spr_new+9),a
- ld a,b
- rlca
- rlca
- and 3
- add a,a
- ld b,a
- ld a,(spr_new+2)
- sub b
- ld (spr_new+2),a
- push hl
- ld a,7
- call title_paint
-title_jump_shown:
- pop hl
- jp title_jump_next
-title_jump_path:
- ; Packed exact path: bits7..6 = horizontal delta /2; bits5..0 = screen L-64.
- db 40,107,109,112,114,116,117,183,120,121,121,122,122,122,122,185
- db 120,119,118,117,115,113,111,109,106,103,100,97,93,89,85,81    ; last two: 2 px left each, onto the game rope at X116
- db 0
 title_paint:
  ld (jn_frame),a
  ld a,(jn_rows_count)
@@ -542,7 +509,6 @@ title_wait:
  xor a
  ld (nmi_pend),a
  ret
- INCLUDE "gen/title_roof.asm"
  ENDIF
 title_warm_palette:
  INCLUDE "gen/title_palette.asm"
