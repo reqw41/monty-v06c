@@ -35,7 +35,7 @@
 | [`rom/Monty-v06c-rus.c00`](rom/Monty-v06c-rus.c00), [`.r0m`](rom/Monty-v06c-rus.r0m), [`.mgl`](rom/Monty-v06c-rus.mgl) | русская версия (титры, «ИГРА ОКОНЧЕНА») |
 
 Остальные файлы в `rom/` — промежуточные сборки (`Monty-v06c-nes3-fixN.r0m`), история правок по ним —
-в `docs/BUGS.md`. Текущий образ соответствует `Monty-v06c-nes3-fix37.r0m` (русский — `fix37-rus`).
+в `docs/BUGS.md`. Текущий образ соответствует `Monty-v06c-nes3-fix39.r0m` (русский — `fix39-rus`).
 
 ## Управление
 
@@ -96,7 +96,7 @@ sh tools/nes/build_rus.sh build/rus rom/Monty-v06c-rus.r0m   # русская в
 ## Документация
 
 - `docs/NES_NATIVE.md` — устройство NES-сборки: экран, Джо, кэш, звук, стенды.
-- `docs/BUGS.md` — журнал исправлений по образам fix1…fix37.
+- `docs/BUGS.md` — журнал исправлений по образам fix1…fix39.
 - `docs/FRAME_BUDGET.md`, `docs/MEMORY_HUNT.md`, `docs/VI53_MUSIC.md`, `docs/NES_MUSIC.md` — такты, память, музыка.
 - `docs/DISASM.md`, `docs/PORT_DESIGN.md` — ранний этап: разбор MSX/ColecoVision-версии, с которой порт начинался.
 
