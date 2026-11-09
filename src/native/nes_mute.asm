@@ -1,17 +1,24 @@
-; Клавиша M (ряд 5, бит 20h) включает и выключает весь звук (музыку и эффекты) — в шаге игры.
-; Выключение: первый байт nes_tick становится RET (IRQ не трогает ВИ53, очередь стоит — музыка на паузе),
-; затем каналы глушатся; включение возвращает LD A,(snd_busy). Дальше — шаг читов.
+; Клавиши шага игры (fix35): M — музыка вкл/выкл (эффекты звучат всегда), ВК — пауза,
+; в паузе АР2 — выход на титул; дальше — шаг читов. ms_keys (F5xx), ms_edge (6FEF),
+; ms_music/ms_prev (установщик черепа, FEC0..) лежат в свободных хвостах фиксированных окон.
 mute_step:
- ld a,(kbmat+5)
+ call ms_keys
+ ld b,a
  and 0x20
- cp 0
-ms_key equ $-1                 ; прошлое состояние клавиши
- ld (ms_key),a
- jp z,cheat_step            ; без изменений
- jp c,cheat_step            ; отпущена
- ld hl,nes_tick
- ld a,(hl)
- xor 0x3A^0xC9              ; LD A,(snd_busy) <-> RET
- ld (hl),a
+ call nz,ms_music
+ ld a,b
+ and 4
+ jp z,cheat_step
+; Пауза: логика стоит, IRQ дорабатывает очередь звука, каналы глушатся каждый кадр.
+pz_loop:
  call vi_off
+ ld hl,kb_req
+ inc (hl)                   ; 0 после опроса -> 1: опросить клавиатуру в следующем IRQ
+ halt
+ ld a,(kbmat+1)
+ and 4                      ; АР2
+ jp nz,go_quit
+ call ms_keys
+ and 4
+ jp z,pz_loop
  jp cheat_step

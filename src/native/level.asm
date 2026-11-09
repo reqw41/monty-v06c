@@ -99,6 +99,20 @@ a59d_keep_lives:
  ld (0x71A7),a
  ld (0x7076),a
  ld (0x7077),a
+ IFDEF START_ROOM
+; Отладка (DEFS="-DSTART_ROOM"): старт в комнате 2,10 на левом выступе, как вход из 2,9.
+ ld a,2
+ ld (0x71A7),a
+ ld a,10
+ ld (0x71A8),a
+ ld a,91
+ ld (0x7300),a
+ add a,3
+ ld (0x7304),a
+ ld a,4
+ ld (0x7301),a
+ ld (0x7305),a
+ ELSE
  ld a,10
  ld (0x71A8),a
  ld a,44
@@ -108,6 +122,7 @@ a59d_keep_lives:
  ld a,116
  ld (0x7301),a
  ld (0x7305),a
+ ENDIF
  ELSE
 		ld a,8
 		ld (0x71A8),a
@@ -118,7 +133,12 @@ a59d_keep_lives:
  ENDIF
 		call	L_8E7E
  IFDEF NES_FULL
+ IFDEF START_ROOM
+ xor a                     ; стоит; без режима стартового каната (705F бит 2)
+ ld (0x705F),a
+ ELSE
  ld a,4                    ; begin attached to the opening rope
+ ENDIF
  ELSE
 		ld	a,5
  ENDIF
@@ -232,7 +252,9 @@ td_row:
 		pop	hl
 		jp	td0
  IFDEF NES_STYLE
+ IFNDEF NES_FULL
  INCLUDE "gen/font_nes.asm"
+ ENDIF
  ELSE
 ; шрифт оригинала (LOAD_ASCII OS7, снят с экрана меню MSX): знак, 8 строк
 font_tab:	db	"S",0x70,0x88,0x80,0x70,0x08,0x88,0x70,0x00

@@ -64,7 +64,7 @@ title_warm_choice:
  jp warm_restart
 
 ; Title HUD: record in the score box, chosen level in the centre. Arrows
-; change the level, Fire (space or joystick) starts; digits 1..3 still start.
+; change the level, Fire (space or joystick) starts (digits removed in fix36).
 title_hud:
  ld a,0xFF			; keys held on entry must be released first
  ld (menu_keys),a
@@ -173,9 +173,6 @@ tdg_row:
  ret
 ; Menu keys (after F1+F3): CY = start, B = level.
 menu_scan:
- ld a,(kbmat+2)
- and 14
- jp nz,ms_digit
  ld a,(kbmat+7)			; Fire = space bit 7 -> bit 0
  rlca
  and 1
@@ -214,14 +211,6 @@ ms_set:
 ms_fire:
  ld a,(menu_level)
  ld b,a
- jp ms_normal
-ms_digit:
- ld b,255
-ms_digit_next:
- inc b
- rrca
- jp nc,ms_digit_next
-ms_normal:
  xor a
  jp cheat_menu_store
 

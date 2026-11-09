@@ -248,6 +248,7 @@ dc_tile:	ld	a,(rr_t)
  ld a,(tile_phase)
  add a,b
  ld hl,raw_anim
+dc_strip_hl:                ; общий хвост с dc_base
  call add_hl_a
  ld a,(hl)
  jp full_strip
@@ -267,9 +268,7 @@ dc_base:
  IFDEF NES_FULL
  ld a,(rr_t)
  ld hl,raw_base
- call add_hl_a
- ld a,(hl)
- jp full_strip
+ jp dc_strip_hl
  ELSE
 	ld	a,(rr_t)
 		ld	l,a

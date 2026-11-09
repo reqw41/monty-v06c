@@ -34,4 +34,13 @@ score_blit_zero_row:
  add a,a
  jp m,da_blit_last_advance
  jp da_blit_first_advance
+; ms_keys (nes_mute.asm): A = только что нажатые M (20h, ряд 5) и ВК (04h, ряд 0), Z — нет.
+ms_keys:
+ ld a,(kbmat+5)
+ and 0x20
+ ld b,a
+ ld a,(kbmat)
+ and 4
+ or b
+ jp ms_edge
  ASSERT $ <= 0xF600

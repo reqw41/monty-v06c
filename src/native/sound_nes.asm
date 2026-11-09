@@ -24,11 +24,7 @@ L_AC1A:
  call nes_event
  xor a
  ld (snd_busy),a
- pop hl
- pop de
- pop bc
- pop af
- ret
+ jp trc_end                 ; pop hl/de/bc/af, ret
 L_AC6D:
 L_AC77:
 snd_quiet:

@@ -51,6 +51,14 @@ nt_jump_ended:
  ld a,6
  ld (0x7079),a
  ret
+; Клавиша M (nes_mute.asm): музыка вкл/выкл — ноты музыки в nes_pitch.
+ms_music:
+ ld hl,np_mute
+ ld a,(hl)
+ cpl
+ ld (hl),a
+ ret
+ms_prev: db 0                ; прошлое состояние M/ВК (ms_edge)
 
 	ENT
 nes_skull_source_end:

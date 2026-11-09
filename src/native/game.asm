@@ -245,9 +245,15 @@ isr2:
  IFDEF NES_FULL
 ; Ровный темп (fix35): событие шага логики в 3 кадрах из 4 — 37,5 шага/с во всех комнатах,
 ; включая самые тяжёлые (черепа: 37,5–38); лёгкие комнаты больше не идут быстрее.
+ IFNDEF NO_PACE
+ ld a,(0x7079)
+ cp 8
+ jp nc,pace_full            ; гибель и возрождение (8..10) — шаг каждый кадр, как до fix35
  ld a,(frames)
  and 3
  jp z,isr_event_done
+pace_full:
+ ENDIF
  ENDIF
 		ld	hl,nmi_pend
 		ld	a,(hl)
@@ -312,11 +318,7 @@ fw_event:
  call	frame_handler
 fw_return:	ld	hl,(np_sp)
 		ld	sp,hl
-		pop	hl
-		pop	de
-		pop	bc
-		pop	af
-		ret
+		jp	trc_end		; pop hl/de/bc/af, ret (общий хвост, cell.asm)
 
 ; палитра: pal (16) в порты при pal_load > 0
 pal_load_isr:
@@ -422,6 +424,7 @@ unit_fw:	push	af			; tools/unit.js: ожидание кадра = обработ
  INCLUDE "nes_physics_data.asm"
  INCLUDE "nes_title_restore.asm"
  INCLUDE "nes_mute.asm"
+ INCLUDE "gen/font_nes.asm"     ; за ps_boot_source: длина русского шрифта не двигает дыры пула
  INCLUDE "gen/rooms_full.asm"
  ELSE
  INCLUDE "gen/cart.asm"

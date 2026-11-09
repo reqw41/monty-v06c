@@ -8,7 +8,7 @@
 //   m.taps — [порт, байт, ...] выводов в порты 0x08..0x0B за текущий кадр (сбрасывает вызывающий)
 //   m.outs — если массив: туда же ВСЕ выводы в порты (m.outs = [] включает запись)
 "use strict";
-const fs = require("fs"), vm = require("vm");
+const path = require('path'), fs = require("fs"), vm = require("vm");
 const base = process.env.V06 || (process.env.HOME + "/projects/vector06js");
 const FILES = ["i8080-js/i8080_trace.js", "i8080-js/i8080_disasm.js", "i8080-js/i8080.js",
   "src/fili.js", "src/ay.js", "src/fd1793.js", "src/fddimage.js", "src/i8253.js",
@@ -70,7 +70,27 @@ function mk(romPath, opt) {
   m.rd = a => memory.bytes[memory.tobank(a & 0xffff)];
   m.wr = (a, v) => { memory.bytes[memory.tobank(a & 0xffff)] = v & 0xff; };
   m.dump = () => { const d = new Uint8Array(0x10000); for (let a = 0; a < 0x10000; a++) d[a] = m.rd(a); return d; };
-  m.frame = () => { v06c.oneInterrupt(true); m.frames++; };
+  // fix36: в меню титула нет цифр 1/2/3 — только стрелки и огонь. Стенды по-прежнему «нажимают» цифру:
+  // она снимается с ряда 2, в память пишется уровень (menu_level), и огонь жмётся свежим нажатием,
+  // пока меню его не примет (запись menu_keys с битом огня). Отключить: opt.rawDigits.
+  let digit = 0, fireByShim = false, menuTook = false;
+  const symf = path.join(path.dirname(romPath), 'monty.sym');
+  const msym = {};
+  if (!opt.rawDigits && fs.existsSync(symf)) for (const l of fs.readFileSync(symf, 'latin1').split('\n')) {
+    const mm = l.match(/^(menu_level|menu_keys):\s+EQU\s+0x([0-9A-F]+)/i); if (mm) msym[mm[1]] = parseInt(mm[2], 16); }
+  if (msym.menu_level !== undefined && msym.menu_keys !== undefined) {
+    const raw = keyboard.matrix;
+    keyboard.matrix = new Proxy(raw, { get(t, k) { const v = t[k]; return typeof v === 'function' ? v.bind(t) : v; }, set(t, k, v) {
+      if (k === '2') { const d = v & 2 ? 1 : v & 4 ? 2 : v & 8 ? 3 : 0; if (d) digit = d; else if (!(v & 14)) { digit = 0; if (fireByShim) { t[7] &= ~0x80; fireByShim = false; } } v &= ~14; }
+      t[k] = v; return true; } });
+    const w0 = memory.write;
+    memory.write = function (a, w, s) { if ((a & 0xffff) === msym.menu_keys && (w & 1) && fireByShim) menuTook = true; return w0(a, w, s); };
+  }
+  m.frame = () => {
+    if (digit) { m.wr(msym.menu_level, digit); m.wr(msym.menu_keys, 0); if (!(keyboard.matrix[7] & 0x80)) { keyboard.matrix[7] |= 0x80; fireByShim = true; } }
+    v06c.oneInterrupt(true); m.frames++;
+    if (menuTook) { menuTook = false; digit = 0; if (fireByShim) { keyboard.matrix[7] &= ~0x80; fireByShim = false; } }
+  };
   m.palette = () => Array.from(io.Palette.slice(0, 16));
   m.regs = () => [cpu.pc, cpu.sp, cpu.iff ? 1 : 0, cpu.store_flags(), ...cpu.regs].join(",");
   return m;

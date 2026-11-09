@@ -178,6 +178,11 @@ nes_pitch:
 	inc l
 	ld h,(hl)
 	ld l,a
+	ld a,0			; клавиша M (nes_mute.asm): FF — ноты музыки молчат, эффекты (nes_raw*) звучат
+np_mute equ $-1
+	or a
+	ret z
+	ld hl,0
 	ret
 nes_out0:
 	call nes_pitch
@@ -248,6 +253,8 @@ nes_treasure:
  ld hl,nes_treasure_order
 nes_cue:
  push af
+ ld a,0xE8                  ; таблица нот игры: после GAME OVER титул переставил её на копию в кэше тайлов (E0)
+ ld (nes_pitch_page),a
  ld a,1
  ELSE
 ; Музыки пирамиды нет: старт уровня запускает пустой одноразовый порядок — он глушит заставку/сокровищницу.

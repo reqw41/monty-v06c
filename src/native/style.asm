@@ -361,8 +361,17 @@ LADDER_IN_JOE_PLANES equ 1
 ; Two tiny ink handlers occupy the six bytes after the persistent snake code.
 ; This leaves the three-colour build below PS_TOP without changing runtime RAM.
 style_low_after_inks equ $
+ ORG nes_snake_end
+; ms_edge (nes_mute.asm): A = текущие клавиши -> A = только что нажатые, Z — нет.
+ms_edge:
+ ld b,a
+ ld hl,ms_prev
+ xor (hl)
+ and b
+ ld (hl),b
+ ret
+ ASSERT $ <= 0x6FF8
  ORG 0x6FF8
- ASSERT nes_snake_end <= $
 fsm_cyan: ld c,0x14
  ret
 fsm_accent: ld c,4

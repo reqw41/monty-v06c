@@ -953,6 +953,14 @@ h8b9:		ld	a,(0x7049)
 		ld	a,(0x707E)
 		ld	(0x7076),a
 		ld	a,(0x707F)
+ IFDEF NES_FULL
+ cp 2                       ; вошёл в комнату прыжком: счётчик прыжка 7072 не сохраняется,
+ jp nz,h8b_state            ; прыжок с ним уходит сквозь пол — возрождаться падением с места
+ xor a
+ ld (0x7077),a              ; dY = 0
+ ld a,6
+h8b_state:
+ ENDIF
 		ld	(0x7079),a
 		ld	a,(0x7080)
 		ld	(0x7078),a
@@ -1200,6 +1208,7 @@ go1:		ld	a,1
 		ld	a,(kbmat+7)
 		and	0x80
 		jp	z,go1
+go_quit:			; АР2 в паузе (nes_mute.asm)
 		di
 		IFDEF NES_FULL
  ld sp,GSTACK

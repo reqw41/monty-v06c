@@ -191,11 +191,7 @@ nf4:		ld	(hl),a
 		or	c
 		ld	a,e
 		jp	nz,nf4
-nf9:		pop	hl
-		pop	de
-		pop	bc
-		pop	af
-		ret
+nf9:		jp	trc_end		; pop hl/de/bc/af, ret
 
 vnt_row:
  push hl

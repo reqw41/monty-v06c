@@ -614,11 +614,7 @@ nfh_score:
  ld a,(0x71A6)
  ld de,0x4E
  call nf_digit
- pop hl
- pop de
- pop bc
- pop af
- ret
+ jp trc_end                 ; pop hl/de/bc/af, ret
 ; A digit 0..9, DE upper-left cell. Full NES 16x16, four characters.
 nf_digit:
  push bc

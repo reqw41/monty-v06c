@@ -9,7 +9,7 @@ function call(m,name,a=0){const c=m.cpu;c.iff=false;c.iff_pending=0;c.pc=s[name]
  m.wr(c.sp,s.unit_trap&255);m.wr(c.sp+1,s.unit_trap>>8);
  for(let n=0;c.pc!==s.unit_trap;n++){assert(n<1000000,name+' hung');c.instruction();}}
 const menu=E.mk(B+'/monty.bin');for(let f=0;f<120;f++)menu.frame();let menuCases=0;
-for(const [f,d,expected,level]of[[0,0,0,0],[8,0,0,0],[32,0,0,0],[40,0,1,1],[40,8,1,1],[0,2,0,1],[0,4,0,2],[0,8,0,3]]){
+for(const [f,d,expected,level]of[[0,0,0,0],[8,0,0,0],[32,0,0,0],[40,0,1,1],[40,8,1,1],[0,2,0,0],[0,4,0,0],[0,8,0,0]]){
  menu.wr(s.kbmat+1,f);menu.wr(s.kbmat+2,d);menu.wr(s.cheat_mode,0);call(menu,'cheat_menu_keys');
  assert.equal(menu.rd(s.cheat_mode),expected);assert.equal(menu.cpu.cf?1:0,level?1:0);
  if(level)assert.equal(menu.cpu.regs[0],level);menuCases++;
