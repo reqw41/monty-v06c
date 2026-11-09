@@ -2,6 +2,8 @@
 // Default: replace Joe's collision/state handler with a repeatable path.
 // LIVE=1 ROOM=1,9: actual keyboard and physics on the existing right platform.
 // Both modes retain native enemies, tile work, sound and IRQ timing.
+// PROFILE=1 adds exclusive nearest-label costs for the worst measured IRQ.
+// Emit the measured row before assertions so an overrun remains diagnosable.
 'use strict';
 const fs=require('fs'),path=require('path'),assert=require('assert/strict');
 process.chdir(path.resolve(__dirname,'../..'));
@@ -9,10 +11,14 @@ const E=require('../vec_emu'),{symbols,profiler}=require('./logic-profile');
 const live=process.env.LIVE==='1';
 const B=process.env.B||'build/nes-blend80-sp-white-ladder',s=symbols(B),N=+(process.env.N||800),results=[];
 function summary(v){if(!v.length)return null;v=[...v].sort((a,b)=>a-b);const mean=v.reduce((a,b)=>a+b,0)/v.length;return {count:v.length,mean:+mean.toFixed(2),stddev:+Math.sqrt(v.reduce((a,b)=>a+(b-mean)**2,0)/v.length).toFixed(2),p95:v[Math.min(v.length-1,Math.floor(v.length*.95))],max:v.at(-1),histogram:v.reduce((q,n)=>(q[n]=(q[n]||0)+1,q),{})};}
+const profile=process.env.PROFILE==='1';
+const labels=profile?Object.entries(s).filter(([n,a])=>a>=0&&a<65536&&!/^(C_|L_)/.test(n)).sort((a,b)=>a[1]-b[1]):[];
+const near=[];if(profile){let j=0;for(let a=0;a<65536;a++){while(j+1<labels.length&&labels[j+1][1]<=a)j++;near[a]=labels[j]?.[0]||'?';}}
 const scenes=process.env.ROOM?[[...process.env.ROOM.split(',').map(Number)]]:[[1,9],[7,2],[7,12]];
 for(const room of scenes)for(const moving of (process.env.MOVING?[process.env.MOVING==='1']:[false,true])){
  const m=E.mk(B+'/monty.bin'),p=profiler(m,s);
  if(process.env.BUDGET){assert.equal(m.rd(s.ck_limit),0xfe);m.wr(s.ck_limit+1,+process.env.BUDGET);}let steps=0,start=null,active=false,until=0,clock=0,irq=null,maxIRQ=0;
+ let previousPC=0,irqProfile={},worstProfile={};
  const groundY=s.NES_PHYSICS_COORDS?91:92;
  const checker=process.env.PIXELS==='1'?require('./framecheck')(m,s):null;
  const seen={},events={},gaps={},hist={},poseTrace=[],motion={};let lastStep=null;
@@ -20,9 +26,9 @@ for(const room of scenes)for(const moving of (process.env.MOVING?[process.env.MO
  function event(name){(events[name]??=[]).push(m.frames);if(seen[name]!==undefined)(gaps[name]??=[]).push(m.frames-seen[name]);seen[name]=m.frames;}
  function ret(){const c=m.cpu;c.pc=m.rd(c.sp)|(m.rd(c.sp+1)<<8);c.sp+=2;}
  m.onInstr=pc=>{
-  clock+=m.cpu.vcycles||0;p.instruction(pc);if(checker)checker.instruction(pc);
-  if(irq&&pc===irq.pc&&m.cpu.sp===irq.sp+2){if(active)maxIRQ=Math.max(maxIRQ,clock-irq.clock);irq=null;}
-  if(pc===0x38&&!irq)irq={sp:m.cpu.sp,pc:m.rd(m.cpu.sp)|(m.rd(m.cpu.sp+1)<<8),clock};
+  const elapsed=m.cpu.vcycles||0;clock+=elapsed;if(profile&&irq){const n=near[previousPC];irqProfile[n]=(irqProfile[n]||0)+elapsed;}previousPC=pc;p.instruction(pc);if(checker)checker.instruction(pc);
+  if(irq&&pc===irq.pc&&m.cpu.sp===irq.sp+2){if(active&&clock-irq.clock>maxIRQ){maxIRQ=clock-irq.clock;worstProfile=irqProfile;}irq=null;}
+  if(pc===0x38&&!irq){irqProfile={};irq={sp:m.cpu.sp,pc:m.rd(m.cpu.sp)|(m.rd(m.cpu.sp+1)<<8),clock};}
   if(steps>=80&&((!live&&pc===s.hero_state)||pc===s.L_8DA2)){ret();return;}
   if(pc===s.L_A5D1){
    steps++;
@@ -60,12 +66,17 @@ for(const room of scenes)for(const moving of (process.env.MOVING?[process.env.MO
  const context={};for(const k of Object.keys(start))context[k]=Math.round((p.totals[k]-start[k])/N);
  const shifts=Array.from({length:s.PS_N*(s.PS_SHIFTS||8)},(_,i)=>m.rd(s.ps_tab+2*i)|m.rd(s.ps_tab+2*i+1)<<8).filter(Boolean).length;
  const row={room:room.join(','),moving,frames:N,sps:50*poseTrace.length/N,steps:poseTrace.length,histogram:hist,context,maxIRQ,cachedShifts:shifts,motion,pixels:checker?checker.result():undefined,events:Object.fromEntries(Object.entries(events).map(([k,v])=>[k,v.length])),gaps:Object.fromEntries(Object.entries(gaps).map(([k,v])=>[k,summary(v)]))};
+ if(profile){
+  assert.equal(Object.values(worstProfile).reduce((a,b)=>a+b,0),maxIRQ,'IRQ profile conserves elapsed cycles');
+  row.irqProfile=Object.fromEntries(Object.entries(worstProfile).sort((a,b)=>b[1]-a[1]));
+ }
+ console.log(JSON.stringify(row));
  assert(maxIRQ<59904,'atomic display work must fit in one physical frame');
  if(['1,9','7,2'].includes(row.room))assert(Object.keys(row.events).filter(k=>k.startsWith('enemy')).length>=2,'two live monsters must be covered');
  if(moving)assert(row.events.joe>40,'Joe must really redraw');assert(shifts>=+(process.env.CACHE_MIN||s.PS_BLOCKS||32),'keep full enemy cache');
  if(live&&moving&&s.NES_SNAKE_LOCAL)assert(!row.events.liveListRebuild,'snake turns must not rebuild the resident room list');
  if(moving&&process.env.JOE_GAP_MAX)assert(row.gaps.joe.max<=+process.env.JOE_GAP_MAX,'Joe paint deadline exceeded');
  if(checker)assert.equal(row.pixels.bad,0,'every completed atomic group must preserve pixels');
- results.push(row);console.log(JSON.stringify(row));
+ results.push(row);
 }
 if(process.env.OUT)fs.writeFileSync(process.env.OUT,JSON.stringify({B,fixture:live?'live keyboard walk on the right platform of room 1,9':'bounded Joe trajectory; native main loop, enemy logic, live tile work and IRQ',results},null,2)+'\n');
