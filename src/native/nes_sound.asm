@@ -178,7 +178,7 @@ nes_pitch:
 	inc l
 	ld h,(hl)
 	ld l,a
-	ld a,0			; клавиша M (nes_mute.asm): FF — ноты музыки молчат, эффекты (nes_raw*) звучат
+	ld a,0			; клавиша УС (nes_mute.asm): FF — ноты музыки молчат, эффекты (nes_raw*) звучат
 np_mute equ $-1
 	or a
 	ret z
