@@ -42,9 +42,9 @@ m.onInstr=pc=>{
 for(let f=0;f<1500&&!done;f++){if(f===10)m.keyboard.matrix[2]=2;if(f===100)m.keyboard.matrix[2]=0;m.frame();}
 assert(done&&cinemas===2,'cold and GAME OVER selections both play the cinematic');
 assert.deepEqual(walkX,Array.from({length:29},(_,i)=>240-2*i),'walk stops on the narrow upper step at X184/Y154');
-assert.deepEqual(jumpPath,[[182,151],[180,148],[178,146],[176,143],[174,141],[172,139],[170,138],[166,136],[164,135],[162,134],[160,134],[158,133],[156,133],[154,133],[152,133],[148,134],[146,135],[144,136],[142,137],[140,138],[138,140],[136,142],[134,144],[132,146],[130,149],[128,152],[126,155],[124,158],[122,162],[120,166],[120,170],[120,174]],'jump starts at the upper step and lands on the ladder (X120, the game snaps ladders to 8)');
+assert.deepEqual(jumpPath,[[182,151],[180,148],[178,146],[176,143],[174,141],[172,139],[170,138],[166,136],[164,135],[162,134],[160,134],[158,133],[156,133],[154,133],[152,133],[148,134],[146,135],[144,136],[142,137],[140,138],[138,140],[136,142],[134,144],[132,146],[130,149],[128,152],[126,155],[124,158],[122,162],[120,166],[118,170],[116,174]],'jump starts at the upper step and catches the game rope at X116, as in play');
 assert.equal(retainedColourPixels,0,'static third-plane colour must not tint Joe');
-assert.deepEqual([...walk].sort(),[0,1,2,3]);assert.deepEqual([...rope].sort((a,b)=>a-b),[8,9],'down the ladder in the game ladder poses');
+assert.deepEqual([...walk].sort(),[0,1,2,3]);assert.deepEqual([...rope].sort((a,b)=>a-b),[10,19],'down the rope in the game rope poses');
 assert.deepEqual([...jump],[7],'original NES jump/fall pose');
 let cached=0;for(let i=0;i<s.PS_N*8;i++)if(m.rd(s.ps_tab+2*i)||m.rd(s.ps_tab+2*i+1))cached++;
 assert(cached>=(s.PS_BLOCKS||29),'enemy shifts preserved');assert.equal(m.rd(s.jn_blend_select+1),1,'two-plane game put restored');

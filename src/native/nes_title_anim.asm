@@ -50,13 +50,12 @@ title_walk_shown:
  ld (jn_skip),a
  ld a,23
  ld (jn_rows_count),a
-title_climb:				; down the ladder in the game's ladder poses 8/9
+title_climb:				; down the rope in the game's rope poses 10/19
  ld a,(spr_new+9)
- rrca
- rrca
- rrca
- and 1
- add a,8
+ and 8
+ ld a,10
+ jp z,title_rope_pose
+ ld a,19
 title_rope_pose:
  call title_paint
 title_climb_shown:

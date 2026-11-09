@@ -34,10 +34,16 @@ def main():
             c=palettes[pi][v] if v else 0x0f
             p[x,y]=colors.index(c) if c in colors else 2   # scene reds only shape the roof
     # Lower scene: the NES title nametable as native field tiles, drawn at run
-    # time by the game's own builder (title_scene_draw), with the original
-    # two-column ladder in the shaft (10/11 top, 88/89).
+    # time by the game's own builder (title_scene_draw). As in the first room,
+    # the shaft holds the game's rope (90h cap, 95h) in column 15; Joe hangs on
+    # it at X116 (as in play), so column 14 is cleared to keep him off bricks.
     native=full_native.native_tiles()
     scene=[native[nt[ty*32+tx]] for ty in range(SCENE_ROW0,30) for tx in range(32)]
+    for ty in range(23,30):
+        row=(ty-SCENE_ROW0)*32
+        scene[row+14]=0
+        scene[row+15]=0x90 if ty==23 else 0x95
+        scene[row+16]=0
     # Replace only the original credits; leave the black title layout intact.
     for y in range(90,128):
         for x in range(256):p[x,y]=0
@@ -203,6 +209,6 @@ def main():
     ref=out/'title_90.ppu'
     if ref.exists():
         ppu=ref.read_bytes();assert nt[:512]==ppu[0x2000:0x2200] and at[:32]==ppu[0x23c0:0x23e0]
-    (out/'title.json').write_text(json.dumps(dict(name_rle='D9E9',attribute_rle='DB12',mame_verified=ref.exists(),scaled=False,palette=inks,credits=credits,scene_rows=[20,29],scene='native tiles, game builder',ladder_columns=[15,16],ladder_rows=[23,29]),indent=2)+'\n')
+    (out/'title.json').write_text(json.dumps(dict(name_rle='D9E9',attribute_rle='DB12',mame_verified=ref.exists(),scaled=False,palette=inks,credits=credits,scene_rows=[20,29],scene='native tiles, game builder',rope_column=15,rope_rows=[23,29],shaft_columns=[14,16]),indent=2)+'\n')
 
 if __name__=='__main__':main()

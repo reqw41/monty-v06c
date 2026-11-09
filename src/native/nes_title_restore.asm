@@ -511,7 +511,7 @@ title_jump_shown:
 title_jump_path:
  ; Packed exact path: bits7..6 = horizontal delta /2; bits5..0 = screen L-64.
  db 40,107,109,112,114,116,117,183,120,121,121,122,122,122,122,185
- db 120,119,118,117,115,113,111,109,106,103,100,97,93,89,21,17
+ db 120,119,118,117,115,113,111,109,106,103,100,97,93,89,85,81    ; last two: 2 px left each, onto the game rope at X116
  db 0
 title_paint:
  ld (jn_frame),a
