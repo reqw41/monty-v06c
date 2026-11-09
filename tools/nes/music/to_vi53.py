@@ -347,7 +347,7 @@ def main():
     parser.add_argument('input', type=Path, nargs='?', default=Path('build/nes/music/music.json'))
     parser.add_argument('--output', type=Path, default=Path('src/native/gen'))
     parser.add_argument('--report', type=Path, default=Path('build/nes/music/vi53/conversion.json'))
-    parser.add_argument('--pyramid', action='store_true', help='include the restored pyramid theme in a trial build')
+    parser.add_argument('--no-pyramid', dest='pyramid', action='store_false', help='silent level (no pyramid theme), as fix24..fix32')
     parser.add_argument('--threshold', type=int, default=3)
     parser.add_argument('--no-align', action='store_true', help='quantise to 50 Hz by absolute time (repeats of the original drift apart)')
     parser.add_argument('--no-clean', action='store_true', help='keep driver artefacts (pitch scoops, quiet envelope tails)')

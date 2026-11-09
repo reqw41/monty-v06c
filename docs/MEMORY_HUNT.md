@@ -101,7 +101,7 @@ FEC0..FED0 и EFC8..F000, уже занятые кэшем Джо, устано�
 не 481. Проба: `ps_heap=65B9`, хвост 71 байт, **19/19 сдвигов**,
 после размещения свободно 61 байт кусками.
 
-`to_vi53.py --pyramid` явно включает пробную тему и общий зацикленный
+`to_vi53.py` (с fix33 по умолчанию; `--no-pyramid` — тихий уровень) включает тему и общий зацикленный
 nes_cue. Обычная генерация оставляет тихий уровень и проверенную скорость.
 Клавиша M не возвращается. Титул, сокровищница, SECTION и ZX0-копия титула
 не менялись. nes-music-games проверяет включение темы настоящим стартом уровня.
@@ -156,7 +156,7 @@ BASE=build/mh2-fix32-base B=build/mh2-fix32-final node tools/bench/memory-hunt2.
 python3 tools/bench/memory-hunt2-suite.py build/mh2-fix32-final
 python3 tools/nes/build_splash.py --build build/mh2-fix32-final --output rom/Monty-v06c-mh2-reserve.r0m --quick
 
-python3 tools/nes/music/to_vi53.py --pyramid
+python3 tools/nes/music/to_vi53.py
 sh tools/nes/quick_build.sh build/mh2-fix32-pyramid
 node tools/bench/ps-alloc.js build/mh2-fix32-pyramid
 B=build/mh2-fix32-pyramid node tools/bench/nes-music-games.js
