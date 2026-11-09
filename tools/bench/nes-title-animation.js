@@ -40,14 +40,19 @@ m.onInstr=pc=>{
 };
 for(let f=0;f<1500&&!done;f++){if(f===10)m.keyboard.matrix[2]=2;if(f===100)m.keyboard.matrix[2]=0;m.frame();}
 assert(done&&cinemas===2,'cold and GAME OVER selections both play the cinematic');
-// fix37: the hero's own physics walks Joe down the roof steps to the rope cap (X116), Down takes the rope.
+// fix38: the hero's own physics: Joe runs left down the roof steps, jumps at X170 (NES jump), lands on the
+// floor by the rope cap (not on the rope), takes a few steps to X116, and Down takes the rope.
 const walkPath=tpath.filter(p=>p[2]<2).map(p=>p[0]),ropePath=tpath.filter(p=>p[2]===4);
 assert.equal(walkPath[0],234,'walk starts at the right edge');assert.equal(Math.min(...walkPath),116,'walk ends on the rope cap at X116');
-for(let i=1;i<walkPath.length;i++)assert(walkPath[i]===walkPath[i-1]-2||walkPath[i]===walkPath[i-1],'walks left 2 px a step');
+for(let i=1;i<tpath.length;i++)if(tpath[i][2]<2&&tpath[i-1][2]<2)assert(tpath[i][0]===tpath[i-1][0]-2||tpath[i][0]===tpath[i-1][0],'walks left 2 px a step');
+const jumpAt=tpath.findIndex(p=>p[2]===2),land=tpath.findIndex((p,i)=>i>jumpAt&&p[2]<2);
+assert(jumpAt>0&&tpath[jumpAt-1][0]===170,'jumps from the floor at X170');
+assert(land>jumpAt&&tpath[land][1]===150&&tpath[land][0]>116&&tpath[land][0]<=122,'lands on the floor by the rope cap, then 1-3 steps');
+assert(tpath.slice(jumpAt,land).every(p=>p[2]===2||p[2]===6),'a plain NES jump: no rope catch in the air');
 assert(ropePath.length>40&&ropePath.every(p=>p[0]===116),'down the rope at X116');assert(ropePath[ropePath.length-1][1]>=206,'to the bottom of the scene');
 assert.equal(retainedColourPixels,0,'static third-plane colour must not tint Joe');
 assert.deepEqual([...walk].sort(),[1,2,3,4],'game walking poses');assert(rope.has(10)&&rope.has(19),'down the rope in the game rope poses');
-assert.deepEqual([...jump],[7],'step-down falls in the game fall pose');
+assert.deepEqual([...jump],[7],'jump and step-down falls in the game jump/fall pose');
 let cached=0;for(let i=0;i<s.PS_N*8;i++)if(m.rd(s.ps_tab+2*i)||m.rd(s.ps_tab+2*i+1))cached++;
 assert(cached>=(s.PS_BLOCKS||29),'enemy shifts preserved');assert.equal(m.rd(s.jn_blend_select+1),1,'two-plane game put restored');
 assert.equal(m.rd(s.jn_put_background+1)|m.rd(s.jn_put_background+2)<<8,s.JOE_BACKGROUND);

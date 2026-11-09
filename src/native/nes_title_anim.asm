@@ -1,12 +1,14 @@
-; Title choreography on the game engine (fix37): the hero's own physics (L_9156,
-; hero_state, L_8DE8) walks Joe left down the roof steps to the rope cap (a floor
-; tile) at X116; Down takes the rope and he slides to the bottom of the scene.
+; Title choreography on the game engine (fix38): the hero's own physics (L_9156,
+; hero_state, L_8DE8) runs Joe left down the roof steps, jumps (Left+Fire) exactly at
+; X170, lands on the floor by the rope cap (X122), walks to the cap (a floor tile) at
+; X116; Down takes the rope and he slides to the bottom of the scene.
 ; The scene map lives in the game's own rows (TT_MAP = FIELD_VNT row 12 = VNT row 18,
 ; the same screen lines); field rows above it are cleared. Game effects are muted
 ; (L_AC1A = RET) while the title music owns EF00. Drawing: title_paint.
  IFDEF NES_JOE_BLEND80
 TT_X0 equ 236                 ; start on the upper roof step (exit right at X 239)
-TT_XJ equ 116                 ; on the rope cap (a floor tile): Down climbs onto the rope
+TT_XJ equ 170                 ; jump (with Left) exactly here: over the steps, land on the floor
+TT_XD equ 116                 ; on the rope cap (a floor tile): Down climbs onto the rope
 title_animate:
  push bc
  xor a
@@ -20,14 +22,18 @@ title_scene_ready:
  ld (0x7304),hl
  ld hl,TT_X0*256+124
  ld (0x7300),hl
- ld hl,0x0080                 ; 7078: facing left, 7079: standing
- ld (0x7078),hl
+ ld a,0x80                    ; 7078: facing left (7079 = 0: standing, cleared like 7072..)
+ ld (0x7078),a
  ld a,0xC9                    ; no game effects over the title music (EF00 is not installed yet)
  ld (L_AC1A),a
 title_walk:                   ; 7072/7076/7077/705F are zero: title_resume clears 7000..71FF, cold boot from ram0
  ld c,0x88                    ; left
  ld a,(0x7305)
- cp TT_XJ+1
+ cp TT_XJ
+ jp nz,tw_walk
+ ld c,0xC8                    ; left + jump
+tw_walk:
+ cp TT_XD+1
  jp nc,tw_input
  ld c,0x84                    ; down onto the rope
 tw_input:
