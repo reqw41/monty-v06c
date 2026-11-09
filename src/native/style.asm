@@ -301,7 +301,7 @@ fsm_door:				; 96–C7: гаснут только B0/B7/C0/C7
  jp z,fsm_dark
 fsm_lit:
  ld a,b
- jp nes_color_modes
+ INCLUDE "nes_colors.asm"       ; nes_color_modes, падает в fsm_default
 fsm_default:
  cp 0xE0
  jp c,fsm_regular

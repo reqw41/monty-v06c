@@ -9,14 +9,14 @@ column_image:
  ld a,(room_colors+1)		; темнота: группа 1 = 00
  or a
  jp z,ci_plain
- ld hl,(tile_dst)           ; 8000: серая полоса (столбцы 6–7), A000: 0, C000: колонна (столбцы 2–7)
- ld de,8
+ ld hl,(tile_dst)           ; 8000: 0, A000: полоса (столбцы 6–7), C000: колонна (столбцы 2–7):
+ ld de,8                    ; белая колонна с оранжевой полосой (A000+C000 = слот 3, было 8000 — серый слот 5)
  ld b,e
 ci_row:
- ld (hl),3
+ ld (hl),0
  push hl
  add hl,de
- ld (hl),0
+ ld (hl),3
  add hl,de
  ld (hl),0x3F
  pop hl

@@ -880,8 +880,7 @@ hs_8B0E:
 		call	L_8B27
 		ENDIF
 		ld	a,4
-		ld	bc,0
-		jp	hs_8992
+		jp	ncl_bc0
 hs_8B57:	cp	0x95
 		jp	nz,hs_8C39
 hs_8B5B:	call	h8b44
@@ -1184,7 +1183,7 @@ game_over:	ld	a,6
 		; Shared white slot 1; freeze the underlying scene while the message waits.
 		ld hl,game_over_txt
  IFDEF RUS
-		ld de,0x01E9		; 13 букв по центру
+		ld de,0x01E9		; ИГРА ОКОНЧЕНА — 13 знакомест по центру
  ELSE
 		ld de,0x01EB
  ENDIF

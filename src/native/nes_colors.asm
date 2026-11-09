@@ -1,4 +1,4 @@
-; Permanent gap after the speaker helper, before the permanent climb helpers at FE30.
+; In the code chain (FE00..FE2F is sprite slot 5's background buffer).
  IFDEF NES_STABLE_COLORS
 nes_conveyor_mode equ fsm_white
  ELSE
@@ -24,6 +24,4 @@ nes_color_modes:
  cp 3
  jp c,nes_conveyor_mode
  ld a,b                   ; restore the tile for ordinary colour selection
- jp fsm_default
-nes_color_modes_end:
- ASSERT $ <= 0xFE30
+nes_color_modes_end:                 ; falls through into fsm_default (style.asm)

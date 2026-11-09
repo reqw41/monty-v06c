@@ -4,7 +4,7 @@ main_loop:
  call joe_step_gate
 L_A5D1:
  IFDEF NES_FULL
- call cheat_step
+ call mute_step             ; клавиша M — звук, затем читы
  ENDIF
 		call joe_clock
 		xor	a

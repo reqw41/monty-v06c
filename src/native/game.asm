@@ -242,6 +242,13 @@ isr0:		ld	hl,(frames)
 		call nes_tick
 isr2:
 		ENDIF
+ IFDEF NES_FULL
+; Ровный темп (fix35): событие шага логики в 3 кадрах из 4 — 37,5 шага/с во всех комнатах,
+; включая самые тяжёлые (черепа: 37,5–38); лёгкие комнаты больше не идут быстрее.
+ ld a,(frames)
+ and 3
+ jp z,isr_event_done
+ ENDIF
 		ld	hl,nmi_pend
 		ld	a,(hl)
 		cp	8
@@ -414,6 +421,7 @@ unit_fw:	push	af			; tools/unit.js: ожидание кадра = обработ
  INCLUDE "gen/cart_full.asm"
  INCLUDE "nes_physics_data.asm"
  INCLUDE "nes_title_restore.asm"
+ INCLUDE "nes_mute.asm"
  INCLUDE "gen/rooms_full.asm"
  ELSE
  INCLUDE "gen/cart.asm"
@@ -535,9 +543,7 @@ sprite_sources_end:
  IFDEF NES_STYLE
  INCLUDE "gen/title.asm"
  IFDEF NES_FULL
- INCLUDE "gen/font_nes_extra.asm"
- INCLUDE "nes_footstep.asm"
- INCLUDE "nes_colors.asm"
+ INCLUDE "gen/font_nes_extra.asm"   ; FDD0..FDFC: FE00..FE2F — буфер фона спрайта 5
  IFDEF NES_STABLE_COLORS
  INCLUDE "nes_object_colors.asm"
  INCLUDE "nes_score.asm"

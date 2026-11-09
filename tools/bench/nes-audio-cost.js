@@ -3,7 +3,7 @@ const path=require('path');process.chdir(path.resolve(__dirname,'../..'));
 const E=require('../vec_emu'),L=require('./logic-profile');
 const B=process.env.B||'build/nes-blend80-sp',s=L.symbols(B);
 for(const scene of ['title','game']){
- const m=E.mk(B+'/monty.bin'),p=L.profiler(m,s),c=L.calls(m,s,p,['nes_poll','nes_tick','nes_prepare_core','joe_footstep']);
+ const m=E.mk(B+'/monty.bin'),p=L.profiler(m,s),c=L.calls(m,s,p,['nes_poll','nes_tick','nes_prepare_core','nes_step_sfx']);
  // The IRQ resets PC0 with XOR A / OUT 00 before testing kb_req.
  const reset=[];
  for(let a=s.isr;a<s.isr+32;a++)if(m.rd(a)===0xAF&&m.rd(a+1)===0xD3&&m.rd(a+2)===0){reset.push(a,a+1);break;}
@@ -29,9 +29,9 @@ for(const scene of ['title','game']){
  for(const [name,z]of Object.entries(stats)){
   z.perFrame=Math.round(z.cycles/1000);
   // External entries are CALLs; recursive tail jumps are one tracked call.
-  if(name!=='nes_prepare_core'&&name!=='joe_footstep')total+=z.cycles+24*z.count;
+  if(name!=='nes_prepare_core'&&name!=='nes_step_sfx')total+=z.cycles+24*z.count;
  }
- const foot=stats.joe_footstep||{cycles:0,count:0};
+ const foot=stats.nes_step_sfx||{cycles:0,count:0};
  const speaker=resetCycles+foot.cycles+24*foot.count;
  console.log(JSON.stringify({B,scene,frames:1000,stats,playerCyclesPerFrame:Math.round(total/1000),speakerResetCyclesPerFrame:resetCycles/1000,speakerCyclesPerFrame:speaker/1000,totalSoundCyclesPerFrame:(total+speaker)/1000,cpuPercent:100*(total+speaker)/(1000*59904)}));
 }

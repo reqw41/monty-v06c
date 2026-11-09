@@ -490,9 +490,7 @@ p8f_kill:
 		ld	a,(0x7000)
 		and	0xF7
 		ld	(0x7000),a
-		ld	c,0
-		ld	e,0
-		jp	L_8DA2
+		jp	p9e_die
 		IFDEF NES_FULL
 p8f_snake:	ld	c,0			; (71B0) — левая верхняя клетка змеи
 		jp	p8f_kill
@@ -658,7 +656,7 @@ p9ey:		pop	hl			; без меча — гибель героя
 		ld	a,(0x71A6)
 		cp	5
 		call	c,L_92A2
-		ld	c,0
+p9e_die:	ld	c,0
 		ld	e,0
 		jp	L_8DA2
 p9ex:		pop	hl

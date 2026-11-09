@@ -39,6 +39,7 @@ fa_set:
 		ld	a,(0x7096)
 		ld	(belt_frame),a
  ENDIF
+fa_dirty:			; общий хвост (pace_belt_tick)
 		ld	a,(video_dirty)
 		or	DIRTY_FIRE+DIRTY_BELT
 		ld	(video_dirty),a

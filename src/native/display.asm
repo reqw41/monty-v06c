@@ -235,11 +235,7 @@ dp4:
 		ld	(dr_ex),a
 dp_no_cells:	call	crit_plan		; группы и порядок — тоже до ожидания
 		ld	hl,cr_list
-		ld	(cr_read),hl
- ; Publish the atomic list for the top-of-frame IRQ window.
- ld a,1
- ld (crit_pend),a
- ret
+ jp ck_defer                ; (cr_read) := HL, crit_pend := 1 — опубликовать список для IRQ
 
 ; ex_build: ex_r — прямоугольники (r0, r1, c0, c1) прежних мест нарисованных отмеченных спрайтов, ex_n штук
 ex_build:

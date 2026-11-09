@@ -3053,12 +3053,7 @@ band_actor:	ld	a,b
 		ld	(de),a
 		inc	de
 ba_draw:	ld	a,3
-		ld	(de),a
-		inc	de
-		ld	a,b
-		ld	(de),a
-		inc	de
-		ret
+		jp	be_store
 
 band_emit_one:	ld	(gp_a),a
 		ld	a,b
@@ -3078,7 +3073,7 @@ band_emit_one:	ld	(gp_a),a
 		or	a
 		ret	z
 be_write:	ld	a,(gp_a)
-		ld	(de),a
+be_store:	ld	(de),a
 		inc	de
 		ld	a,b
 		ld	(de),a

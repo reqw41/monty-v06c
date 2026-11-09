@@ -37,7 +37,12 @@ joe_clock:
  and 3
  ld (hl),a
  IFDEF NES_FULL
- call joe_footstep
+; Grounded walking phases 0/2 plant a foot. A wall cancels dX (бывш. joe_footstep в FE06).
+ rrca
+ jp c,jc_end
+ ld a,(0x7076)
+ or a
+ call nz,nes_step_sfx      ; шумовой щелчок
  ENDIF
  jp jc_end
  IFDEF NES_FULL

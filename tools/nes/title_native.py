@@ -146,14 +146,15 @@ def main():
           f'NES_TITLE_TEXT_SLOT equ {credit_ink}','font_tab:']
     for char,tile in glyphs:
         font.append(' db "'+char+'",'+','.join(map(str,rows(tile))))
+    font.append(' db " ",0,0,0,0,0,0,0,0   ; пробел закрашивает клетку')
     font.append(' db 255 ; continue at font_extra')
     (ROOT/'src/native/gen/font_nes.asm').write_text('\n'.join(font)+'\n')
-    extra=['; The five GAME OVER glyphs occupy permanent high RAM.',
-           ' ORG 0xFDD0','font_extra:']
+    # FE00..FE2F is sprite slot 5's background buffer (page FE): the five glyphs
+    # must end below FE00; the blank glyph (space) lives in font_tab.
+    extra=['; The five GAME OVER glyphs occupy permanent high RAM below sprite slot 5.',' ORG 0xFDD0','font_extra:']
     for ch in ('KOHEP' if RUS else 'GAMOR'):
         extra.append(' db "'+ch+'",'+','.join(map(str,rows(alphabet[ch]))))
-    extra.append(' db 0,0,0,0,0,0,0,0,0')
-    extra.append(' ASSERT $ == 0xFE06')
+    extra.append(' ASSERT $ <= 0xFE00')
     (ROOT/'src/native/gen/font_nes_extra.asm').write_text('\n'.join(extra)+'\n')
     out=ROOT/'build/nes_title';out.mkdir(parents=True,exist_ok=True)
     (out/'title_screen_full.raw').write_bytes(screen)

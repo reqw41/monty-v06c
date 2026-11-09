@@ -30,6 +30,4 @@ nph_dead:
  ld bc,0
  ld e,c
  call L_8DA2
- ld a,1
- ld (jn_fire),a
- ret
+ jp js_hot

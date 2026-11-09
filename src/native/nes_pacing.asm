@@ -89,10 +89,7 @@ pace_belt_tick:
  inc a
  and 3
  ld (hl),a
- ld a,(video_dirty)
- or DIRTY_FIRE+DIRTY_BELT
- ld (video_dirty),a
- ret
+ jp fa_dirty
 
 ; Stable priority key: Joe keeps his raster deadline; overdue actors precede
 ; fresh actors, which keep their original Y order.

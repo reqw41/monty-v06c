@@ -49,7 +49,9 @@ ncl_ladder_move:
  jp ncl_ladder_exit
 ncl_ladder_exit:
  call nphys_align_y
+ncl_zero:
  xor a
+ncl_bc0:                    ; общий хвост: hs_8B0E, ncl_rope_detach
  ld bc,0
  jp hs_8992
 hs_8D02:
@@ -127,9 +129,7 @@ ncl_rope_ordinary:
  xor a
 ncl_rope_detach:
  ld (0x7072),a
- xor a
- ld bc,0
- jp hs_8992
+ jp ncl_zero
 hs_8D14:
  ld a,(0x705F)
  and 0x20
