@@ -34,10 +34,11 @@ score_blit_zero_row:
  add a,a
  jp m,da_blit_last_advance
  jp da_blit_first_advance
-; ms_keys (nes_mute.asm): A = только что нажатые M (20h, ряд 5) и ВК (04h, ряд 0), Z — нет.
+; ms_keys (nes_mute.asm): A = только что нажатые УС (40h, порт 01, как в Bruce Lee) и ВК (04h, ряд 0), Z — нет.
 ms_keys:
- ld a,(kbmat+5)
- and 0x20
+ in a,(0x01)                ; УС — бит 6 порта C (0 = нажата); верх порта C всегда на вводе (8Ah/88h)
+ cpl
+ and 0x40
  ld b,a
  ld a,(kbmat)
  and 4
