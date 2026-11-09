@@ -29,7 +29,7 @@ for(const room of scenes)for(const moving of (process.env.MOVING?[process.env.MO
    if(steps===80){m.wr(0x71a7,room[0]);m.wr(0x71a8,room[1]);m.wr(0x705f,0);for(let a=0x70c0;a<0x7186;a++)m.wr(a,0);const c=m.cpu;c.sp-=2;m.wr(c.sp,pc&255);m.wr(c.sp+1,pc>>8);c.pc=s.L_A067;return;}
    if(steps>80){
     assert.deepEqual([m.rd(0x71a7),m.rd(0x71a8)],room,'room must stay resident');
-    const phase=(steps-81)%128;let x;
+    const phase=(steps-81+(+process.env.XOFF||0))%128;/* XOFF — фаза хода Джо (худший случай 7,2: XOFF=16/72/80) */let x;
     if(live){
      assert.deepEqual(room,[1,9],'live platform fixture is specific to room 1,9');
      if(steps===81)for(const [a,v]of [[0x7300,groundY],[0x7304,groundY+3],[0x7301,220],[0x7305,220],[0x7303,6],[0x7307,11],[0x7079,0],[0x7076,0],[0x7077,0],[0x705f,0]])m.wr(a,v);
