@@ -14,6 +14,22 @@ import full_native
 # use the same slots; slot 4 (snake green in the game) holds Revenge's 17h.
 GAME_PALETTE=[0,255,4,102,None,173,160,103]
 SCENE_ROW0=20   # rows 20..29: a field fragment drawn by the game's tile builder
+import os
+RUS=os.environ.get('RUS')=='1'   # русская версия: титры и ИГРА ОКОНЧЕНА
+# Кириллица в стиле букв NES (7x7, жирная); похожие буквы берутся из CHR NES.
+CYR_LATIN={'А':'A','В':'B','Е':'E','К':'K','М':'M','Н':'H','О':'O','Р':'P','С':'C','Т':'T','Х':'X'}
+CYR={'Б':['#######','###....','######.','###.###','###.###','###.###','######.'],
+     'Г':['#######','#######','###....','###....','###....','###....','###....'],
+     'Д':['.#####.','.##.##.','.##.##.','.##.##.','.##.##.','#######','##...##'],
+     'И':['###..##','###.###','#######','#######','#######','###.###','##..###'],
+     'Л':['..#####','.######','.##.###','.##.###','.##.###','###.###','##..###'],
+     'Ц':['###.##.','###.##.','###.##.','###.##.','###.##.','#######','#######','.....##'],
+     'Ч':['###.###','###.###','###.###','#######','.######','....###','....###'],
+     'Ы':['##...##','##...##','####.##','##.#.##','##.#.##','##.#.##','####.##'],
+     'Я':['#######','###.###','###.###','#######','..#####','.##.###','##..###']}
+def cyr_rows(ch):
+    rows=CYR[ch]+['']*(8-len(CYR[ch]))
+    return [sum(128>>x for x,v in enumerate(row) if v=='#') for row in rows]
 
 def main():
     r=ROM((ROOT/'orig/nes/monty.nes').read_bytes())
@@ -50,6 +66,11 @@ def main():
     alphabet={chr(ord('A')+i):0x6c+i for i in range(26)}
     alphabet.update({str(i):0x62+i for i in range(10)})
     credits=['© UTOPIA SOFTWARE 1984','VECTOR 06C VERSION BY','BORIS LIKHACHEV 2026']
+    if RUS:credits=['© UTOPIA SOFTWARE 1984','ВЕРСИЯ ДЛЯ ВЕКТОРА 06Ц','БОРИС ЛИХАЧЕВ 2026']
+    def glyph(ch):
+        if ch in CYR:return cyr_rows(ch)
+        ch=CYR_LATIN.get(ch,ch)
+        return [sum(128>>x for x,v in enumerate(row) if v) for row in r.tiles[256+alphabet[ch]]]
     # A 9x9 ring and a clean 3x5 C, aligned with the 7-row NES letters.
     mark_x=(256-(12+8*len('UTOPIA SOFTWARE 1984')))//2
     mark_y=95
@@ -62,7 +83,7 @@ def main():
         x0=mark_x+12 if y==96 else (256-8*len(line))//2
         for i,ch in enumerate(line):
             if ch==' ':continue
-            rows=[sum(128>>x for x,v in enumerate(row) if v) for row in r.tiles[256+alphabet[ch]]]
+            rows=glyph(ch)
             for yy,bits in enumerate(rows):
                 for xx in range(8):
                     if bits&(128>>xx):p[x0+i*8+xx,y+yy]=credit_ink
@@ -116,7 +137,10 @@ def main():
     # E and V here, G A M O R in font_extra.
     glyphs=[('E',0x70),('V',0x81)]
     def rows(tile):
+        if isinstance(tile,str):return cyr_rows(tile)
         return [sum(128>>x for x,v in enumerate(row) if v) for row in r.tiles[256+tile]]
+    # ИГРА ОКОНЧЕНА: коды A K O H E P — буквы NES, i g h — кириллица И Г Ч
+    if RUS:glyphs=[('A',alphabet['A']),('i','И'),('g','Г'),('h','Ч')]
     font=['; NES title-credit CHR glyphs for GAME OVER.',
           f'NES_TITLE_CREDITS_INK equ {encode(RGB[palettes[2][2]])}',
           f'NES_TITLE_TEXT_SLOT equ {credit_ink}','font_tab:']
@@ -126,7 +150,7 @@ def main():
     (ROOT/'src/native/gen/font_nes.asm').write_text('\n'.join(font)+'\n')
     extra=['; The five GAME OVER glyphs occupy permanent high RAM.',
            ' ORG 0xFDD0','font_extra:']
-    for ch in 'GAMOR':
+    for ch in ('KOHEP' if RUS else 'GAMOR'):
         extra.append(' db "'+ch+'",'+','.join(map(str,rows(alphabet[ch]))))
     extra.append(' db 0,0,0,0,0,0,0,0,0')
     extra.append(' ASSERT $ == 0xFE06')

@@ -44,7 +44,40 @@ fa_set:
 		ld	(video_dirty),a
 		ret
 
-; L_A8D6 LASERS: таймер 70A8 (60h..1); 60h — включить обе группы (1D, 1C), 48h / 30h — выключить
+; L_A8D6 LASERS. NES_FULL: таймеры NES ($BD00 / $BCCF, раз в игровой кадр = наш шаг):
+; горизонтальные платформы E8 (7000 бит 6 = нет опоры, группа 1D) — 109 кадров на месте, 20 нет;
+; вертикальные лазеры E0 (7000 бит 5 = горят, группа 1C) — 92 горят, 92 нет. MSX: общий таймер 70A8 (60h..1).
+ IFDEF NES_FULL
+L_A8D6:
+proc_A8D6:
+ ld hl,0x70A8
+ ld bc,0x4000+20
+ ld de,109*256+0x1D
+ call pl_tick
+ ld hl,pl_vcount
+ ld bc,0x2000+92
+ ld de,92*256+0x1C
+; HL — счётчик, B — бит 7000, C — длительность с битом, D — без бита, E — группа цвета
+pl_tick:
+ dec (hl)
+ ret nz
+ ld a,(0x7000)
+ xor b
+ ld (0x7000),a
+ and b
+ ld (hl),d
+ jp z,pl_off
+ ld (hl),c
+ ld hl,C_ABCD
+ jp pl_w
+pl_off:
+ ld hl,C_A92E
+pl_w:
+ ld c,1
+ jp room_color_write
+pl_vcount: db 1
+ ELSE
+; L_A8D6 LASERS (MSX): таймер 70A8 (60h..1); 60h — включить обе группы (1D, 1C), 48h / 30h — выключить
 L_A8D6:
 proc_A8D6:	ld	a,(0x70A8)
 		dec	a
@@ -84,6 +117,8 @@ a8d5:		cp	0x30
 a8d6:		ld	e,0x1C
 		ld	c,1
 		jp	room_color_write
+
+ ENDIF
 
 ; frame_handler (A9B3): раз в кадр — 919A (70B1 бит 3), A60B (705F бит 3), 8EB0 (70B1 бит 4), счётчики
 ; 7097, 7047, смена банка анимации (7011), 7207 -= 1, шаг звука

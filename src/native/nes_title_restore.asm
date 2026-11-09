@@ -557,6 +557,11 @@ title_wait:
  ENDIF
 title_warm_palette:
  INCLUDE "gen/title_palette.asm"
-game_over_txt: db "GAME OVER",0
+game_over_txt:
+ IFDEF RUS
+ db "igPA OKOHhEHA",0       ; ИГРА ОКОНЧЕНА: i g h — И Г Ч (gen/font_nes.asm)
+ ELSE
+ db "GAME OVER",0
+ ENDIF
  INCLUDE "nes_cheats.asm"
  INCLUDE "gen/title_packed.asm"

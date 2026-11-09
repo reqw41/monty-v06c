@@ -1183,7 +1183,11 @@ game_over:	ld	a,6
 		IFDEF NES_FULL
 		; Shared white slot 1; freeze the underlying scene while the message waits.
 		ld hl,game_over_txt
+ IFDEF RUS
+		ld de,0x01E9		; 13 букв по центру
+ ELSE
 		ld de,0x01EB
+ ENDIF
 		call txt_draw
 		ELSE
 		ld	bc,0x0109
