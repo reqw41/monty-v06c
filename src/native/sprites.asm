@@ -2363,46 +2363,57 @@ cover_mask:	ld	(cover_op+1),a
 		ld	b,(hl)
 		inc	l
 		ld	c,(hl)
-cover_row:
+
+		ld	a,d
  IFDEF NES_FULL
- push bc
- ld c,b
- ld a,d
- call nf_row_addr
- pop bc
- ld a,h
- add a,(PND-VNT)/256
- ld h,a
- ELSE
-	ld	a,d
+		add	a,2			; same row origin as nf_row_addr
+ ENDIF
 		rrca
 		rrca
 		rrca
 		ld	l,a
+ IFDEF NES_FULL
+		and	3
+		add	a,(PND-64)/256
+ ELSE
 		and	31
 		add	a,PND/256
+ ENDIF
 		ld	h,a
 		ld	a,l
 		and	0xE0
 		or	b
 		ld	l,a
- ENDIF
-		push	bc
+
+; Compute the first PND address once, then advance by 32 bytes per row.
+; INC L may wrap after column 31: back up to the last cell before adding
+; 33-width, so ADD supplies the carry into H even at a page boundary.
+		ld	a,e
+		sub	d
+		inc	a
+		ld	d,a			; remaining rows
 		ld	a,c
 		sub	b
 		inc	a
-		ld	b,a
+		ld	c,a			; width
+		ld	a,33
+		sub	c
+		ld	e,a			; last cell -> next row start
+cover_row:	ld	b,c
 cover_col:	ld	a,(hl)
 cover_op:	or	0
 		ld	(hl),a
 		inc	l
 		dec	b
 		jp	nz,cover_col
-		pop	bc
-		ld	a,d
-		inc	d
-		cp	e
-		jp	c,cover_row
+		dec	l
+		ld	a,l
+		add	a,e
+		ld	l,a
+		jp	nc,cover_next
+		inc	h
+cover_next:	dec	d
+		jp	nz,cover_row
 cover_end:	pop	hl
 		pop	de
 		pop	bc
